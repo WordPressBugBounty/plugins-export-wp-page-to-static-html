@@ -40,9 +40,10 @@ You can buy the premium from [here](https://myrecorp.com/product/export-wp-pages
 
 
 = More plugins you may like =
+* [Different Menu in Different Pages](https://wordpress.org/plugins/different-menus-in-different-pages/)
+* [Advanced Menu Icons](https://wordpress.org/plugins/advanced-menu-icons/?r=export-html&clk=wp)
 * [AI Content Writing Assistant (Content Writer, ChatGPT, Image Generator) All in One](https://wordpress.org/plugins/ai-content-writing-assistant/)
 https://www.youtube.com/watch?v=HvOkfBs7qss
-* [Different Menu in Different Pages](https://wordpress.org/plugins/different-menus-in-different-pages/)
 * [Pipe ReCaptcha](https://wordpress.org/plugins/pipe-recaptcha/)
 * [Divi MailChimp Extension](https://wordpress.org/plugins/recorp-divi-mailchimp-extension/?clk=wp)
 * [Menu import & export pro](https://myrecorp.com/product/menu-import-and-export-pro/?r=export-html&clk=wp)
