@@ -130,6 +130,20 @@
 
                 </div>
 
+                <div class="p-t-10">
+                    <label class="checkbox-container" for="image_to_webp" style="filter: blur(.5px);">Compress images size (image to webp)                     
+                        <input type="checkbox" id="image_to_webp" name="image_to_webp">
+                        <span class="checkmark"></span>
+                    </label><span style="color: red;"> (Pro feature)</span>   
+
+                    <div class="image_to_webp_subsection export_html_sub_settings" style="display: none;">
+                        <div class="brightness-box">
+                            <input type="range" id="image_quality" min="10" max="100" value="80">
+                        </div>
+                        <input type="text" id="image_quality_input" value="80" style="width: 45px;" onkeyup="if (/\D/g.test(this.value)) this.value = this.value.replace(/\D/g,'')">
+                    </div>
+                </div>
+
 
                 <div class="p-t-10">
                     <label class="checkbox-container blur ftp_upload_checkbox <?php

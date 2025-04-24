@@ -42,9 +42,18 @@
     <div class="wrapper">
         <div class="card card-4">
             <div class="card-body">
-                <h2 class="title"><?php esc_html_e('Export WP Pages to Static HTML/CSS', 'export-wp-page-to-static-html'); ?><span class="badge badge-dark version">v<?php echo esc_html(EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION); ?></span></h2>
+                <h2 class="title"><?php esc_html_e('Export WP Pages to Static HTML & PDF', 'export-wp-page-to-static-html'); ?><span class="badge badge-dark version">v<?php echo esc_html(EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION); ?></span></h2>
                 <div class="error-notice">
-                    <p><?php esc_html_e('Every site environment is unique, if your site failed to export to html then <a href="https://myrecorp.com/contact-us/">contact us.</a>. We\'ll try to help you as soon as possible.', 'export-wp-page-to-static-html'); ?></p>
+                    <p>
+                        <?php
+                            $message = sprintf(
+                                esc_html__('Every site environment is unique. If your site failed to export to HTML, please %1$scontact us%2$s. We\'ll try to help you as soon as possible.', 'export-wp-page-to-static-html'),
+                                '<a href="https://myrecorp.com/contact-us/">',
+                                '</a>'
+                            );
+                            echo '<p>' . $message . '</p>';
+                        ?>
+                    </p>
                 </div>
 
                 <?php if (!extension_loaded('zip')) {
@@ -71,7 +80,11 @@
                                     <a class="nav-link" data-toggle="tab" href="#tabs-3" role="tab">All Exported Files</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link" data-toggle="tab" href="#tabs-6" role="tab">PDF Settings</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link" data-toggle="tab" href="#tabs-4" role="tab">FTP Settings <span class="tab_ftp_status <?php echo esc_attr($ftp_status); ?>"></span></a>
+                                </li>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" data-toggle="tab" href="#tabs-5" role="tab">Advanced Settings</a>
@@ -89,6 +102,9 @@
 
                                 <!--Tab-4 FTP Settings -->
                                 <?php include 'Tabs/ftp-settings.php'; ?>
+
+                                <!--Tab-6 PDF Settings -->
+                                <?php include 'Tabs/pdf-settings.php'; ?>
 
                                 <!--Tab-5 Advanced settings -->
                                 <?php include 'Tabs/advanced-settings.php'; ?>

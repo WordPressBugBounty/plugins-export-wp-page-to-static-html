@@ -199,6 +199,12 @@ class Export_Wp_Page_To_Static_Html_Admin {
         require 'includes/url_to_absolute/url_to_absolute.php';
         require 'includes/extractors.php';
 
+                /**
+         * The class responsible for defining all pdf functions and methods
+         */
+        require 'includes/generate-pdf.php';
+    
+
     }
 
 

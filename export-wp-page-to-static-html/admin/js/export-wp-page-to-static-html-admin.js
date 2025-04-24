@@ -263,6 +263,50 @@ $(document).on("click", ".btn_save_settings", function(e){
      });
 });
 
+$(document).on("click", ".btn_save_pdf_settings", function(e){
+    e.preventDefault();
+
+    var userRoles = $('[name*="user_roles_for_pdf"]:checked');
+
+    var userRolesArray = [];
+    $(userRoles).each(function (i, v) {
+		userRolesArray.push($(v).val());
+	})
+     var datas = {
+    	'action': 'savePdfSettings',
+    	'rc_nonce': rcewpp.nonce,
+		'userRolesArray': userRolesArray
+     };
+
+     $.ajax({
+         url: rcewpp.ajax_url,
+         data: datas,
+         type: 'post',
+         dataType: 'json',
+
+         beforeSend: function(){
+			$('.btn_save_pdf_settings .spinner_x').removeClass('hide_spin');
+         },
+         success: function(r){
+            if(r.success){
+                $('.badge_save_settings').show();
+				$('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
+
+                setTimeout(function(){
+					$('.badge_save_settings').hide();
+				}, 5000)
+            } else {
+                console.log('Something went wrong, please try again!');
+				$('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
+            }
+         },
+         error: function(){
+            console.log('Something went wrong, please try again!');
+			 $('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
+         }
+     });
+});
+
 $(document).on("click", ".cancel_rc_html_export_process", function(e){
 	e.preventDefault();
 
@@ -301,3 +345,7 @@ $(document).on("click", ".cancel_rc_html_export_process", function(e){
 	});
 });
 
+
+$(document).on("input", "#image_quality, #custom_image_quality", function(e){
+	$(this).parent().siblings('input').val($(this).val())
+});

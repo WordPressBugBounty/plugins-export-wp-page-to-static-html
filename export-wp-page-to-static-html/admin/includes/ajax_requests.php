@@ -23,7 +23,9 @@ class EWPPTH_AjaxRequests
         include 'AjaxRequests/deleteExportedZipFile.php';
         include 'AjaxRequests/cancelRcExportProcess.php';
         include 'AjaxRequests/saveAdvancedSettings.php';
+        include 'AjaxRequests/savePdfSettings.php';
         include 'AjaxRequests/submit-review.php';
+        include 'AjaxRequests/increament-pdf-count.php';
     }
 
     public function initAjaxRequestsClass()
@@ -36,7 +38,9 @@ class EWPPTH_AjaxRequests
         new deleteExportedZipFile\initAjax($this);
         new cancelRcExportProcess\initAjax($this);
         new saveAdvancedSettings\initAjax($this);
+        new savePdfSettings\initAjax($this);
         new submitReview\initAjax($this);
+        new increamentPdfCount\initAjax($this);
 
     }
 

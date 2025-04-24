@@ -1,85 +1,81 @@
-=== Export WP Page to Static HTML/CSS ===
-Contributors: recorp
-Tags: HTML, wp to html, static website generator, export, page to html, static, css, wp page, page, wp, save as html
-Requires at least: 4.1
-Tested up to: 6.6
-Requires PHP: 5.4
-Stable tag: 3.3.0
-License: GPL-3.0-or-later
-License URI: https://www.gnu.org/licenses/gpl-3.0.html
+=== Export WP Page to Static HTML & PDF ===
+Contributors: recorp  
+Tags: export, static, html, pdf, performance
+Requires at least: 4.1  
+Tested up to: 6.8 
+Stable tag: 4.0.0  
+License: GPLv2 or later  
+License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
-Export WP page to static html and css in just one click. It will help you to create static website very easily. It saves quite clean codes and files.
+Instantly export any WP page to responsive static HTML/CSS and print-ready PDF in just one click.
 
 
 == Description ==
-Export WP page to static HTML/CSS plugin is s static html site or page generator thats help you to convert your wordpress site or pages to static html website and you can host it on your server, from a static html hosting provider or from a cdn.
+Export WP Page to Static HTML & PDF is the ultimate **page-exporter** for WordPress. Instantly convert any page or post into **lightning-fast static HTML/CSS** and a **print-ready PDF** — all with one click or a simple shortcode.  
+  
+- **Blazing Performance**: Eliminate database queries by serving static HTML/CSS.  
+- **Print-Ready PDF**: Generate customizable, responsive PDFs with headers, footers, watermarks, and page numbers.  
+- **Shortcode Control**: Use `[generate_pdf_button]` to place a “Generate PDF” button anywhere—no coding required.  
+- **Role-Based Access**: Show the "Generate PDF" button only to selected WP roles.   
 
-It will magically improves your site performance and reduce any security risk because it removes database connection from your server.
+Whether you need **offline backups**, **secure page delivery**, or **easy PDF handouts**, this plugin has you covered.
 
-## Features
+== Features ==
+* **Static HTML/CSS Export** – One-click conversion of pages & posts to fully responsive HTML/CSS.  
+* **PDF Generator** – Create print-ready PDFs with customizable templates.  
+* **Shortcodes** – `[generate_pdf_button]` & `[export_html_button]` for flexible placement.  
+* **Role-Based Controls** – Only selected roles see the "Generate PDF" buttons.  
 
-* Export html page in one click.
-* Lite weight version.
-* Easy layout.
-* Very easy to use.
+== Installation ==
+1. Upload the folder `export-wp-page-static-html-pdf` to `/wp-content/plugins/`.  
+2. Activate **Export WP Page to Static HTML & PDF** from the **Plugins** screen.  
+3. Go to **Settings → Static HTML & PDF Export** to configure:  
+   - **User Roles**: Select which WordPress roles can see the export buttons.  
+   - **PDF Template**: Customize headers, footers, watermarks, fonts, and page numbers.  
+   - **Export Limits**: Set daily PDF export caps and notification settings.  
+4. Place the export buttons:  
+   - **Admin Bar**: Auto-injects “Generate PDF” and “Export HTML” into the admin bar for allowed users.  
+   - **Shortcode**: Add `[generate_pdf_button]` or `[export_html_button]` in any post, page, or widget.
 
-## Pro Features
-* Export full site as html with related pages linking
-* Make full offline site.
-* Export external url as html.
-* "Login as" feature. It will help you to extract pages with any user role view.
-* Export posts.
-* Export multiple posts or pages in same time.
-* Upload exported files to ftp server
-* Notification feature
-* Background task system. You will not have to stay on the settings page while exporting.
-* Export page or post automatically after publishing
-* .... and more
-= Premium version =
-You can buy the premium from [here](https://myrecorp.com/product/export-wp-pages-to-static-html-css-pro/?clk=wp&a=readme)
 
 
 = More plugins you may like =
-* [Different Menu in Different Pages](https://wordpress.org/plugins/different-menus-in-different-pages/)
-* [Advanced Menu Icons](https://wordpress.org/plugins/advanced-menu-icons/?r=export-html&clk=wp)
 * [AI Content Writing Assistant (Content Writer, ChatGPT, Image Generator) All in One](https://wordpress.org/plugins/ai-content-writing-assistant/)
 https://www.youtube.com/watch?v=HvOkfBs7qss
+* [Different Menu in Different Pages](https://wordpress.org/plugins/different-menus-in-different-pages/)
 * [Pipe ReCaptcha](https://wordpress.org/plugins/pipe-recaptcha/)
 * [Divi MailChimp Extension](https://wordpress.org/plugins/recorp-divi-mailchimp-extension/?clk=wp)
 * [Menu import & export pro](https://myrecorp.com/product/menu-import-and-export-pro/?r=export-html&clk=wp)
 
 == Screenshots ==
 1. Default settings page layout of the plugin.
+2. PDF generation button in the admin bar of a post.
 
 
-== Instalation: ==
-
-Step 1: Activate the plugin.
-Step2: Go to plugins settings page with: Dashboard > Settings > Export WP Pages to Static HTML/CSS
-Step3: Select a page which you want to export as html.
-Step4: Click on Export html button.
-Step5: After successfully loaded click on "Download the file" button.
+== Shortcodes ==
+`[generate_pdf_button]`  
+: Inserts a “Generate PDF” button. Visible only to allowed roles.  
+`[export_html_button]`  
+: Inserts an “Export HTML” button. Visible only to allowed roles.
 
 == Frequently Asked Questions ==
+= How do I control which users see the export buttons? =  
+Go to **Settings → Static HTML & PDF Export** and select the user roles under **Role-Based Access**.  
 
-= How do I install the plugin? =
+= What happens when the daily limit is reached? =  
+Admin or Users see a friendly popup informing them they have reached their export limit. The button is disabled until the next 24-hour window.  
 
-**Normal installation**
-
-1. Download the export-wp-page-to-static-html.zip file to your computer.
-2. Unzip the file.
-3. Upload the `export-wp-page-to-static-html` directory to your `/wp-content/plugins/` directory.
-4. Activate the plugin through the 'Plugins' menu in WordPress. After activating the plugin you will auto redirect to the plugin’s settings page.
-
-= Where can I get support? =
-
-If you get stuck, you can ask for help in the [Export WP Pages to Static HTML/CSS][support forum].
-
-Or you can contact us on our site [https://myrecorp.com](https://myrecorp.com)
-
-
+= Will this work with page builders like Elementor or Divi? =  
+Absolutely. Exports capture the fully rendered front-end output—page builder layouts included.  
 
 == Changelog ==
+
+= 4.0.0 =
+* New: PDF export feature with `[generate_pdf_button]` shortcode  
+* New: Role-Based Access Control for export buttons  
+* New: Daily PDF export limits (2/day) with notifications  
+* New: Background/asynchronous export jobs with progress bar  
+* FIXED: Table creating issue while plugin activate.
 
 = 3.0.0 - 9 July 2024  =
 * Fixed lots of tweaks.

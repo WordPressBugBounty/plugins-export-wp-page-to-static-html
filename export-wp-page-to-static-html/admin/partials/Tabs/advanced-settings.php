@@ -1,6 +1,16 @@
 <div class="tab-pane" id="tabs-5" role="tabpanel">
     <div class="p-t-20">
-        <label class="checkbox-container full_site m-r-45" for="createIndexOnSinglePage"><?php esc_html_e('Create <b>index.html</b> on single page exporting', 'export-wp-page-to-static-html'); ?>
+        <label class="checkbox-container full_site m-r-45" for="createIndexOnSinglePage">
+        <?php
+            $message = sprintf(
+                esc_html__('Create %sindex.html%s on single page exporting', 'export-wp-page-to-static-html'),
+                '<b>',
+                '</b>'
+            );
+
+            echo wp_kses($message, ['b' => []]);
+            ?>
+
             <input type="checkbox" id="createIndexOnSinglePage" name="createIndexOnSinglePage" <?php echo $createIndexOnSinglePage ? 'checked' : ''; ?> >
             <span class="checkmark"></span>
         </label>

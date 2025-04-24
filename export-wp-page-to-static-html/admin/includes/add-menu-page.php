@@ -20,8 +20,8 @@ class AddMenuPage{
     public function register_export_wp_pages_menu(){
 
         add_menu_page(
-            __('Export WP Page to Static HTML/CSS', 'different-menus'),
-            'Export WP Page to Static HTML/CSS',
+            __('Export WP Page to Static HTML & PDF', 'different-menus'),
+            'Export WP Page to HTML & PDF',
             'publish_posts',
             'export-wp-page-to-html',
             array(
