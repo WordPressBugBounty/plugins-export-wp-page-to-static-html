@@ -7,11 +7,10 @@ Stable tag: 4.0.0
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
-Instantly export any WP page to responsive static HTML/CSS and print-ready PDF in just one click.
-
+Export any WP page to responsive static HTML/CSS and print-ready PDF in just one click.
 
 == Description ==
-Export WP Page to Static HTML & PDF is the ultimate **page-exporter** for WordPress. Instantly convert any page or post into **lightning-fast static HTML/CSS** and a **print-ready PDF** — all with one click or a simple shortcode.  
+Export WP Page to Static HTML & PDF is the ultimate **page-exporter** for WordPress. Instantly convert any page or post into **lightning-fast static HTML/CSS** and a **print-ready PDF** with — all with one click or a simple shortcode.  
   
 - **Blazing Performance**: Eliminate database queries by serving static HTML/CSS.  
 - **Print-Ready PDF**: Generate customizable, responsive PDFs with headers, footers, watermarks, and page numbers.  
@@ -19,6 +18,8 @@ Export WP Page to Static HTML & PDF is the ultimate **page-exporter** for WordPr
 - **Role-Based Access**: Show the "Generate PDF" button only to selected WP roles.   
 
 Whether you need **offline backups**, **secure page delivery**, or **easy PDF handouts**, this plugin has you covered.
+
+https://www.youtube.com/watch?v=VEDG-5saLzY
 
 == Features ==
 * **Static HTML/CSS Export** – One-click conversion of pages & posts to fully responsive HTML/CSS.  
@@ -70,6 +71,9 @@ Absolutely. Exports capture the fully rendered front-end output—page builder l
 
 == Changelog ==
 
+= 4.0.1 - 30 April 2025=
+* UPDATED: Some PDF making js codes to generate pdf file smoothly.
+ 
 = 4.0.0 =
 * New: PDF export feature with `[generate_pdf_button]` shortcode  
 * New: Role-Based Access Control for export buttons  

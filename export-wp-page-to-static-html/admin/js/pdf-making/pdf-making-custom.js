@@ -1,9 +1,9 @@
+let pdfAlreadyTriggered = false;
+
 window.addEventListener('load', function () {
-    // Check if jQuery is available to monitor AJAX
     if (typeof jQuery !== 'undefined') {
         let ajaxPending = false;
 
-        // Track ongoing AJAX calls
         jQuery(document).ajaxStart(function () {
             ajaxPending = true;
         });
@@ -11,24 +11,27 @@ window.addEventListener('load', function () {
         jQuery(document).ajaxStop(function () {
             ajaxPending = false;
 
-            // Delay slightly to ensure final rendering
-            setTimeout(() => {
-                triggerPDFDownload();
-            }, 200); 
+            if (!pdfAlreadyTriggered) {
+                pdfAlreadyTriggered = true;
+
+                setTimeout(() => {
+                    triggerPDFDownload();
+                }, 200);
+            }
         });
 
-        // Fallback: if no AJAX fires at all, still trigger after short delay
+        // Fallback in case no AJAX is triggered
         setTimeout(() => {
-            if (!ajaxPending) {
+            if (!ajaxPending && !pdfAlreadyTriggered) {
+                pdfAlreadyTriggered = true;
                 triggerPDFDownload();
             }
         }, 1000);
-
     } else {
-        // No jQuery = no AJAX to track = just trigger
         triggerPDFDownload();
     }
 });
+
 
 function triggerPDFDownload() {
     const element = document.getElementById("page");
@@ -44,24 +47,31 @@ function triggerPDFDownload() {
     .from(element)
     .save()
     .then(() => {
-        updatePdfDownloadCount();
         
         const modal = document.getElementById('pdf-download-modal');
         if (modal) modal.style.display = 'none';
+
+        updatePdfDownloadCount();
     });
 }
 
 
 function updatePdfDownloadCount() {
-    fetch(rcewpp.ajax_url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
+
+    jQuery.ajax({
+        url: EWPPTSH_WP_Ajax.ajax_url,
+        type: 'POST',
+        data: {
             action: 'ewpptsh_increment_pdf_count',
-            'rc_nonce': rcewpp.nonce,
-        }),
+            rc_nonce: EWPPTSH_WP_Ajax.nonce,
+        },
+        success: function(response) {
+            console.log('AJAX Response:', response);
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', error);
+        }
     });
+    
 }
 
