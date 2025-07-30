@@ -1,31 +1,53 @@
 === Export WP Page to Static HTML & PDF ===
 Contributors: recorp  
-Tags: export, static, html, pdf, performance
+Tags: HTML, wp to html, pdf, static website generator, pdf generator, export, page to html, static, css, wp page, page, wp, save as html
 Requires at least: 4.1  
 Tested up to: 6.8 
 Stable tag: 4.0.0  
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
-Export any WP page to responsive static HTML/CSS and print-ready PDF in just one click.
+Export WordPress pages to fast, secure, and responsive static HTML/CSS and print-ready PDF — all in just one click.
 
 == Description ==
-Export WP Page to Static HTML & PDF is the ultimate **page-exporter** for WordPress. Instantly convert any page or post into **lightning-fast static HTML/CSS** and a **print-ready PDF** with — all with one click or a simple shortcode.  
-  
-- **Blazing Performance**: Eliminate database queries by serving static HTML/CSS.  
-- **Print-Ready PDF**: Generate customizable, responsive PDFs with headers, footers, watermarks, and page numbers.  
-- **Shortcode Control**: Use `[generate_pdf_button]` to place a “Generate PDF” button anywhere—no coding required.  
-- **Role-Based Access**: Show the "Generate PDF" button only to selected WP roles.   
+**Export WP Page to Static HTML & PDF** is a powerful site and page exporter plugin for WordPress. It helps you convert any post or page into **static HTML/CSS** files or **print-ready PDF documents**. You can host your exported content from a static hosting provider, CDN, or your own server — boosting speed and reducing server-side risks.
+It significantly improves your website’s performance and security by removing the need for database connections when serving exported content.
 
-Whether you need **offline backups**, **secure page delivery**, or **easy PDF handouts**, this plugin has you covered.
-
-https://www.youtube.com/watch?v=VEDG-5saLzY
+🎥 [Watch Demo](https://www.youtube.com/watch?v=VEDG-5saLzY)
 
 == Features ==
-* **Static HTML/CSS Export** – One-click conversion of pages & posts to fully responsive HTML/CSS.  
-* **PDF Generator** – Create print-ready PDFs with customizable templates.  
-* **Shortcodes** – `[generate_pdf_button]` & `[export_html_button]` for flexible placement.  
-* **Role-Based Controls** – Only selected roles see the "Generate PDF" buttons.  
+
+### 🔹 Free Features
+* **One-Click HTML Export** – Instantly convert WordPress pages or posts to clean static HTML/CSS files.  
+* **Lightweight & Easy-to-Use UI** – Clean, minimal design that works out-of-the-box.  
+* **Faster Loading** – Serve your site without dynamic database queries.  
+* **Simple Shortcodes** – Use `[export_html_button]` anywhere to trigger HTML export.  
+
+### 🔸 PDF Generator (Free + Pro)
+* **Print-Ready PDF Export** – Generate professional PDFs from your content.  
+* **Custom PDF Templates** – Configure headers, footers, fonts, page numbers, and even watermarks.  
+* **Responsive PDFs** – Your content fits beautifully on any page size.  
+* **Shortcode Support** – Use `[generate_pdf_button]` to place a PDF button anywhere.  
+* **Role-Based Access** – Only specific WordPress roles will see the PDF export option.  
+
+---
+
+== 🚀 Pro Features ==
+Upgrade to the premium version for advanced functionality:
+
+* Export entire **WordPress site** with all related links.
+* Export **external URLs** into static HTML.
+* Create a **completely offline version** of your site.
+* **Login-as-any-role** option to export pages based on different user views.
+* Export multiple posts/pages **simultaneously**.
+* Automatically export content after it’s **published or updated**.
+* Run background exports (no need to stay on the settings page).
+* Upload exported files directly to an **FTP server**.
+* Receive **notifications** on export completion.
+* Enhanced **PDF customization** options.
+* … and much more.
+
+🎯 [Get the Premium Version](https://myrecorp.com/product/export-wp-pages-to-static-html-css-pro/?clk=wp&a=readme)
 
 == Installation ==
 1. Upload the folder `export-wp-page-static-html-pdf` to `/wp-content/plugins/`.  
@@ -71,6 +93,9 @@ Absolutely. Exports capture the fully rendered front-end output—page builder l
 
 == Changelog ==
 
+= 4.1.0 - 29 July 2025=
+* ADDED: Review section.
+ 
 = 4.0.1 - 30 April 2025=
 * UPDATED: Some PDF making js codes to generate pdf file smoothly.
  

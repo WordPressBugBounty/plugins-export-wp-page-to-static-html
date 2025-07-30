@@ -119,10 +119,6 @@ class Export_Wp_Page_To_Static_Html {
 		 * The class responsible for defining global functions.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/global_functions.php';
-		/**
-		 * The class responsible for defining review functions.
-		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/includes/review-notice.php';
 
 
 		$this->loader = new Export_Wp_Page_To_Static_Html_Loader();

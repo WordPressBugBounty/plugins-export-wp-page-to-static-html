@@ -104,8 +104,9 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
         if(!empty($lastUpdateTotalLogs)&&!empty($lastLogsTime)){
             if ($lastUpdateTotalLogs==$totalLogs){
-                if( ((time()-$lastLogsTime)/60) >= 5 ){
+                if (time() - $lastLogsTime >= 300) {
                     $error = true;
+                    do_action('wpptsh_export_error_log', 'timeout_error');
                     $this->setSettings('timestampError', true);
                 }
             }else{

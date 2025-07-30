@@ -134,6 +134,9 @@ function generateHtmlExportLog(r, total_url_exported, total_urls_log) {
     $('.htmlExportLogs .error').show();
   } else if (r.export_status == 'completed') {
     if (!$('.toastr-success').length){
+
+      console.log($('#wpptsh-review-section').length);
+      $('#wpptsh-review-section').fadeIn();
       $.toastr.success('Successfully exported!', {position: 'top-center'});
     }
 
@@ -336,6 +339,7 @@ function rc_export_pages_completed() {
   if (!$('.toastr-success').length){
     $.toastr.success('Successfully exported!', {position: 'top-center'});
   }
+  showReviewSection();
 }
 function rcExportPagesToHtmlLogsCompleted() {
   $('.htmlExportLogs .progress').addClass('completed');

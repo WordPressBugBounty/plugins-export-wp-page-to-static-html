@@ -349,3 +349,133 @@ $(document).on("click", ".cancel_rc_html_export_process", function(e){
 $(document).on("input", "#image_quality, #custom_image_quality", function(e){
 	$(this).parent().siblings('input').val($(this).val())
 });
+
+
+jQuery(document).ready(function($) {
+  let selectedRating = 0;
+
+  // Mouseenter: Highlight stars on hover
+  $('.wpptsh-stars span').on('mouseenter', function() {
+    const hoverValue = $(this).data('star');
+    $('.wpptsh-stars span').each(function() {
+      const starVal = $(this).data('star');
+      if (starVal <= hoverValue) {
+        $(this).addClass('hovered');
+      } else {
+        $(this).removeClass('hovered');
+      }
+    });
+  });
+
+  // Mouseleave: Remove hover highlight
+  $('.wpptsh-stars').on('mouseleave', function() {
+    $('.wpptsh-stars span').removeClass('hovered');
+  });
+
+  // Star click
+  $('.wpptsh-stars span').on('click', function() {
+    selectedRating = $(this).data('star');
+    $('.wpptsh-stars span').removeClass('selected');
+    $(this).prevAll().addBack().addClass('selected');
+
+    if (selectedRating == 5) {
+      $('#wpptsh-feedback-form').hide();
+      $('#wpptsh-review-message').html("🌟 Thank you for the 5-star! Redirecting you to leave a review...");
+	  
+		$.ajax({
+		url: rcewpp.ajax_url,
+		method: 'POST',
+		data: {
+			action: 'wpptsh_save_review',
+			rating: selectedRating,
+		}
+		});
+
+      setTimeout(function() {
+        window.open('https://wordpress.org/support/plugin/export-wp-page-to-static-html/reviews/?filter=5', '_blank');
+      }, 2000);
+    } else {
+      $('#wpptsh-feedback-form').fadeIn();
+    }
+  });
+
+  // Feedback submit
+  $('#wpptsh-submit-review').on('click', function() {
+    const comment = $('#wpptsh-review-text').val();
+    if (comment.trim() === '') {
+      $('#wpptsh-review-message').text('Please write your feedback.');
+      return;
+    }
+
+    $.ajax({
+      url: rcewpp.ajax_url,
+      method: 'POST',
+      data: {
+        action: 'wpptsh_save_review',
+        rating: selectedRating,
+        comment: comment,
+		'rc_nonce': rcewpp.nonce,
+      },
+      success: function(response) {
+        $('#wpptsh-review-message').text('Thanks! Your feedback has been submitted.');
+        $('#wpptsh-feedback-form').hide();
+      }
+    });
+  });
+
+  	$('#wpptsh-already-rated').on('click', function() {
+		$('#wpptsh-review-section').fadeOut();
+		    $.ajax({
+			url: rcewpp.ajax_url,
+			method: 'POST',
+			data: {
+				action: 'wpptsh_hide_review',
+	  			'rc_nonce': rcewpp.nonce,
+			},
+			success: function(response) {
+				$('#wpptsh-feedback-form').hide();
+			}
+		});
+	});
+
+	$('#wpptsh-close-review').on('click', function() {
+	const now = Date.now(); // Current timestamp in milliseconds
+	localStorage.setItem('wpptsh_review_later', now);
+	console.log('Review box hidden until next week');
+	// Hide the review box (optional)
+	$('#wpptsh-review-section').hide();
+	});
+
+});
+  function showReviewSection() {
+    const reviewLater = localStorage.getItem('wpptsh_review_later');
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+	if (reviewLater !== null) {
+
+    console.log('Current Time:', now);
+    console.log('Stored reviewLater:', reviewLater);
+		const reviewTimestamp = parseInt(reviewLater, 10);
+
+		if (!isNaN(reviewTimestamp)) {
+			const timeSince = now - reviewTimestamp;
+			console.log('Time since reviewLater:', timeSince, 'ms');
+
+			if (timeSince < oneWeek) {
+			console.log('Review postponed recently. Hiding box.');
+			$('#wpptsh-review-section').hide();
+			return;
+			} else {
+			console.log('More than 7 days passed. Showing box.');
+			localStorage.removeItem('wpptsh_review_later');
+			}
+		} else {
+			console.log('Invalid reviewLater timestamp in localStorage.');
+			localStorage.removeItem('wpptsh_review_later');
+		}
+	}
+
+    $('#wpptsh-review-section').fadeIn();
+  }
+

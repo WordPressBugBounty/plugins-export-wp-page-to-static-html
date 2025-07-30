@@ -2083,3 +2083,64 @@ a.badge-dark.focus,a.badge-dark:focus{
   font-weight: bold !important;
   transition: background-color 0.3s, color 0.3s, border-color 0.3s !important;
 }
+
+
+.wpptsh-review-wrap {
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #fff;
+  margin-top: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.wpptsh-stars span {
+  font-size: 32px;
+  color: #ccc;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.wpptsh-stars span.selected {
+  color: #ffc107;
+}
+
+.wpptsh-review-text {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid #bbb;
+  font-size: 14px;
+}
+
+.wpptsh-review-btn {
+  margin-top: 10px;
+  background: #0073aa;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.wpptsh-review-btn:hover {
+  background: #005f8d;
+}
+
+.wpptsh-review-message {
+  margin-top: 10px;
+  color: green;
+}
+
+.wpptsh-stars span {
+  font-size: 32px;
+  color: #ccc;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.wpptsh-stars span.selected,
+.wpptsh-stars span.hovered {
+  color: #ffc107;
+}

@@ -203,8 +203,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
          * The class responsible for defining all pdf functions and methods
          */
         require 'includes/generate-pdf.php';
-    
 
+        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/includes/data/data.php';
     }
 
 
@@ -298,8 +298,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
             $this->site_data = $html;
 
-            update_option('sddddddddd2', $url);
-            //update_option('sddddddddd2', $html->find('body',0)->plaintext);
             return $html;
         }
         else{
@@ -353,30 +351,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return $html;
     }
 
-//    public function get_url_data($url = "")
-//    {
-//        $url = $this->url_basename_space_to_percent20($url);
-//
-//        // Set arguments for wp_remote_get()
-//        $args = array(
-//            'timeout' => 300,
-//            'sslverify' => false,
-//        );
-//
-//        // Fetch the remote content
-//        $response = wp_remote_get($url, $args);
-//
-//        // Check for WP_Error or empty body
-//        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) != 200) {
-//            // Handle error
-//            $html = $this->xcurl($url);  // Fallback method
-//        } else {
-//            // Get the body content
-//            $html = wp_remote_retrieve_body($response);
-//        }
-//
-//        return $html;
-//    }
 
     public function url_basename_space_to_percent20($url="")
     {
@@ -853,6 +827,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
                 $this->setSettings('task', 'completed');
             }else{
+                
+                do_action('wpptsh_export_error_log', 'zip_creation_error');
                 $this->setTaskFailed();
 
                 if ($this->getSettings('receive_email')) {
@@ -861,6 +837,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 }
             }
         } else {
+            do_action('wpptsh_export_error_log', 'html_export_error');
+
             $this->setTaskFailed();
 
             if ($this->getSettings('receive_email')) {

@@ -108,6 +108,33 @@
 
                                 <!--Tab-5 Advanced settings -->
                                 <?php include 'Tabs/advanced-settings.php'; ?>
+                                <?php
+                                if (!get_option('wpptsh_hide_review', false)) {
+                                    ?>
+
+                                    <div id="wpptsh-review-section" class="wpptsh-review-wrap" style="display: none;position:relative;">
+                                        <h3 class="wpptsh-review-heading">🎉 Export Complete! How would you rate us?</h3>
+                                        
+                                        <div class="wpptsh-stars" style="margin-top: 15px;">
+                                            <span data-star="1">★</span>
+                                            <span data-star="2">★</span>
+                                            <span data-star="3">★</span>
+                                            <span data-star="4">★</span>
+                                            <span data-star="5">★</span>
+                                        </div>
+
+                                        <div id="wpptsh-feedback-form" style="display: none;">
+                                            <textarea id="wpptsh-review-text" placeholder="Tell us how we can improve..." class="wpptsh-review-text"></textarea>
+                                            <button id="wpptsh-submit-review" class="wpptsh-review-btn">Submit Feedback</button>
+                                        </div>
+
+                                        <div id="wpptsh-review-message" class="wpptsh-review-message"></div>
+                                        <button id="wpptsh-already-rated" class="wpptsh-already-rated" style="padding: 1px 15px !important;line-height: 35px;position: absolute;right: 85px;bottom: 17px;background: none;color: #4272c7;border: 1px solid #4272c7;cursor: pointer;">I Already rated</button>
+                                        <button id="wpptsh-close-review" class="wpptsh-close-review" style="padding: 1px 15px !important;line-height: 35px;position: absolute;right: 14px;bottom: 17px;background: none;color: #4272c7;border: 1px solid #4272c7;cursor: pointer;">Later</button>
+                                    </div>
+                                    <?php
+                                }
+                                ?>
 
 
                             </div>
@@ -182,6 +209,59 @@
 
 
                         <div class="right_side_notice mt-4">
+                            
+                            <div style="background: linear-gradient(135deg, #f0f4ff, #ffffff); padding: 25px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); font-family: \'Segoe UI\', sans-serif; color: #333; max-width: 700px; margin: 30px auto; border: 1px solid #e0e6f0;">
+                            <h4 style="font-size: 24px; margin-bottom: 20px; color: #2c3e50; border-left: 5px solid #4a90e2; padding-left: 10px;">
+                                🚀 Features of Pro Version
+                            </h4>
+                            <ul style="list-style: none; padding-left: 0; margin: 0;">
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Export full site as HTML with related page linking
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Make full offline site
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Export any website (custom URLs) as HTML
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Export unlimited PDF files
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Export posts
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Export multiple posts or pages at the same time
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Upload exported files to FTP server
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Notification system when export completes
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Background task system (you don’t have to stay on settings page)
+                                </li>
+                                <li style="margin-bottom: 12px; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✔️</span>
+                                Auto export on publish
+                                </li>
+                                <li style="margin-bottom: 0; display: flex; align-items: start;">
+                                <span style="color: #4a90e2; font-size: 18px; margin-right: 10px;">✨</span>
+                                ...and more!
+                                </li>
+                            </ul>
+                            </div>
+
                             <?php echo wp_kses_post(wp_strip_all_tags(do_action('wpptsh_right_side_notice'))); ?>
                         </div>
                         <div class="plugin_rating mt-4">
