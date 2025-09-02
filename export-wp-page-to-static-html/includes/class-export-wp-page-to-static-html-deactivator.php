@@ -30,7 +30,11 @@ class Export_Wp_Page_To_Static_Html_Deactivator {
 	 * @since    1.0.0
 	 */
 	public static function deactivate() {
-
+		
+		global $wpdb;
+		$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}export_urls_logs");
+		$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}export_page_to_html_logs");
+		$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}exportable_urls");
 	}
 
 }

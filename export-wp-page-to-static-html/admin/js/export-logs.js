@@ -1,17 +1,60 @@
 
-var percentage = 0;
-var log_id = 0;
+  var percentage = 0;
+  var log_id = 0;
+  var shouldContinue = true;
+  let smart = 0;
 
-var intrvar;
-function get_export_log_percentage(intervalTime=5000){
+  function get_export_log_percentage(intervalTime = 0) {
+    shouldContinue = true;
+    log_id = 0;
+    smart = 0;
+    //callAssetExporter(intervalTime, 'url', 2);
+    callAssetExporter(intervalTime, 'css', 2);
+    callAssetExporter(intervalTime, 'js', 2);
+    makeLogAjaxCall(intervalTime);
+  }
 
-  StopInterval('intrvar');
-  intrvar = setInterval(function(){
+  function stop_export_log_percentage() {
+      shouldContinue = false;
+      return new Promise(function (resolve, reject) {
+          try {
+              // Any cleanup code can go here if needed
+              resolve("Export log percentage stopped successfully.");
+          } catch (error) {
+              reject(error);
+          }
+      });
+  }
+
+function fireExport(url) {
+    return jQuery.ajax({
+        url: rcewpp.endpoint,
+        type: 'POST',
+        data: {
+            token: rcewpp.token,
+            url: url.url
+        },
+        success: function (resp) {
+            console.log('Worker ok:', resp);
+        },
+        error: function (xhr) {
+            console.error('Worker error:', xhr.responseText);
+        }
+    });
+}
+
+
+
+  function makeLogAjaxCall(intervalTime) {
+    if (!shouldContinue) return;
+    var exportId = $('.export_id').val();
+
     var datas = {
       'action': 'export_log_percentage',
       'rc_nonce': rcewpp.nonce,
       'id': log_id,
-      'time': Date.now()
+      'time': Date.now(),
+      'exportId': exportId,
     };
 
     $.ajax({
@@ -20,37 +63,38 @@ function get_export_log_percentage(intervalTime=5000){
       type: 'post',
       dataType: 'json',
       cache: false,
-
-      beforeSend: function(){
-
-      },
-      success: function(r){
-        if(r.success){
+      success: function (r) {
+        if (r.success) {
           logWorkers(r);
         } else {
           console.log('Something went wrong, please try again!');
+        }        
+        
+        // Wait intervalTime ms, then make next request (if allowed)
+        if (shouldContinue) {
+          setTimeout(function () {
+            makeLogAjaxCall(intervalTime);
+          }, intervalTime);
         }
-
-      }, error: function(){
+        
+      },
+      error: function () {
         console.log('Something went wrong, please try again!');
+      },
+      complete: function () {
+
       }
     });
-  }, intervalTime);
-  log_id = 0;
-}
+  }
 
-$(document).on("click", ".see_logs_in_details", function(e){
-  e.preventDefault();
-  $('.logs').show();
-
-  $('.logs_list').prepend('<div class="log main_log loading"><span class="danger log_type">Loading...</span></div>');
-
-  setTimeout(function(){
+  function callAssetExporter(intervalTime, type, limit) {
+    if (!shouldContinue) return;
 
     var datas = {
-      'action': 'see_logs_in_details',
-      'rc_nonce': rcewpp.nonce,
-      'id': log_id,
+        action: 'wpptsh_assets_exporter',
+        rc_nonce: rcewpp.nonce,
+        asset_type: type,
+        limit: limit,
     };
 
     $.ajax({
@@ -58,325 +102,362 @@ $(document).on("click", ".see_logs_in_details", function(e){
       data: datas,
       type: 'post',
       dataType: 'json',
-
-      beforeSend: function(){
-
-      },
-      success: function(r){
-        $('.logs_list .loading').remove();
-        if(r.success) {
-          if(r.logs.length){
-            export_logs_process(r.logs, r);
-            if(r.cancel_command){
-              $('.log.cancel_command').remove();
-              $('.logs_list').prepend('<div class="log main_log cancel_command" id="48"><span class="danger log_type">Export process has been canceled!</span></div>')
-            }
+      cache: false,
+      success: function (r) {
+        if (r.success) {
+          if (shouldContinue) {
+            setTimeout(function () {
+              callAssetExporter(intervalTime, type, limit);
+            }, intervalTime);
           }
-        } else {
-          console.log('Something went wrong, please try again!');
+
         }
       },
-      error: function(){
+      error: function () {
         console.log('Something went wrong, please try again!');
+      },
+      complete: function () {
+        // Wait intervalTime ms, then make next request (if allowed)
+
       }
     });
-  }, 4000);
-
-});
-
-/*Working with logs by logs objects*/
-function export_logs_process(logs, r){
-  if (logs !== "" || logs !== "[]") {
-    var logHtml = "";
-    var logsReverse = logs.reverse();
-    $.each(logs, function (i, log) {
-      //log_id = log.id;
-      if (!$('#' + log.id).length) {
-        logHtml += export_log_create_html(log);
-      }
-    });
-    if(logsReverse[0] !== undefined){
-      log_id = logsReverse[0].id;
-    }
-    $('.logs_list').prepend(logHtml);
   }
 
-}
+  $(document).on("click", ".see_logs_in_details", function(e){
+    e.preventDefault();
+    $('.logs').show();
+    $('.logs_list').prepend('<div class="log main_log loading"><span class="danger log_type">Loading...</span></div>');
 
-function generateHtmlExportLog(r, total_url_exported, total_urls_log) {
-  if (r.creating_html_process == 'running') {
-    percentage = ((total_url_exported / total_urls_log) * 100).toFixed(0);
+      var datas = {
+        'action': 'see_logs_in_details',
+        'rc_nonce': rcewpp.nonce,
+        'id': log_id,
+      };
 
-    $('.htmlExportLogs .total_exported_files').text(total_url_exported);
-    $('.htmlExportLogs .total_fetched_files').text(total_urls_log);
+      $.ajax({
+        url: rcewpp.ajax_url,
+        data: datas,
+        type: 'post',
+        dataType: 'json',
 
-    if (percentage !== '100' && r.export_status !== "completed" && percentage !== null && percentage !== 'NaN') {
-      $('.htmlExportLogs .progress-bar').css({'width': percentage + '%'});
-      $('.htmlExportLogs .progress-value').html(percentage + '%');
-    }
+        beforeSend: function(){
 
-  } else if (r.creating_html_process == 'completed') {
-    $('.htmlExportLogs .total_exported_files').text(total_urls_log);
-    $('.htmlExportLogs .total_fetched_files').text(total_urls_log);
-
-    $('.htmlExportLogs .progress-bar').css({'width': 100 + '%'});
-    $('.htmlExportLogs .progress-value').html(100 + '%');
-
-    $('.view_exported_file').attr('href', r.createdLastHtmlFile).removeClass('hide');
-    rcExportPagesToHtmlLogsCompleted();
-
-    $('.creatingZipFileLogs').show();
-
-    $('.export-html-review-notice').slideDown(400);
-
-  } else if (r.creating_html_process == 'failed') {
-    rc_export_pages_failed();
-    $('.htmlExportLogs .error').show();
-  } else if (r.export_status == 'completed') {
-    if (!$('.toastr-success').length){
-
-      console.log($('#wpptsh-review-section').length);
-      $('#wpptsh-review-section').fadeIn();
-      $.toastr.success('Successfully exported!', {position: 'top-center'});
-    }
-
-    rc_export_pages_completed();
-    //setTimeout(function(){
-    StopInterval('intrvar');
-  }
-  return Promise.resolve("Success");
-}
-
-function generateCreatingZipLogs(r, total_pushed_file_to_zip, total_zip_files) {
-  if (r.creating_zip_status == 'running') {
-    percentage = ((total_pushed_file_to_zip / total_zip_files) * 100).toFixed(0);
-
-    $('.creatingZipFileLogs .total_pushed_files_to_zip').html(total_pushed_file_to_zip);
-    $('.creatingZipFileLogs .total_files_to_push').html(total_zip_files);
-
-    if (percentage !== '100' && r.export_status !== "completed" && percentage !== null && percentage !== 'NaN') {
-      $('.creatingZipFileLogs .progress-bar').css({'width': percentage + '%'});
-      $('.creatingZipFileLogs .progress-value').html(percentage + '%');
-    }
-  } else if (r.creating_zip_status == 'completed') {
-    $('.creatingZipFileLogs .total_pushed_files_to_zip').html(total_zip_files);
-    $('.creatingZipFileLogs .total_files_to_push').html(total_zip_files);
-
-    $('.creatingZipFileLogs .progress-bar').css({'width': 100 + '%'});
-    $('.creatingZipFileLogs .progress-value').html(100 + '%');
-
-    rcCreatingZipFilesLogsCompleted();
-
-    if (r.zipDownloadLink !== "") {
-      setTimeout(function () {
-        $('.download-btn').text($('.download-btn').attr('btn-text')).removeClass('hide').attr('href', r.zipDownloadLink);
-      }, 1000);
-    }
-
-    if (r.ftp_upload_enabled == "yes") {
-      $('.uploadingFilesToFtpLogs').show();
-    }
-  } else if (r.creating_zip_status == 'failed') {
-    rc_export_pages_failed();
-    $('.creatingZipFileLogs .error').show();
-  }
-  return Promise.resolve("Success");
-}
-
-function generateFtpFileUploadLogs(r, total_file_uploaded, total_zip_files) {
-  if (r.ftp_upload_enabled == 'yes' && r.ftp_status == "running") {
-    percentage = ((total_file_uploaded / total_zip_files) * 100).toFixed(0);
-
-    $('.uploadingFilesToFtpLogs .progress_').html(total_file_uploaded);
-    $('.uploadingFilesToFtpLogs .total_').html(total_zip_files);
-
-    if (percentage !== '100' && r.export_status !== "completed" && percentage !== null && percentage !== 'NaN') {
-      $('.uploadingFilesToFtpLogs .progress-bar').css({'width': percentage + '%'});
-      $('.uploadingFilesToFtpLogs .progress-value').html(percentage + '%');
-    }
-  } else if (r.ftp_upload_enabled == 'yes' && r.ftp_status == 'completed') {
-    $('.uploadingFilesToFtpLogs .progress_').html(total_zip_files);
-    $('.uploadingFilesToFtpLogs .total_').html(total_zip_files);
-
-    $('.uploadingFilesToFtpLogs .progress-bar').css({'width': 100 + '%'});
-    $('.uploadingFilesToFtpLogs .progress-value').html(100 + '%');
-
-    rcUploadingFileCompleted();
-  } else if (r.ftp_upload_enabled == 'yes' && r.ftp_status == 'failed') {
-    rc_export_pages_failed();
-    $('.uploadingFilesToFtpLogs .error').show();
-  }
-  return Promise.resolve("Success");
-}
-
-/*Log workers*/
-function logWorkers(r) {
-  var cancel_command = parseInt(r.cancel_command);
-  var totalLogs = parseInt(r.total_logs);
-  //var totalExported = parseInt(r.total_exported);
-  var total_pushed_file_to_zip = parseInt(r.total_pushed_file_to_zip);
-  var total_zip_files = parseInt(r.total_zip_files);
-  var total_file_uploaded = parseInt(r.total_file_uploaded);
-  var total_urls_log = r.total_urls_log !== null ? parseInt(r.total_urls_log) : 0;
-  var total_url_exported = r.total_url_exported !== null ? parseInt(r.total_url_exported) : 0;
-
-  if(!r.error){
-    generateHtmlExportLog(r, total_url_exported, total_urls_log)
-        .then( (m) => {
-          generateCreatingZipLogs(r, total_pushed_file_to_zip, total_zip_files);
-        } )
-        .then(m => {
-          generateFtpFileUploadLogs(r, total_file_uploaded, total_zip_files);
-        }).then(m =>{
-      if( (r.export_status == "completed") || (r.export_status == "completed" && totalLogs <= parseInt(log_id)) ){
-        rc_export_pages_completed();
-        //setTimeout(function(){
-        StopInterval('intrvar');
-
-        //}, 1001);
-
-        // if(r.zipDownloadLink !== ""){
-        //   $('.download-btn').removeClass('hide').attr('href', r.zipDownloadLink);
-        // }
-      }
-      else if(r.export_status == 'failed'){
-        rc_export_pages_failed();
-      }
-      /*Insert logs data*/
-      if(r.logs_in_details){
-        export_logs_process(r.logs, r);
-      }
-      if(cancel_command){
-        rc_export_pages_failed('cancel command')
-            .then( (message) => {
-              if(!$('.log.cancel_command').length){
+        },
+        success: function(r){
+          if(r.success) {
+            if(r.logs.length){
+              export_logs_process(r.logs, r);
+              if(r.cancel_command){
+                $('.log.cancel_command').remove();
                 $('.logs_list').prepend('<div class="log main_log cancel_command" id="48"><span class="danger log_type">Export process has been canceled!</span></div>')
               }
-            })
-      }
-    })
+            }
+          } else {
+            console.log('Something went wrong, please try again!');
+          }
+        },
+        error: function(){
+          console.log('Something went wrong, please try again!');
+        }
+      });
+  });
+
+  
+  //     // Public API
+  //     window.progressUI = {
+  //       setProgress,               // progressUI.setProgress(55)
+  //       completeCheckpoint,        // progressUI.completeCheckpoint('zip')
+  //       setOnlineUpload,           // progressUI.setOnlineUpload(true|false)
+  //       error(msg){ errorBox.style.display='block'; errorBox.textContent = msg || 'Error, failed to export files!'; },
+  //       clearError(){ errorBox.style.display='none'; }
+  //     };
+
+
+  //     // init
+  //     setProgress(0);
+
+  // progressUI.setOnlineUpload(false);
+// Single shared state across reinjections
+document.addEventListener("DOMContentLoaded", () => {
+  // Single shared state
+  const progressState =
+    globalThis.__exportProgressState ||
+    (globalThis.__exportProgressState = { last: 0 });
+
+  // Hoisted helper
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(n, max));
   }
-  else{
-    rc_export_pages_failed();
-    $('.logs_list').prepend('<div class="log main_log" id="timeout_error"><span class="danger log_type">Something went wrong! Please try again later.</span></div>');
-    alert('Something went wrong! Please try again later.');
+
+  function nextSmartProgress(last, target, reported, rng = Math.random) {
+    last   = Math.floor(clamp(last ?? 0,   0, 100));
+    target = Math.floor(clamp(target ?? 0, 0, 100));
+
+    if (reported != null && reported > last) {
+      return Math.min(target, Math.floor(reported));
+    }
+    if (last >= target) return target;
+
+    const gap = target - last;
+    const p2 = gap >= 20 ? 0.35 : gap >= 10 ? 0.25 : gap >= 5 ? 0.15 : 0;
+    const p1 = gap >= 5 ? 0.60 : 0.70;
+    const r  = rng();
+    const step = r < p2 ? 2 : r < p2 + p1 ? 1 : 0;
+
+    return last + Math.min(step, gap);
   }
+
+  const order = ['html','assets','zip','upload'];
+  let onlineUpload = false;
+
+  const totals = {
+    exported: document.querySelector('.total_exported_files'),
+    fetched:  document.querySelector('.total_fetched_files')
+  };
+
+  // Now these will no longer be null
+  const cps = {
+    html:   document.getElementById('cp-html'),
+    assets: document.getElementById('cp-assets'),
+    zip:    document.getElementById('cp-zip'),
+    upload: document.getElementById('cp-upload')
+  };
+
+  function visibleKeys() {
+    return order.filter(k => k !== 'upload' || onlineUpload);
+  }
+
+  function setProgress(p){
+    const bar      = document.getElementById('bar');
+    const barValue = document.getElementById('barValue');
+    const srBar    = document.getElementById('srBar');
+
+    const pct = clamp(p, 0, 100);
+    if (bar)      bar.style.width = pct + '%';
+    if (barValue) barValue.textContent = Math.round(pct) + '%';
+    if (srBar)    srBar.setAttribute('aria-valuenow', String(Math.round(pct)));
+  }
+  window.setProgress = setProgress;
+
+  function toggleComplete(key, done){
+    const el = cps[key];
+    if (!el) return;
+    el.classList.toggle('is-complete', !!done);
+  }
+  window.toggleComplete = toggleComplete;
+
+  function completeCheckpoint(key){ toggleComplete(key, true); }
+
+  function setOnlineUpload(flag){
+    onlineUpload = !!flag;
+    if (cps.upload) cps.upload.hidden = !onlineUpload;
+  }
+
+
+  function logWorkers(r) {
+    if (!r || r.error) return;
+
+    insertLogs(r.logs);
+    if (totals.exported) totals.exported.textContent = r.total_url_exported ?? 0;
+    if (totals.fetched)  totals.fetched.textContent  = r.total_urls_log ?? 0;
+
+    page_exporter(r.latest_urls_to_export);
+    let percentage = 0;
+
+    if (r.creating_html_process === 'running') {
+      console.log("status: html running");
+      const frac = (r.totalExportedUrlsCount || 0) / Math.max(1, r.totalUrlsToExport || 1);
+      percentage = frac * 33;
+      smart = nextSmartProgress(progressState.last, 33, percentage);
+    }
+    else if (r.creating_html_process === 'completed' && !r.are_all_assets_exported && r.creating_zip_status !== 'completed') {
+      console.log("status: html completed not assets");
+      toggleComplete('html', true);
+      const frac = (r.total_url_exported || 0) / Math.max(1, r.total_urls_log || 1);
+      percentage = 33 + frac * 33;
+      smart = nextSmartProgress(progressState.last, 66, percentage);
+    }
+    
+    else if (r.creating_html_process === 'completed' && r.are_all_assets_exported && r.creating_zip_status !== 'completed') {
+      exporting_assets_completed(r);
+      const frac = (r.total_pushed_file_to_zip || 0) / Math.max(1, r.total_zip_files || 1);
+      percentage = 66 + frac * 34;
+      smart = nextSmartProgress(progressState.last, 100, percentage);
+    }
+    else if (r.creating_zip_status === 'completed') {
+      
+      //if (!$('.toastr-success').length){
+        toastr.success('Successfully exported!', {"positionClass": "toast-top-center", time: 50000});
+      //}
+      playNotification();
+      toggleComplete('html', true);
+      exporting_assets_completed(r);
+      toggleComplete('zip', true);
+      smart = 100;
+      stop_export_log_percentage();
+      completeExport(r);
+    }
+
+    progressState.last = smart;
+    setProgress(smart);
+  }
+
+  window.logWorkers = logWorkers;
+});
+
+function page_exporter(urls) {
+  if (urls == null || urls.length == 0) {
+    return;
+  }
+  console.log('URLS: ',urls);
+  urls.forEach(function(u){
+      fireExport(u);
+  });
 }
-
-/*Generate log html element by log array object*/
-function export_log_create_html(log){
-  var type = "";
-  var comment = log.comment;
-  var path = log.path;
-
-  if (log.type == "copying") {
-    type = '<span class="copying log_type">Copying</span>';
-  }
-  if(log.type == "reading") {
-    type = '<span class="reading log_type">Reading</span>';
-  }
-  if(log.type == "creating") {
-    type = '<span class="creating log_type">Creating</span>';
-  }
-  if(log.type == "creating_zip_file") {
-    type = '<span class="creating log_type">Creating</span>';
-  }
-  if(log.type == "creating_html_file") {
-    type = '<span class="creating log_type">Creating</span>';
-  }
-  if(log.type == "created_html_file") {
-    type = '<span class="success log_type">Created</span>';
-  }
-  if(log.type == "created_zip_file") {
-    type = '<span class="success log_type">Successfully created the zip file!</span>';
-    path = '';
-    comment = '<a href="'+log.comment+'">Download</a>';
-  }
-  if(log.type == "replacing") {
-    type = '<span class="replacing log_type">Replacing</span>';
-  }
-  if(log.type == "added_into_zip_file") {
-    type = '<span class="push log_type">Added into zip</span>';
-  }
-  if(log.type == "all_pages_exported") {
-    type = '<span class="success log_type">Successfully exported all pages as html!</span>';
-  }
-  if(log.type == "uploading_to_ftp") {
-    type = '<span class="creating log_type">Uploading</span>';
-    path = '';
-    comment = 'files to ftp server';
-  }
-  if(log.type == "file_uploaded_to_ftp") {
-    type = '<span class="creating log_type">Uploading</span>';
-    comment = '';
-  }
-  if(log.type == "uploaded_to_ftp") {
-    type = '<span class="success log_type">Successfully uploaded all files to ftp server!</span>';
-    path = '';
-    comment = '';
-  }
-
-
-
-  var log_text = '<span class="path">' + path + '</span>';
-  var comment = '<span class="comment">' + comment + '</span>';
-
-  var logHtml = '<div class="log main_log" id="'+log.id+'">'+type+' ' +log_text+ ' ' + comment + '</div>';
-
-  return logHtml;
+function exporting_assets_completed(response) {
+    toggleComplete('assets', true);
+    $('.view_exported_file').removeClass("hide").attr('href', response.createdLastHtmlFile);
 }
 
 /*Stop interval by interval variable name*/
 function StopInterval(intervalName) {
+  //stop_export_log_percentage();
   clearInterval(window[intervalName]);
 }
 
-/*If export process completed this function will trigger*/
-function rc_export_pages_completed() {
-  $('.spinner_x').addClass('hide_spin');
+function completeExport(r){
+  $('.main_settings_page .spinner_x').addClass('hide_spin');
   $('.cancel_rc_html_export_process').hide();
-  $('.export_external_page_to_html.btn--radius-2, .export_internal_page_to_html.btn--radius-2').removeAttr('disabled');
-  if (!$('.toastr-success').length){
-    $.toastr.success('Successfully exported!', {position: 'top-center'});
-  }
-  showReviewSection();
-}
-function rcExportPagesToHtmlLogsCompleted() {
-  $('.htmlExportLogs .progress').addClass('completed');
-}
-function rcCreatingZipFilesLogsCompleted() {
-  $('.creatingZipFileLogs .progress').addClass('completed');
-}
-function rcUploadingFileCompleted() {
-  $('.uploadingFilesToFtpLogs .progress').addClass('completed');
-}
-/*If export process failed this function will trigger*/
-function rc_export_pages_failed(text="") {
-  console.log(text);
-  $('.progress').addClass('failed');
-  $('.export_internal_page_to_html .spinner_x, .export_external_page_to_html .spinner_x').addClass('hide_spin');
-  $('.cancel_rc_html_export_process').hide();
-  StopInterval('intrvar');
-  $('.tab-pane.active .btn--radius-2').removeAttr('disabled');
-  $('.view_exported_file').attr('href', '').addClass('hide');
-
-  if (text!==true){
-    $('.something-went-wrong').show()
-  }
-  return Promise.resolve("Success");
+  $('.download-btn').removeClass('hide').attr('href', r.zipDownloadLink);
+  $('.export_internal_page_to_html').removeAttr('disabled');
+  $('.export_external_page_to_html').removeAttr('disabled');
 }
 
-/*Clear logs data with percentage*/
-function ClearExportLogsData() {
-  $('.progress_').text(0);
-  $('.total_').text(0);
-  $('.something-went-wrong').hide()
-  $('.progress-bar').css({'width': 0 + '%'});
-  $('.progress-value').html(0 + '%');
-  $('.download-btn').addClass('hide').attr('href', "");
-  $('.creatingZipFileLogs').hide();
-  $('.uploadingFilesToFtpLogs').hide();
-  $('.logs').hide();
-  $('.logs_list').html('');
-  $('.view_exported_file').attr('href', '').addClass('hide');
+function insertLogs(logs) {
+  var logsHtml = '';
+
+  // Reverse loop to place the last item first
+  logs.slice().reverse().forEach(element => {
+    logsHtml += '<div class="log log--' + element.type + '">' +
+      addLog({
+        type: element.type,
+        path: element.path,
+        comment: element.comment
+      }).html() + '</div>';
+  });
+
+  $('#logsList').html(logsHtml);
+
+  // Always scroll to the top after updating
+  // setTimeout(function () {
+  //   $('#logsList').animate({ scrollTop: 500 }, "fast");
+  // }, 300);
 }
+
+const $logsList   = $('#logsList');
+  const $logSearch  = $('#logSearch');
+  const $filterBtns = $('.filter');
+  const $autoScroll = $('#autoScroll');
+  const $copyBtn    = $('#copyLogs');
+  const $clearBtn   = $('#clearLogs');
+
+  function now(){ const d=new Date(); return d.toLocaleTimeString(); }
+  function el(tag, className, text){
+    const $n = $('<'+tag+'>');
+    if (className) $n.addClass(className);
+    if (text != null) $n.text(text);
+    return $n;
+  }
+
+  function addLog({type='info', path='', comment=''}){
+    const $row   = el('div', 'log log--'+type);
+    const $badge = el('span', 'type', type.replace(/^(.)/, m=>m.toUpperCase()));
+    const $code  = el('code', 'path', path || '');
+    const $cmt   = comment ? el('span','comment','— '+comment) : null;
+    const $time  = el('span','time', now());
+
+    $row.append($badge, $code);
+    if ($cmt) $row.append($cmt);
+    $row.append($time);
+
+    if ($autoScroll.length && $autoScroll.prop('checked')) {
+      $row[0].scrollIntoView({block:'end'});
+    }
+
+    return $row;
+  }
+
+  function clearLogs(){ $logsList.empty(); }
+
+  function getAllLogsText(){
+    return $logsList.find('.log').map(function(){
+      const $row = $(this);
+      const t  = $row.find('.type').text()  || '';
+      const p  = $row.find('.path').text()  || '';
+      const c  = $row.find('.comment').text() || '';
+      const tm = $row.find('.time').text()  || '';
+      return '['+tm+'] '+t+': '+p+(c?' '+c:'');
+    }).get().join('');
+  }
+
+  function applyFilters(){
+    const q = ($logSearch.val() || '').toLowerCase();
+    const showErrors = $filterBtns.filter('[data-filter="errors"]').hasClass('is-active');
+
+    $logsList.children().each(function(){
+      const $row = $(this);
+      const isErr = $row.hasClass('log--danger');
+      const text  = $row.text().toLowerCase();
+      const match = (!showErrors || isErr) && (!q || text.includes(q));
+      $row.toggle(!!match);
+    });
+  }
+
+  $logSearch.on('input', applyFilters);
+
+  $filterBtns.on('click', function(){
+    $filterBtns.removeClass('is-active');
+    $(this).addClass('is-active');
+    applyFilters();
+  });
+
+  $copyBtn.on('click', async function(){
+    try {
+      await navigator.clipboard.writeText(getAllLogsText());
+      $copyBtn.text('Copied');
+      setTimeout(()=> $copyBtn.text('Copy'), 1200);
+    } catch(e){
+      $copyBtn.text('Failed');
+      setTimeout(()=> $copyBtn.text('Copy'), 1200);
+    }
+  });
+
+  $clearBtn.on('click', function(){ clearLogs(); });
+
+    
+
+  /*Clear logs data with percentage*/
+  function ClearExportLogsData() {
+    $('.progress_').text(0);
+    $('.total_').text(0);
+
+    $('.progress-bar').css({'width': 0 + '%'});
+    $('.progress-value').html(0 + '%');
+    $('.download-btn').addClass('hide').attr('href', "");
+    $('.creatingZipFileLogs').hide();
+    $('.uploadingFilesToFtpLogs').hide();
+    $('.logs').hide();
+    $('.logs_list').html('');
+    $('.view_exported_file').attr('href', '').addClass('hide');
+    $('.error-notice').hide()
+    $('#export_id').val("");
+  }
+
+  const notificationSound = new Audio(rcewpp.notification_sound_url); 
+  notificationSound.preload = "auto";
+
+  function playNotification() {
+    notificationSound.currentTime = 0; // restart from beginning
+    notificationSound.play()
+      .catch(err => console.log("Audio play failed:", err));
+  }

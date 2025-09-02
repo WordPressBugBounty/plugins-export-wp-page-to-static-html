@@ -12,19 +12,30 @@
 
             <?php
 
-            $selected_user_roles = (array) get_option('_user_roles_can_generate_pdf', array());
-            $selected_user_roles = array_map('esc_attr', $selected_user_roles);
+                $selected_user_roles = (array) get_option('_user_roles_can_generate_pdf', array());
+                $selected_user_roles = array_map('esc_attr', $selected_user_roles);
 
-            $wp_roles = wp_roles()->get_names();
-            foreach ( $wp_roles as $role => $name ) {
-                if ($role=="administrator"){
-                    echo '<label for="roles-for-pdf-administrator" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;"><input id="roles-for-pdf-administrator" type="checkbox" name="administrator_for_pdf" checked disabled> Administrator</label>';
+                $wp_roles_obj = wp_roles(); // catch it first
+
+                if ( is_object( $wp_roles_obj ) && method_exists( $wp_roles_obj, 'get_names' ) ) {
+                    $wp_roles = $wp_roles_obj->get_names();
+
+                    foreach ( $wp_roles as $role => $name ) {
+                        if ( $role == "administrator" ) {
+                            echo '<label for="roles-for-pdf-administrator" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;">
+                                <input id="roles-for-pdf-administrator" type="checkbox" name="administrator_for_pdf" checked disabled> Administrator
+                            </label>';
+                        } else {
+                            $isChecked = in_array($role, $selected_user_roles) ? 'checked' : '';
+                            echo '<label for="roles-for-pdf-'.esc_attr($role).'" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;">
+                                <input id="roles-for-pdf-'.esc_attr($role).'" '.esc_attr($isChecked).' type="checkbox" name="user_roles_for_pdf['.esc_attr($role).']" value="'.esc_attr($role).'"> '.esc_attr($name).'
+                            </label>';
+                        }
+                    }
+                } else {
+                    echo '<div style="color:red;">Error: User roles could not be loaded properly.</div>';
                 }
-                else{
-                    $isChecked = in_array($role, $selected_user_roles) ? 'checked': '';
-                    echo '<label for="roles-for-pdf-'.esc_attr($role).'" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;"><input id="roles-for-pdf-'.esc_attr($role).'" '.esc_attr($isChecked).' type="checkbox" name="user_roles_for_pdf['.esc_attr($role).']" value="'.esc_attr($role).'"> '.esc_attr($name).'</label>';
-                }
-            }
+
             $guest_checked = in_array('guest', $selected_user_roles) ? 'checked': '';
             echo '<br><label for="roles-for-pdf-guest" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;"><input id="roles-for-pdf-guest" type="checkbox" name="user_roles_for_pdf[guest]" value="guest" '.$guest_checked. '> Visitor</label>';
 

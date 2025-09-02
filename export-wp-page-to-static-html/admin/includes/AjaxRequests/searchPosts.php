@@ -5,12 +5,12 @@ namespace ExportHtmlAdmin\EWPPTH_AjaxRequests\searchPosts;
 
 class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 {
-    private $ajax;
-    public function __construct($ajax)
+
+    public function __construct()
     {
         /*Initialize Ajax rc_search_posts*/
         add_action('wp_ajax_rc_search_posts', array( $this, 'rc_search_posts' ));
-        $this->ajax = $ajax;
+
     }
 
 
@@ -23,17 +23,12 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
     public function rc_search_posts(){
         //$post = $_POST['post'];
-        $value = isset($_REQUEST['value']) ? sanitize_text_field($_REQUEST['value']) : "";
-
-        if(!$this->ajax->nonceCheck()){
-            echo wp_json_encode(array('success' => 'false', 'status' => 'nonce_verify_error', 'response' => ''));
-
-            die();
-        }
+        $value = isset($_POST['value']) ? $_POST['value'] : "";
+        \rcCheckNonce();
 
         $args = array(
             'post_type' => 'post',
-            'post_status' => 'publish',
+            'post_status' => array('publish', 'draft'),
             's' => $value
         );
 
@@ -80,7 +75,7 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
         //echo json_encode(array('success' => 'true', 'status' => 'success', 'response' => $middle_pathesponse));
 
-        echo wp_json_encode(array('success' => 'true', 'status' => 'success', 'results' => $middle_pathesponse, 'pagination' => array ('more' => false)));
+        echo json_encode(array('success' => 'true', 'status' => 'success', 'results' => $middle_pathesponse, 'pagination' => array ('more' => false)));
 
         die();
     }

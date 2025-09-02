@@ -114,11 +114,16 @@ class Export_Wp_Page_To_Static_Html {
 		 * The class responsible for defining all actions that occur in the admin area.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-export-wp-page-to-static-html-admin.php';
-		
+
 		/**
 		 * The class responsible for defining global functions.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/global_functions.php';
+
+		/**
+		 * The class responsible for defining exporting metabox.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/html-export-metabox.php';
 
 
 		$this->loader = new Export_Wp_Page_To_Static_Html_Loader();
@@ -153,10 +158,9 @@ class Export_Wp_Page_To_Static_Html {
 
 		$plugin_admin = new ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin( $this->get_plugin_name(), $this->get_version() );
 
-
-		if (isset($_GET['page']) && sanitize_text_field($_GET['page']) == 'export-wp-page-to-html') {
-			add_action( 'admin_enqueue_scripts', [$this, 'enqueue_styles'] );
-			add_action( 'admin_enqueue_scripts', [$this, 'enqueue_scripts'] );
+		if (isset($_GET['page']) && sanitize_key($_GET['page']) == 'export-wp-page-to-html') {
+			$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
+			$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		}
 
 	}
@@ -176,59 +180,6 @@ class Export_Wp_Page_To_Static_Html {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
 	}
-
-    /**
-     * Register the stylesheets for the admin area.
-     *
-     * @since    1.0.0
-     */
-    public function enqueue_styles() {
-
-        /**
-         * This function is provided for demonstration purposes only.
-         *
-         * An instance of this class should be passed to the run() function
-         * defined in Export_Wp_Page_To_Static_Html_Loader as all of the hooks are defined
-         * in that particular class.
-         *
-         * The Export_Wp_Page_To_Static_Html_Loader will then create the relationship
-         * between the defined hooks and the functions defined in this
-         * class.
-         */
-
-        wp_enqueue_style( $this->plugin_name, EWPPTSH_PLUGIN_URL . '/admin/css/export-wp-page-to-static-html-admin.css', array(), $this->version, 'all' );
-        wp_enqueue_style( 'ewppth_select2', EWPPTSH_PLUGIN_URL . '/admin/css/select2.min.css', array(), '4.0.5', 'all' );
-
-    }
-
-    /**
-     * Register the JavaScript for the admin area.
-     *
-     * @since    1.0.0
-     */
-    public function enqueue_scripts() {
-
-        /**
-         * This function is provided for demonstration purposes only.
-         *
-         * An instance of this class should be passed to the run() function
-         * defined in Export_Wp_Page_To_Static_Html_Loader as all of the hooks are defined
-         * in that particular class.
-         *
-         * The Export_Wp_Page_To_Static_Html_Loader will then create the relationship
-         * between the defined hooks and the functions defined in this
-         * class.
-         */
-
-        wp_enqueue_script( $this->plugin_name, EWPPTSH_PLUGIN_URL . '/admin/js/export-wp-page-to-static-html-admin.js', array( 'jquery' ), $this->version, false );
-        wp_enqueue_script( 'freemius', 'https://checkout.freemius.com/checkout.min.js', array( 'jquery' ), $this->version, false );
-        wp_enqueue_script( 'rc_export_logs', EWPPTSH_PLUGIN_URL . '/admin/js/export-logs.js', array( $this->plugin_name ), $this->version, false );
-        wp_enqueue_script( 'rc_extract_internal_page', EWPPTSH_PLUGIN_URL . '/admin/js/extract-internal-pages.js', array( $this->plugin_name, 'toaster' ), $this->version, false );
-
-        wp_enqueue_script( 'ewppth_select2', EWPPTSH_PLUGIN_URL . '/admin/js/select2.min.js', array( 'jquery' ), '4.0.5', false );
-        wp_enqueue_script( 'toaster', EWPPTSH_PLUGIN_URL . '/admin/js/toastr.js', array( 'jquery' ), '4.0.5', false );
-
-    }
 
 	/**
 	 * Run the loader to execute all of the hooks with WordPress.

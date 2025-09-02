@@ -22,9 +22,10 @@
  */
 
 namespace ExportHtmlAdmin;
+use voku\helper\HtmlDomParser;
 
-ini_set('max_execution_time', 60*60*24);
-ini_set('memory_limit','30240M');
+ini_set('max_execution_time', 60*60*240);
+ini_set('memory_limit','302400M');
 /*ini_set('display_errors','Off');
 ini_set('error_reporting', E_ALL );*/
 ini_set('xdebug.max_nesting_level', 2000);
@@ -39,7 +40,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
      * @access   private
      * @var      string    $plugin_name    The ID of this plugin.
      */
-    private $plugin_name;
+    public $plugin_name;
 
     /**
      * The version of this plugin.
@@ -48,7 +49,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
      * @access   private
      * @var      string    $version    The current version of this plugin.
      */
-    private $version;
+    public $version;
 
     public $upload_dir;
     public $upload_url;
@@ -64,28 +65,41 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public $audio_path;
     public $docs_path;
 
-    public $site_data;
-    private $image_extensions;
-    private $video_extensions;
-    private $audio_extensions;
-    private $docs_extensions;
-    private $html_extensions;
-    private $saveAllAssetsToSpecificDir;
-    private $keepSameName;
-    private $rcExportHtmlAddContentsToTheHeader;
-    private $rcExportHtmlAddContentsToTheFooter;
-    public $settingsKey = "rc_export_page_to_html__";
+    public $site_data = "";
+    public $site_data_html = "";
+    protected $site_url = "";
+    public $queue_event_key = "";
+    public $image_extensions;
+    public $video_extensions;
+    public $audio_extensions;
+    public $docs_extensions;
+    public $html_extensions;
+    public $saveAllAssetsToSpecificDir;
+    public $keepSameName;
+    public $rcExportHtmlAddContentsToTheHeader;
+    public $rcExportHtmlAddContentsToTheFooter;
+
+    public $rcExportHtmlSearchFor;
+    public $rcExportHtmlReplaceWith;
+    //public  $settingsKey = "rc_export_page_to_html__";
+    public  $settingsKey = "rcwpptsh__";
 
     /*Extract methods*/
-    private $extract_stylesheets;
-    private $extract_scripts;
-    private $extract_images;
-    private $inline_css;
-    private $extract_meta_images;
-    private $extract_videos;
-    private $extract_audios;
-    private $extract_docs;
+    public $extract_stylesheets;
+    public $extract_scripts;
+    public $extract_images;
     public $extract_html;
+    public $inline_css;
+    public $extract_meta_images;
+    public $extract_videos;
+    public $extract_audios;
+    public $extract_docs;
+
+    /*Ftp functions*/
+    public $ftpFunctions;
+
+    public $exportId;
+
 
     /**
      * Initialize the class and set its properties.
@@ -100,7 +114,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->version = $version;
 
 
-
         $this->upload_dir = wp_upload_dir()['basedir'];
         $this->upload_url = wp_upload_dir()['baseurl'];
         $this->export_dir = $this->upload_dir . '/exported_html_files';
@@ -109,6 +122,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->export_temp_url = $this->upload_url . '/exported_html_files/tmp_files';
 
         $this->css_path = $this->export_temp_dir . '/css/';
+        
         $this->fonts_path = $this->export_temp_dir . '/fonts/';
         $this->js_path = $this->export_temp_dir . '/js/';
         $this->img_path = $this->export_temp_dir . '/images/';
@@ -116,21 +130,40 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->audio_path = $this->export_temp_dir . '/audios/';
         $this->docs_path = $this->export_temp_dir . '/documents/';
 
-        $this->image_extensions = array("gif", "jpg", "jpeg", "png", "tiff", "tif", "bmp", "svg", "ico", "webp");
-        $this->video_extensions = array("flv", "mp4", "m3u8", "ts", "gp", "mov", "avi", "wmv", "webm", "mpg", "mpv", "ogg", "mpv", "m4p", "m4v", "swf", "avchd");
+        $this->image_extensions = array("gif", "jpg", "jpeg", "png", "tiff", "tif", "bmp", "svg", "ico", "php", "webp");
+        $this->video_extensions = array("flv", "3gp", "mp4", "m3u8", "ts", "gp", "mov", "avi", "wmv", "webm", "mpg", "mpv", "ogg", "mpv", "m4p", "m4v", "swf", "avchd");
         $this->audio_extensions = array("m4a", "aa", "aac", "aax", "amr", "m4b", "mp3", "mpc", "ogg", "tta", "wav", "wv", "webm", "cda");
         $this->docs_extensions = array("doc", "docx", "odt", "pdf", "xls", "xlsx", "ods", "ppt", "pptx", "txt");
         $this->html_extensions = array("html", "htm");
 
-
-        $this->saveAllAssetsToSpecificDir = get_option('rcExportHtmlSaveAllAssetsToSpecificDir', true);
-        $this->keepSameName = false;
+        $this->saveAllAssetsToSpecificDir = "on"; //get_option('rcExportHtmlSaveAllAssetsToSpecificDir', 'on') == "on";
+        $this->keepSameName = get_option('rcExportHtmlKeepSameName', 'off') == "on";
         $this->rcExportHtmlAddContentsToTheHeader = get_option('rcExportHtmlAddContentsToTheHeader', "");
         $this->rcExportHtmlAddContentsToTheFooter = get_option('rcExportHtmlAddContentsToTheFooter', "");
+
+        $this->rcExportHtmlSearchFor = get_option('rcExportHtmlSearchFor', "");
+        $this->rcExportHtmlReplaceWith = get_option('rcExportHtmlReplaceWith', "");
         $this->require_dirs();
 
+        $this->exportId = "";
+
+        // plugin-root/plugin.php (or your main bootstrap)
+        add_action('plugins_loaded', function () {
+            $autoload = __DIR__ . '/vendor/autoload.php';
+            if (file_exists($autoload)) {
+                require_once $autoload;
+            } else {
+                //error_log('[ewptshp] vendor/autoload.php missing');
+            }
+        });
+
+        /**
+         * The class responsible for defining all zip functionalities
+         */
+
+
         /*Adding inline scripts for cdata*/
-        add_action('wp_print_scripts', array( $this, 'rc_cdata_inlice_Script_for_export_html' ));
+        add_action('admin_print_scripts', array( $this, 'rc_cdata_inlice_Script_for_export_html' ));
 
 
         add_action('template_redirect', array ( $this, 'rc_redirect_for_export_page_as_html') );
@@ -140,8 +173,25 @@ class Export_Wp_Page_To_Static_Html_Admin {
         add_action( 'start_export_custom_url_to_html_event', array( $this, 'start_export_custom_url_to_html_cron_task'), 10, 2 );
         /*End main task*/
 
+        /*Main ajax tasks*/
+        add_action( 'run_html_export_task_in_ajax', array( $this, 'start_export_wp_pages_to_html_cron_task'), 10, 2 );
+        add_action( 'run_custom_url_to_html_export_task_in_ajax', array( $this, 'start_export_custom_url_to_html_cron_task'), 10, 2 );
+        /*add_action( 'run_html_export_task_in_ajax', array( $this, 'start_export_wp_pages_to_html_in_ajax'), 10, 2 );
+        add_action( 'start_export_custom_url_to_html_event', array( $this, 'start_export_custom_url_to_html_in_ajax'), 10, 2 );*/
+        /*End main ajax task*/
 
-        add_action('admin_notices', array ( $this, 'rc_export_html_general_admin_notice') );
+
+        add_action('wp_ajax_wpptsh_export_assets', [$this, 'extract_assets_files']);
+
+        /*Export next queue page*/
+        add_action("next_page_export_from_queue", [$this, 'next_page_export_from_queue'], 10, 1);
+
+
+        /*assets_files_exporting_completed_handler*/
+        add_action('assets_files_exporting_completed', [$this, 'assets_files_exporting_completed_handler']);
+
+
+        //add_action('admin_notices', array ( $this, 'rc_export_html_general_admin_notice') );
 
         //add_filter("before_basename_change", array($this, "before_basename_change2"), 10, 2);
 
@@ -149,6 +199,9 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
         /*Exclude urls*/
         add_filter( 'wp_page_to_html_exclude_urls', array( $this, 'exclude_urls'), 10, 2 );
+
+        /*Exclude urls settings only*/
+        add_filter( 'wp_page_to_html_exclude_urls_settings_only', array( $this, 'exclude_urls_settings_only'), 10, 2 );
 
         /*Include urls*/
         add_filter( 'wp_page_to_html_urls_to_export', array( $this, 'include_urls'), 10, 2 );
@@ -163,11 +216,22 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->extract_docs = new extract_documents\extract_documents($this);
         $this->extract_html = new extract_html\extract_html($this);
 
+        /*Add user*/
+        add_action('init', array( $this, 'add_user') );
+
+        add_action('html_export_task_completed', [$this, 'remove_user']);
+        add_action('html_export_task_failed', [$this, 'remove_user']);
+
+
+        add_action('html_export_html_process_start', [$this, 'login']);
+
+        add_action( 'http_api_curl', [$this, '__set_curl_to_follow'] );
+
     }
     public function hasAccess()
     {
-        require_once( ABSPATH . WPINC . '/pluggable.php' );
-        $capabilities = \get_option('wpptsh_user_roles',array('administrator'));
+        require( ABSPATH . WPINC . '/pluggable.php' );
+        $capabilities = get_option('wpptsh_user_roles',array('administrator'));
 
         if (!empty($capabilities)){
             foreach ($capabilities as $cap) {
@@ -182,42 +246,142 @@ class Export_Wp_Page_To_Static_Html_Admin {
         }
         return false;
     }
+
+    function __set_curl_to_follow( &$handle ) {
+        curl_setopt( $handle, CURLOPT_FOLLOWLOCATION, true );
+    }
+
     private function require_dirs()
     {
         /**
          * The class responsible for defining all ajax requests
          */
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/includes/ajax_requests.php';
-
+        require_once EWPPTSH_PLUGIN_DIR_PATH . '/admin/includes/ajax_requests.php';
+        
         /**
-         * The class responsible for menu page
+         * The class responsible to adding the menu page
          */
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/includes/add-menu-page.php';
+        require_once EWPPTSH_PLUGIN_DIR_PATH . '/admin/includes/add-menu-page.php';
         new AddMenuPage($this);
 
-        require 'simple_html_dom.php';
-        require 'includes/url_to_absolute/url_to_absolute.php';
+        if (!function_exists('url_to_absolute')){
+            require 'includes/url_to_absolute/url_to_absolute.php';
+        }
+
         require 'includes/extractors.php';
 
-                /**
+        /**
+         * The class responsible for defining all ftp functions and methods
+         */
+        require 'includes/ftp_functions.php';
+
+        /**
          * The class responsible for defining all pdf functions and methods
          */
         require 'includes/generate-pdf.php';
 
+        require 'includes/rest-worker.php';
+
         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/includes/data/data.php';
+
+    }
+    /**
+     * Register the stylesheets for the admin area.
+     *
+     * @since    1.0.0
+     */
+    public function enqueue_styles() {
+
+        /**
+         * This function is provided for demonstration purposes only.
+         *
+         * An instance of this class should be passed to the run() function
+         * defined in Export_Wp_Page_To_Static_Html_Loader as all of the hooks are defined
+         * in that particular class.
+         *
+         * The Export_Wp_Page_To_Static_Html_Loader will then create the relationship
+         * between the defined hooks and the functions defined in this
+         * class.
+         */
+
+        wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/export-wp-page-to-static-html-admin.css', array(), $this->version, 'all' );
+        wp_enqueue_style( 'ewppth_select2', plugin_dir_url( __FILE__ ) . 'css/select2.min.css', array(), '4.0.5', 'all' );
+
     }
 
+    /**
+     * Register the JavaScript for the admin area.
+     *
+     * @since    1.0.0
+     */
+    public function enqueue_scripts() {
+
+        /**
+         * This function is provided for demonstration purposes only.
+         *
+         * An instance of this class should be passed to the run() function
+         * defined in Export_Wp_Page_To_Static_Html_Loader as all of the hooks are defined
+         * in that particular class.
+         *
+         * The Export_Wp_Page_To_Static_Html_Loader will then create the relationship
+         * between the defined hooks and the functions defined in this
+         * class.
+         */
+
+        wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/export-wp-page-to-static-html-admin.js', array( 'jquery' ), $this->version, false );
+        wp_enqueue_script( 'rc_export_logs', plugin_dir_url( __FILE__ ) . 'js/export-logs.js', array( $this->plugin_name ), $this->version, false );
+        wp_enqueue_script( 'rc_extract_internal_page', plugin_dir_url( __FILE__ ) . 'js/extract-internal-pages.js', array( $this->plugin_name, 'ewppth_toaster' ), $this->version, false );
+        wp_enqueue_script( 'rc_extract_external_urls', plugin_dir_url( __FILE__ ) . 'js/extract-external-urls.js', array( $this->plugin_name, 'ewppth_toaster' ), $this->version, false );
+        wp_enqueue_script( 'rc_extract_pause_and_resume', plugin_dir_url( __FILE__ ) . 'js/pause_and_resume.js', array( $this->plugin_name ), $this->version, false );
+
+        wp_enqueue_script( 'ewppth_select2', plugin_dir_url( __FILE__ ) . 'js/select2.min.js', array( 'jquery' ), '4.0.5', false );
+        wp_enqueue_script( 'ewppth_toaster', plugin_dir_url( __FILE__ ) . 'js/toastr.js', array( 'jquery' ), '4.0.5', false );
+
+    }
+
+
+    public function register_export_wp_pages_menu(){
+
+        add_menu_page(
+            __('Export WP Page to Static HTML/CSS', 'export-wp-page-to-static-html'),
+            'Export WP Page to Static HTML/CSS',
+            'publish_posts',
+            'export-wp-page-to-html',
+            array(
+                $this,
+                'load_admin_dependencies'
+            ),
+            plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/html-icon.png',
+            89
+        );
+
+        add_action('admin_init', array( $this,'register_export_wp_pages_settings') );
+    }
+
+    public function load_admin_dependencies(){
+        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/export-wp-page-to-static-html-admin-display.php';
+
+    }
+
+    public function register_export_wp_pages_settings(){
+        register_setting('export_wp_pages_settings', 'recorp_ewpp_settings');
+    }
 
     public function rc_cdata_inlice_Script_for_export_html() {
         ?>
         <script>
             /* <![CDATA[ */
             var rcewpp = {
-                "ajax_url":"<?php echo esc_html(admin_url('admin-ajax.php')); ?>",
-                "nonce": "<?php echo esc_html(wp_create_nonce( 'rc-nonce' )); ?>",
-                "home_url": "<?php echo esc_html(home_url('/')); ?>",
+                "ajax_url":"<?php echo admin_url('admin-ajax.php'); ?>",
+                "nonce": "<?php echo wp_create_nonce( 'rc-nonce' ); ?>",
+                'close_nonce': "<?php echo wp_create_nonce('wp_plugin_close_notice'); ?>",
+                "home_url": "<?php echo home_url('/'); ?>",
                 "settings_icon": '<?php echo plugin_dir_url( __FILE__ ) . 'images/settings.png' ?>',
-                "settings_hover_icon": '<?php echo plugin_dir_url( __FILE__ ) . 'images/settings_hover.png' ?>'
+                "settings_hover_icon": '<?php echo plugin_dir_url( __FILE__ ) . 'images/settings_hover.png' ?>',
+                "token": '<?php echo get_option('ewptshp_worker_token'); ?>',
+                "endpoint": '<?php echo rest_url('ewptshp/v1/run'); ?>',
+                
+                "notification_sound_url": '<?php echo plugin_dir_url( __FILE__ ) . 'assets/sounds/notification.mp3' ?>',
             };
             /* ]]\> */
         </script>
@@ -233,122 +397,104 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return substr($string, $ini, $len);
     }
 
-//    public function rmdir_recursive($dir) {
-//        if(file_exists($dir)){
-//            foreach(scandir($dir) as $file) {
-//                if ('.' === $file || '..' === $file) continue;
-//                if (is_dir("$dir/$file")) $this->rmdir_recursive("$dir/$file");
-//                else @unlink("$dir/$file");
-//            }
-//            rmdir($dir);
-//        }
-//    }
-
     public function rmdir_recursive($dir) {
-        global $wp_filesystem;
-
-        // Initialize the WP_Filesystem
-        if ( ! function_exists( 'WP_Filesystem' ) ) {
-            require_once( ABSPATH . 'wp-admin/includes/file.php' );
-        }
-
-        WP_Filesystem();
-
-        if ( $wp_filesystem->exists( $dir ) ) {
-            $dir_contents = $wp_filesystem->dirlist( $dir );
-
-            foreach ( $dir_contents as $file => $fileinfo ) {
-                if ( $fileinfo['type'] === 'd' ) {
-                    $this->rmdir_recursive( $dir . '/' . $file );
-                } else {
-                    $wp_filesystem->delete( $dir . '/' . $file );
-                }
+        if(file_exists($dir)){
+            foreach(scandir($dir) as $file) {
+                if ('.' === $file || '..' === $file) continue;
+                if (is_dir("$dir/$file")) $this->rmdir_recursive("$dir/$file");
+                else @unlink("$dir/$file");
             }
-
-            $wp_filesystem->rmdir( $dir );
+            @rmdir($dir);
         }
     }
 
-
     public function get_site_data_by_url($url='')
     {
-        $arrContextOptions=array(
-            "http" => array(
-                /*"header" =>
-                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) 
-                            AppleWebKit/537.36 (KHTML, like Gecko) 
-                            Chrome/50.0.2661.102 Safari/537.36rn",*/
-                "ignore_errors" => true,
-                "timeout" => (float)15,
-            ),
-            "ssl"=>array(
-                "allow_self_signed"=>true,
-                "verify_peer"=>false,
-                "verify_peer_name"=>false,
-            ),
-        );
-
+        $url = urldecode($url);
         if (!empty($url)) {
-            $html = file_get_html($url, false, stream_context_create($arrContextOptions));
+            $this->update_asset_url_status($url, 'processing');
+            //$data = $this->xcurl($url);
 
-            if (!$html) {
-                $html = $this->xcurl($url);
-                $html = str_get_html($html);
+            // Path to the cookies file
+            $cookies_file_path = $this->getExportDir() . '/cookie.txt';
+
+            $cookies = $this->getCookiesIntoArray($cookies_file_path);
+
+
+            $response = wp_remote_get( $url , array(
+                'timeout'     => 300,
+                'httpversion' => '1.1',
+                'sslverify' => false,
+                'cookies' => $cookies,
+            ));
+
+            $data = "";
+
+            if (( !is_wp_error($response)) && (200 === wp_remote_retrieve_response_code( $response ) )){
+                $data = wp_remote_retrieve_body( $response );
             }
 
-            $this->site_data = $html;
 
-            return $html;
-        }
-        else{
-            return $this->get_site_data_by_url();
+            if (PHP_VERSION_ID >= 70205 && !$this->getSettings('alt_export')) {
+                if (!empty($data)) {
+                    $this->site_data = HtmlDomParser::str_get_html($data);
+                } else {
+                    $this->site_data = HtmlDomParser::str_get_html("<h1>404 not found!</h1>");
+                }
+            }
+            else{
+                if (!empty($data)) {
+                    $this->site_data = \str_get_html($data);
+                } else {
+                    $this->site_data = \str_get_html("<h1>404 not found!</h1>");
+                }
+            }
         }
     }
 
     /**
-     * @return string
+     * Retrieves the contents of a given URL using WordPress's HTTP API.
+     *
+     * @param string $url The URL to fetch.
+     * @return string|array Returns the response body if successful,
+     *                      or an array with 'error' and 'response_code' on failure.
      */
-    public function get_url_data($url="")
+    public function get_url_data($url = "")
     {
+        // Normalize the URL (replace spaces with %20, etc.)
         $url = $this->url_basename_space_to_percent20($url);
-//        $arrContextOptions=array(
-//            "http" => array(
-//                /*"method" => "POST",
-//                "header" =>
-//                    "Content-Type: application/xml; charset=utf-8;\r\n".
-//                    "Connection: close\r\n",*/
-//                "ignore_errors" => true,
-//                "timeout" => (float)300,
-//            ),
-//            "ssl"=>array(
-//                "allow_self_signed"=>true,
-//                "verify_peer"=>false,
-//                "verify_peer_name"=>false,
-//            ),
-//        );
 
-        //$html = @file_get_contents($url, false, stream_context_create($arrContextOptions));
-
-        // Use wp_remote_get to fetch the URL
+        // Make an HTTP GET request using WordPress's wp_remote_get()
         $response = wp_remote_get($url, array(
-            'sslverify' => false,
-            'timeout' => 10,
+            'timeout'     => 300,     // Allow up to 5 minutes (useful for slow servers)
+            'httpversion' => '1.1',   // Use HTTP/1.1
+            'sslverify'   => true,    // Verify SSL certificate (recommended for security)
         ));
 
-        // Check for errors
+        // Check for errors during the request
         if (is_wp_error($response)) {
-            // Handle error, maybe return false or an empty string
-            $html = '';
+            wpptsh_error_log('Error retrieving URL: ' . $response->get_error_message());
+            return [
+                'error' => true,
+                'response_code' => 0
+            ];
+        }
+
+        // Get the HTTP response code and body
+        $response_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+
+        // If the response code is 200 (OK), return the content
+        if (200 === $response_code) {
+            return $body;
         } else {
-            // Retrieve the body of the response
-            $html = wp_remote_retrieve_body($response);
+            // Otherwise, log the response code and return an error array
+            wpptsh_error_log('Non-200 response code: ' . $response_code . " --> " . $url);
+            return [
+                'error' => true,
+                'response_code' => $response_code
+            ];
         }
-
-        if (!$html) {
-            $html = $this->xcurl($url);
-        }
-
-        return $html;
     }
 
 
@@ -358,382 +504,611 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return substr($url, 0, $pos) . str_replace(' ', '%20', substr($url, $pos));
     }
 
-
-
-    public function add_urls_log($url="", $found_on="", $type="", $exported=0, $new_url="")
+    public function escape_quotations($content='')
     {
-        if (strpos($url, 'data:') == false && strpos($url, 'svg+xml') == false && strpos($url, 'base64') == false) {
+        return str_replace(array("'", '"'), '', $content);
+    }
 
-            //$url = $this->url_without_hash($url);
+    /**
+     * Adds a URL log entry to the database if not already present and not a data/base64/svg URL.
+     *
+     * @param string $url        The URL to log.
+     * @param string $found_on   Where the URL was found.
+     * @param string $type       The type/category of the URL.
+     * @param int    $exported   Whether the URL has been exported (0 or 1).
+     * @param string $new_url    New file name or URL after processing.
+     * @return int|false         Number of rows inserted or false on failure.
+     */
+    public function add_urls_log($url = "", $found_on = "", $type = "", $exported = 0, $new_url = "")
+    {
+        $url = (string) $url;
+        $url = rtrim($url, '/');
+        // Skip logging if URL is data URI, svg+xml, or base64 encoded (common inline assets)
+        if (strpos($url, 'data:') === false && strpos($url, 'svg+xml') === false && strpos($url, 'base64') === false) {
+
             global $wpdb;
             $table_name = $wpdb->prefix . 'export_urls_logs';
 
-// Prepare the SQL statement with placeholders
-// Prepare the SQL query
-            $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url = %s", $url);
+            // Clean URL (trim + escape quotes)
+            $url = $this->escape_quotations($this->ltrim_and_rtrim($url));  
+            $url = $this->url_without_hash($url);  
 
-// Execute the query
-            $found = $wpdb->get_var($sql);
+            if (strpos($url, '#')!== false) {
+                wpptsh_error_log('# found in url : '. $url);
+            }
 
 
+            // Use $wpdb->prepare to safely query
+            $found = $wpdb->get_var(
+                $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url = %s", $url)
+            );
 
             if (!$found) {
-
-                $url = sanitize_text_field($url);
-                $new_url = sanitize_text_field($new_url);
-                $found_on = sanitize_text_field($found_on);
-                $type = sanitize_text_field($type);
-                $exported = intval($exported);
-
+                // Insert new record safely using $wpdb->insert()
                 $res = $wpdb->insert(
                     $table_name,
-                    array(
-                        'url' => $url,
+                    [
+                        'url'           => $url,
                         'new_file_name' => $new_url,
-                        'found_on' => $found_on,
-                        'type' => $type,
-                        'exported' => $exported,
-                    ),
-                    array(
+                        'found_on'      => $found_on,
+                        'type'          => $type,
+                        'exported'      => (int) $exported,
+                    ],
+                    [
                         '%s',
                         '%s',
                         '%s',
                         '%s',
                         '%d',
-                    )
+                    ]
                 );
 
+                return $res; // Returns number of rows inserted (1) or false on failure
+            }
+        }
+
+        return 0; // URL was not inserted (already exists or filtered out)
+    }
+
+    public function update_urls_log($url = "", $value = "", $by = 'exported', $type = "cssItem")
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'export_urls_logs';
+        $url = $this->escape_quotations($this->ltrim_and_rtrim($url));
+        $url = rtrim($url, '/');
+        $url = $this->url_without_hash($url);
+
+        // Check if record exists
+        $exists = $wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE url = %s", $url)
+        );
+
+        // Update logic
+        if ($exists) {
+            $field = ($by === 'new_file_name') ? 'new_file_name' : 'exported';
+            $format = ($field === 'exported') ? '%d' : '%s';
+
+            return $wpdb->update(
+                $table,
+                [ $field => $value ],
+                [ 'url' => $url ],
+                [ $format ],
+                [ '%s' ]
+            );
+        }
+
+        // Insert logic
+        $data = [
+            'url'       => $url,
+            'found_on'  => $url,
+            'type'      => $type,
+        ];
+
+        $formats = [ '%s', '%s', '%s' ];
+
+        if ($by === 'new_file_name') {
+            $data['new_file_name'] = $value;
+            $formats[] = '%s';
+        } else {
+            $data['exported'] = $value;
+            $formats[] = '%d';
+        }
+
+        return $wpdb->insert($table, $data, $formats);
+    }
+
+    public function get_newly_created_basename_by_url($url){
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'export_urls_logs';
+        $url = $this->escape_quotations($this->ltrim_and_rtrim($url));
+
+        $found = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name} WHERE url='$url'");
+
+        if ($found){
+            $basename = $wpdb->get_results("SELECT new_file_name FROM {$table_name} WHERE url='$url'");
+            if (!empty($basename)){
+                return $basename[0]->new_file_name;
+            }
+        }
+        return 0;
+    }
+
+    public function add_exportable_url($url="", $found_on="", $exported=0)
+    {
+        if (strpos($url, 'data:') == false && strpos($url, 'svg+xml') == false && strpos($url, 'base64') == false) {
+
+            //$url = $this->url_without_hash($url);
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'exportable_urls';
+
+            $url = $this->escape_quotations($this->ltrim_and_rtrim($url));
+
+            $found = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name} WHERE url='$url'");
+            if (!$found) {
+                $res = $wpdb->insert(
+                    $table_name,
+                    array(
+                        'url' => $url,
+                        'found_on' => $found_on,
+                        'exported' => $exported,
+                    ),
+                    array(
+                        '%s',
+                        '%s',
+                        '%d',
+                    )
+                );
                 return $res;
             }
         }
         return 0;
     }
-    public function update_urls_log($url="", $value="", $by='exported', $type = "url")
+
+    public function is_link_exists($url="", $found_on = false, $found_on_url = "")
     {
         global $wpdb;
         $table_name = $wpdb->prefix . 'export_urls_logs';
 
-        // Sanitize the input data
-        $url = sanitize_text_field($url);
-        $value = sanitize_text_field($value);
-        $by = sanitize_text_field($by);
-        $type = sanitize_text_field($type);
+        $url = $this->escape_quotations($this->ltrim_and_rtrim($url));
 
-        // Prepare the SQL query safely
-        $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url = %s", $url);
-        $found = $wpdb->get_var($sql);
-
+        if(!$found_on){
+            $found = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name} WHERE url LIKE '$url'");
+        }else{
+            $found = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name} WHERE url LIKE '$url' AND found_on LIKE '$found_on_url' ");
+        }
         if ($found){
-            if($by == 'exported'){
-                $res = $wpdb->update(
-                    $table_name,
-                    array('exported' => $value),
-                    array('url' => $url),
-                    array('%d'), // value format
-                    array('%s')  // where format
-                );
-            } elseif($by == 'new_file_name'){
-                $res = $wpdb->update(
-                    $table_name,
-                    array('new_file_name' => $value),
-                    array('url' => $url),
-                    array('%s'), // value format
-                    array('%s')  // where format
-                );
-            }
-        } else {
-            if($by == 'exported'){
-                $res = $wpdb->insert(
-                    $table_name,
-                    array(
-                        'url' => $url,
-                        'found_on' => $url,
-                        'type' => $type,
-                        'exported' => $value,
-                    ),
-                    array('%s', '%s', '%s', '%d') // data formats
-                );
-            } elseif($by == 'new_file_name'){
-                $res = $wpdb->insert(
-                    $table_name,
-                    array(
-                        'url' => $url,
-                        'found_on' => $url,
-                        'type' => $type,
-                        'new_file_name' => $value,
-                    ),
-                    array('%s', '%s', '%s', '%s') // data formats
-                );
-            }
+            return true;
         }
 
-        return $res ? $res : 0;
+        return false;
     }
-
-    public function url_without_hash($url="")
-    {
-        $url = explode('#', $url)[0];
-
-        return $url;
-    }
-
-    public function is_link_exists($url = "", $found_on = false, $found_on_url = "")
-    {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'export_urls_logs';
-
-        // Sanitize the input data
-        $url = sanitize_text_field($url);
-        $found_on_url = sanitize_text_field($found_on_url);
-
-        // Prepare and execute the SQL query safely
-        if (!$found_on) {
-            $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url LIKE %s", $url);
-        } else {
-            $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url LIKE %s AND found_on LIKE %s", $url, $found_on_url);
-        }
-
-        $found = $wpdb->get_var($sql);
-
-        return $found ? true : false;
-    }
-
 
     public function get_all_links($url="")
     {
-        $path_to_dot = $this->rc_path_to_dot($url, true, true);
-        $url_middle_path = $this->rc_get_url_middle_path($url, true, true);
-        $basename = $this->url_to_basename($url);
-
+        //$this->get_site_data_by_url($url);
         $src = $this->site_data;
-        $findLinks = $src->find('a');
-        $all_a = array();
+        if (!empty($src)){
+            $findLinks = $src->find('a');
+            if(!empty($findLinks)){
+                foreach ($findLinks as $link) {
+                    if (!empty($url)){
+                        
+                        $imgExts   = $this->getImageExtensions();
+                        $audioExts = $this->getAudioExtensions();
+                        $videoExts = $this->getVideoExtensions();
+                        $docsExts  = $this->getDocsExtensions();
 
-        if(!empty($findLinks)){
-            foreach ($findLinks as $link) {
-                if (!empty($url)){
-                    $imgExts = array("gif", "jpg", "jpeg", "png", "tiff", "tif", "svg", "pdf");
-                    $urlExt = pathinfo($link->href, PATHINFO_EXTENSION);
-                    $exclude_url = apply_filters('wp_page_to_html_exclude_urls', false, $link->href);
-                    if (($this->get_host($link->href) == $this->get_host($url) ) && !in_array($urlExt, $imgExts) && !$exclude_url){
-                        $link_href = $link->href;
-                        $link_href = $this->url_without_hash($link_href);
-                        //$link_href = url_to_absolute($url, $link_href);
+                        // 1) capture raw
+                        $raw_href = isset($link->href) ? trim($link->href) : '';
+                        if ($raw_href === '') { continue; }
 
-                        $this->add_urls_log($link_href, $url, 'url');
+                        // 2) resolve
+                        $base_url = $this->as_dir_base($url);
+                        $resolved = url_to_absolute($base_url, $raw_href);
+                        $resolved_nohash = $this->url_without_hash($resolved);
+                        $ext = strtolower(pathinfo(parse_url($resolved_nohash, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+                        $same_host = ($this->get_host($resolved_nohash) === $this->get_host($url));
+                        $exclude_url = apply_filters('wp_page_to_html_exclude_urls', false, $resolved_nohash);
+                        
+                        if ($this->is_same_document($resolved_nohash, $base_url)) {
+                            // It's just a same-page anchor (e.g., ./index.html#content) – skip it.
+                            continue;
+                        }
+                        if (preg_match('#^\s*(\#|javascript:|mailto:|tel:|sms:|whatsapp:)#i', $raw_href)) {
+                            continue;
+                        }
 
-                        $all_a[] = $link_href;
-                        //$this->create_html_file($link->href);
+                        // 5) final decision
+                        if (
+                            $same_host &&
+                            !in_array($ext, $imgExts) &&
+                            !in_array($ext, $audioExts) &&
+                            !in_array($ext, $videoExts) &&
+                            !in_array($ext, $docsExts) &&
+                            // uncomment if you want to exclude .html pages:
+                            // $ext !== 'html' &&
+                            strpos($resolved_nohash, 'data:') !== 0 &&
+                            !$exclude_url
+                        ){
+                            // normalize once
+                            $final = $resolved_nohash;
 
-                        $imgExts = $this->getImageExtensions();
-                        $urlExt = pathinfo($url, PATHINFO_EXTENSION);
-                        //echo $urlExt;
-                        if (in_array($urlExt, $imgExts)) {
-                            $link->href = $path_to_dot .'images/'. $basename;
-                        }else{
-                            $link->href = $path_to_dot . $url_middle_path . $basename . '.html';
+                            // (optional) normalize: strip utm params, trailing slash, lowercase host
+                            $final = $this->normalize_url($final);
+                            if (strpos($final, '.html') !== false) {
+                                //error_log('[FOUND THE]main url  : '.$url."|url=$final|raw_href=$raw_href");
+                            }
+                            $this->add_urls_log($final, $url, 'url');
+                            $this->add_exportable_url($final, $url);
                         }
                     }
                 }
             }
         }
-        $this->site_data = $src;
 
-        return $all_a;
     }
+private function as_dir_base($url) {
+    $p = parse_url($url);
+    if (!$p) return $url;
+    $path = $p['path'] ?? '/';
+    // If last path segment has no dot (no extension) and no trailing slash → treat as dir
+    if (!preg_match('/\.[a-z0-9]+$/i', $path) && substr($path, -1) !== '/') {
+        $p['path'] = $path . '/';
+        $scheme = $p['scheme'] ?? 'http';
+        $host   = $p['host']   ?? '';
+        $port   = isset($p['port']) ? ':' . $p['port'] : '';
+        $query  = isset($p['query']) ? '?' . $p['query'] : '';
+        return $scheme . '://' . $host . $port . $p['path'] . $query;
+    }
+    return $url;
+}
 
-    public function create_required_directories($value='')
+private function normalize_doc_path($u) {
+    $p = parse_url($u);
+    if (!$p) return $u;
+    $scheme = strtolower($p['scheme'] ?? 'http');
+    $host   = strtolower($p['host']   ?? '');
+    $port   = isset($p['port']) ? ':' . $p['port'] : '';
+    $path   = $p['path'] ?? '/';
+    // collapse // to /
+    $path = preg_replace('#/+#', '/', $path);
+    // /foo/index.html|htm|php → /foo/
+    $path = preg_replace('#/(index|default)\.(html?|php)$#i', '/', $path);
+    // ensure directory paths end with /
+    if (!preg_match('/\.[a-z0-9]+$/i', $path) && substr($path, -1) !== '/') {
+        $path .= '/';
+    }
+    return $scheme . '://' . $host . $port . $path;
+}
+
+private function is_same_document($a, $b) {
+    return $this->normalize_doc_path($a) === $this->normalize_doc_path($b);
+}
+
+public function url_without_hash($u) {
+    $p = parse_url($u);
+    if (!$p) return $u;
+    $scheme = $p['scheme'] ?? 'http';
+    $host   = $p['host']   ?? '';
+    $port   = isset($p['port']) ? ':' . $p['port'] : '';
+    $path   = $p['path']   ?? '';
+    $query  = isset($p['query']) ? '?' . $p['query'] : '';
+    return $scheme . '://' . $host . $port . $path . $query;
+}
+
+private function normalize_url($u) {
+    $p = parse_url($u);
+    if (!$p) return $u;
+    $scheme = $p['scheme'] ?? 'https';
+    $host   = strtolower($p['host'] ?? '');
+    $port   = isset($p['port']) ? ':' . $p['port'] : '';
+    $path   = $p['path'] ?? '';
+    $path   = preg_replace('#/+#', '/', $path);
+    // strip tracking params
+    if (isset($p['query'])) {
+        parse_str($p['query'], $q);
+        foreach ($q as $k => $v) {
+            if (preg_match('/^(utm_|fbclid|gclid|mc_(eid|cid))$/i', $k)) unset($q[$k]);
+        }
+        $query = http_build_query($q);
+        $query = $query ? '?' . $query : '';
+    } else {
+        $query = '';
+    }
+    return $scheme . '://' . $host . $port . $path . $query;
+}
+
+
+    public function create_required_directories()
     {
 
         if (!file_exists($this->export_dir)) {
-            $this->create_directory($this->export_dir);
+            mkdir($this->export_dir);
         }
 
         if (!file_exists($this->export_temp_dir)) {
-            $this->create_directory($this->export_temp_dir);
+            mkdir($this->export_temp_dir, 0777, true);
         }
 
         if (!file_exists($this->css_path)) {
 
             if ($this->update_export_log('', 'creating', 'CSS Directory')) {
-                $this->create_directory($this->css_path);
+                mkdir($this->css_path);
             }
         }
         if (!file_exists($this->fonts_path)) {
             if ($this->update_export_log('', 'creating', 'Fonts Directory')) {
-                $this->create_directory($this->fonts_path);
+                mkdir($this->fonts_path);
             }
         }
         if (!file_exists($this->js_path)) {
             if ($this->update_export_log('', 'creating', 'JS Directory')) {
-                $this->create_directory($this->js_path);
+                mkdir($this->js_path);
             }
         }
         if (!file_exists($this->img_path)) {
             if ($this->update_export_log('', 'creating', 'Images Directory')) {
-                $this->create_directory($this->img_path);
+                mkdir($this->img_path);
             }
         }
     }
 
-    public function clear_tables_and_files()
+    public function clear_tables_and_files($exportId="")
     {
         global $wpdb;
+        $dir = $this->upload_dir . '/exported_html_files/tmp_files/' . $exportId;
 
         // Step 1: Remove files and directories
-        $this->rmdir_recursive($this->upload_dir . '/exported_html_files/tmp_files');
+        $this->rmdir_recursive($dir);
 
         // Step 2: Clear the database tables
         $wpdb->query("TRUNCATE TABLE {$wpdb->prefix}export_page_to_html_logs");
         $wpdb->query("TRUNCATE TABLE {$wpdb->prefix}export_urls_logs ");
+        $wpdb->query("TRUNCATE TABLE {$wpdb->prefix}exportable_urls ");
 
-        // Step 3: Return true after successful clearing
         return true;
     }
 
-
-    public function export_wp_page_as_static_html_by_page_id($main_url = '', $html_filename = 'index.html')
+    public function export_wp_page_as_static_html_by_page_id($main_url = '', $html_filename = 'index.html', $next_url_id = 2)
     {
-        if ($this->is_cancel_command_found()) {
+
+        if ($this->is_cancel_command_found() || $this->is_paused()) {
             return false;
         }
 
+
+        if ($this->getSettings('alt_export')) {
+            if (!function_exists('str_get_html')) {
+                require_once 'includes/simple_html_dom.php';
+            }
+        }
+
         $prev_main_url = $main_url;
-        $this->update_urls_log($prev_main_url, 1);
+        //$main_url = explode('#', $main_url)[0];
+        //$this->add_urls_log($main_url, '', 'url');
 
-        $main_url = explode('#', $main_url)[0];
+        $main_url = $this->normalize_url($main_url);
 
-        $middle_path = $this->rc_get_url_middle_path($main_url);
+
         $full_site = $this->getSettings('full_site');
+        $middle_path = $full_site ? $this->rc_get_url_middle_path($main_url) : '';
 
-        if (!$this->rc_is_link_already_generated($main_url)) {
+        if ($this->rc_is_link_already_generated($main_url)) {
+            //$this->handle_next_export($next_url_id, $main_url);
+            return true;
+        }
 
-            if (!empty($middle_path) && !file_exists($this->upload_dir . '/exported_html_files/tmp_files/' . $middle_path)) {
-                $path = $this->upload_dir . '/exported_html_files/tmp_files/' . $middle_path;
-                @$this->create_directory($path, 0777, true);
+
+        if (!empty($middle_path)) {
+            $tmp_path = $this->upload_dir . '/exported_html_files/tmp_files/' . $middle_path;
+            if (!file_exists($tmp_path)) {
+                @mkdir($tmp_path, 0777, true);
             }
-            $this->update_export_log($main_url, 'reading', '');
-            //$this->add_urls_log($link->href, $url, 'url');
+        }
 
-            $this->get_site_data_by_url($main_url);
+        $this->update_export_log($main_url, 'reading', '');
+        $this->get_site_data_by_url($main_url);
 
-            $skip = $this->getSettings('skipAssetsFiles', array());
+        if (empty($this->site_data)) {
+            return false;
+        }
 
-            /*Get stylesheet urls*/
-            if(!array_key_exists('stylesheets', $skip)){
-                $this->ExtractStylesheets()->get_stylesheets($main_url);
+        $skip = (array) $this->getSettings('skipAssetsFiles', array());
+        $src = $this->site_data;
 
-                /*Working with inline css*/
-                $this->InlineCss()->get_inline_css($main_url);
+        $elements = [
+            'images' => $src->find('img'),
+            'scripts' => $src->find('script'),
+            'stylesheets' => $src->find('link'),
+        ];
 
-                /*Working with div inline css*/
-                $this->InlineCss()->get_div_inline_css($main_url);
-            }
+        if (!array_key_exists('stylesheets', $skip)) {
+            wpptsh_error_log('stylesheets');
+            $this->ExtractStylesheets()->process($elements['stylesheets'], $main_url);
+            $this->InlineCss()->get_inline_css($main_url);
+            $this->InlineCss()->get_div_inline_css($main_url);
+        } else {
+            wpptsh_error_log('stylesheets skipped');
+        }
 
-            /*Get scripts*/
-            if(!array_key_exists('scripts', $skip)){
-                $this->ExtractScripts()->get_scripts($main_url);
+        if (!array_key_exists('scripts', $skip)) {
+            wpptsh_error_log('scripts');
+            $this->ExtractScripts()->process($elements['scripts'], $main_url);
+        } else {
+            wpptsh_error_log('scripts skipped');
+        }
 
-            }
+        if (!array_key_exists('images', $skip)) {
+            wpptsh_error_log('images');
+            $this->ExtractImages()->process($elements['images'], $main_url);
+            $this->ExtractMetaImages()->get_meta_images($main_url);
+        } else {
+            wpptsh_error_log('images skipped');
+        }
 
-            /*Get images*/
-            if(!array_key_exists('images', $skip)){
-                $this->ExtractImages()->get_images($main_url);
+        if (!array_key_exists('videos', $skip)) {
+            wpptsh_error_log('videos');
+            $this->ExtractVideos()->get_videos($main_url);
+        }
 
-                /*Extract meta images*/
-                $this->ExtractMetaImages()->get_meta_images($main_url);
-            }
+        if (!array_key_exists('audios', $skip)) {
+            wpptsh_error_log('audios');
+            $this->ExtractAudios()->get_audios($main_url);
+        }
 
-            /*Extract videos*/
-            if(!array_key_exists('videos', $skip)){
-                $this->ExtractVideos()->get_videos($main_url);
-            }
+        if (!array_key_exists('docs', $skip)) {
+            wpptsh_error_log('docs');
+            $this->ExtractDocs()->get_documents($main_url);
+        }
 
-
-            /*Extract audios*/
-            if(!array_key_exists('audios', $skip)){
-                $this->ExtractAudios()->get_audios($main_url);
-            }
-
-            /*Extract audios*/
-            if(!array_key_exists('docs', $skip)){
-                $this->ExtractDocs()->get_documents($main_url);
-            }
-
-
-
-
-            /*Save the html*/
-            $this->saveHtmlFile($main_url, $full_site, $middle_path, $html_filename);
-
-            $this->update_urls_log($prev_main_url, 1);
-            $this->update_urls_log($main_url, 1);
+        if ($full_site) {
+            $this->get_all_links($main_url);
+        }
 
 
-            if ($full_site) {
-                $all_links_href = $this->get_all_links($main_url);
-                $this->readAllLinks($all_links_href, $full_site);
-            } /*End condition full_site*/
+        $this->saveHtmlFile($main_url, $full_site, $middle_path, $html_filename);
+        $this->update_urls_log($main_url, 1);
 
+
+        // if ( $full_site && empty($this->get_next_export_asset('url', 1)) && !$this->is_cancel_command_found() && !$this->is_paused()) {
+        //     $this->update_export_log('', 'all_pages_exported');
+        //     $this->setSettings('creating_html_process', 'completed');
+        //     do_action('creating_html_files_completed', $main_url);
+        // }
+        if (!$full_site) {
+            $this->setSettings('creating_html_process', 'completed');
+            do_action('creating_html_files_completed', $main_url);
         }
 
         return true;
-
     }
 
-    public function url_to_basename($url="", $parm=false, $type="")
+/**
+ * Get next asset(s) to export.
+ *
+ * @param string|array|null $asset_type One of 'css','js','image', or an array of them. Null = all.
+ * @param int               $limit      How many rows to fetch (default 1).
+ * @return array|null                   ARRAY_A row when $limit === 1, array of rows when $limit > 1, or null/[] if none.
+ */
+public function get_next_export_asset($asset_type = null, $limit = 1) {
+    global $wpdb;
+
+    $table   = $wpdb->prefix . 'export_urls_logs';
+    $allowed = ['css', 'js', 'url', 'image'];
+
+    // Normalize $asset_type into a validated list of types
+    if (is_string($asset_type) && $asset_type !== '') {
+        $types = in_array($asset_type, $allowed, true) ? [$asset_type] : [];
+    } elseif (is_array($asset_type)) {
+        $types = array_values(array_intersect($allowed, array_map('strval', $asset_type)));
+    } else {
+        $types = $allowed; // default: all
+    }
+
+    // If nothing valid remains, return early
+    if (empty($types)) {
+        return $limit === 1 ? null : [];
+    }
+
+    // Sanitize/guard limit
+    $limit = max(1, (int) $limit);
+
+    // Build dynamic placeholders for the IN() list
+    $in_placeholders = implode(',', array_fill(0, count($types), '%s'));
+
+    // Prepare SQL: filter by type, not yet exported, oldest first, limit N
+    $sql = $wpdb->prepare(
+        "SELECT * 
+         FROM {$table}
+         WHERE type IN ($in_placeholders)
+           AND exported = %d
+         ORDER BY id ASC
+         LIMIT %d",
+        array_merge($types, [0, $limit])
+    );
+
+    // Return one row or many based on $limit
+    if ($limit === 1) {
+        return $wpdb->get_row($sql, ARRAY_A); // null if no match
+    }
+
+    return $wpdb->get_results($sql, ARRAY_A); // [] if no matches
+}
+
+    private function handle_next_export($next_url_id, $main_url)
     {
-        if($this->getSettings('customUrl') && $this->getSettings('full_site')){
-            $url = str_replace( $this->getSettings('customUrlAddress'), '', $url);
+        if ($next_url_id % 3 == 0) {
+            if ($this->getSettings('run_task_in_bg')) {
+                wp_schedule_single_event(time(), "next_page_export_from_queue", array($next_url_id));
+            } else {
+                $this->setSettings('nextExportPageId', $next_url_id);
+            }
+        } else {
+            do_action('next_page_export_from_queue', $next_url_id);
+        }
+    }
+
+    public function url_to_rand_basename($url = "")
+    {
+        $unique_code = random_int(10000, 99999);
+        return $unique_code . '-'. $this->url_to_basename($url);
+    }
+
+    /**
+     * Converts a URL to its basename with optional type suffix and parameter handling.
+     *
+     * @param string $url   The URL to process.
+     * @param bool   $parm  Whether to include URL fragment (#anchor) in the result.
+     * @param string $type  Optional suffix to append to the basename (e.g., file extension).
+     * @return string       The basename derived from the URL.
+     */
+    public function url_to_basename($url = "", $parm = false, $type = "")
+    {
+        // Return default if input is empty or not a string
+        if (!is_string($url) || trim($url) === "") {
+            return "index" . $type;
         }
 
-        $url = str_replace( array(home_url(), $this->get_host($url)), array('', ''), $url);
+        // Remove custom URL base if enabled in settings
+        if ($this->getSettings('customUrl') && $this->getSettings('full_site')) {
+            $customBase = $this->getSettings('customUrlAddress');
+            if ($customBase) {
+                $url = str_replace($customBase, '', $url);
+            }
+        }
 
+        // Remove home URL and host part from URL to get relative path
+        $url = str_replace([home_url(), $this->get_host($url)], ['', ''], $url);
 
+        // Trim leading and trailing slashes
         $url = $this->ltrim_and_rtrim($url, '/');
 
-        if(!$parm){
-            $urlPart = explode('?', $url);
-            $urlPart = explode('#', $urlPart[0]);
-            $url = $urlPart[0];
+        // Extract the path part of the URL (without query string or fragment)
+        $cleanUrl = parse_url($url, PHP_URL_PATH);
 
-            $basename = "";
-            if (!empty($url)) {
-                return basename($url).$type;
-            }
-            else{
-                return "index".$type;
-            }
+        // Get the basename of the path (last segment), with optional type trimmed
+        $basename = basename($cleanUrl ?: '', $type);
+
+        // Default to 'index' if basename is empty
+        if ($basename === '') {
+            $basename = 'index';
         }
-        else{
-            //$urlPart = explode('?', $url);
-            $urlPart = explode('#', $url);
-            $url = $urlPart[0];
 
-            $parm = isset($urlPart[1]) ? '#' . $urlPart[1] : "";
-
-            $basename = "";
-
-            if (!empty($url)) {
-                return basename($url).$type.$parm;
-            }
-            else{
-                return "index".$type.$parm;
-            }
+        // If parameters/fragments should not be included, return basename + type
+        if (!$parm) {
+            return $basename . $type;
         }
+
+        // Otherwise, add URL fragment (#anchor) if it exists
+        $fragment = parse_url($url, PHP_URL_FRAGMENT);
+        return $basename . $type . ($fragment ? '#' . $fragment : '');
     }
 
 
-
-    public function update_export_log($path = "", $type = "copying", $comment = ""){
+    public function update_export_log($path="", $type = "copying", $comment = ""){
         global $wpdb;
 
-        // Sanitize inputs
-        $path = sanitize_text_field($path);
-        $type = sanitize_text_field($type);
-        $comment = sanitize_text_field($comment);
-
-        // Insert sanitized data into the database
         $wpdb->insert(
             $wpdb->prefix . 'export_page_to_html_logs',
             array(
@@ -751,6 +1126,21 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return true;
     }
 
+    public function is_log_type_exists($type) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'export_page_to_html_logs';
+
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE type = %s",
+            $type
+        );
+
+        $count = $wpdb->get_var($query);
+
+        return ($count > 0);
+    }
+
 
 
     public function get_all_files_as_array($all_files){
@@ -764,16 +1154,24 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
         return $files;
     }
+public function rc_get_sub_dir1($dir) {
+    // Make sure $dir is a non-empty string before using it
+    if (!is_string($dir) || $dir === '') {
+        return; // stop early if invalid
+    }
 
-    public function rc_get_sub_dir1($dir) {
-        if (file_exists($dir)) {
-            foreach (scandir($dir) as $file) {
-                if ('.' === $file || '..' === $file) continue;
-                if (is_dir("$dir/$file")) $this->rc_get_sub_dir1("$dir/$file");
-                echo esc_html("$dir/$file") . ',';
+    if (file_exists($dir)) {
+        foreach (scandir($dir) as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
             }
+            if (is_dir("$dir/$file")) {
+                $this->rc_get_sub_dir1("$dir/$file");
+            }
+            echo "$dir/$file" . ',';
         }
     }
+}
 
 
 
@@ -788,70 +1186,69 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
     }
     public function rc_get_sub_dir($dir) {
-        if (file_exists($dir)) {
+        if(file_exists($dir)) {
             foreach (scandir($dir) as $file) {
                 if ('.' === $file || '..' === $file) continue;
                 if (is_dir("$dir/$file")) $this->rc_get_sub_dir("$dir/$file");
-                if (is_file("$dir/$file")) echo esc_html("$dir/$file") . ',';
+                if (is_file("$dir/$file")) echo "$dir/$file" . ',';
             }
         }
     }
-
 
 
     public function start_export_wp_pages_to_html_cron_task( $datas, $settigs ) {
         if(empty($datas) && $this->is_cancel_command_found()){
             return;
         }
+
         if(!empty($settigs)){
             foreach ($settigs as $key => $setting){
                 $this->setSettings($key, $setting);
             }
         }
-        //$this->removeAllSettings();
-        $this->setSettings('task', 'running');
-        $this->setSettings('pages_data', $datas);
 
+        $this->clearQueue();
 
-        $ok = $this->create_html_files($datas);
+        do_action('html_export_task_running', "");
 
-        if ($ok) {
+        $this->create_html_files($datas, false);
+    }
 
-            $zipCreated = $this->zipWorkers($datas);
-            if($zipCreated){
-                if ($this->getSettings('receive_email')) {
-                    /*Sent emails*/
-                    $this->sent_email();
+    public function start_export_wp_pages_to_html_in_ajax( $datas, $settigs ) {
+        if(empty($datas) && $this->is_cancel_command_found()){
+            return;
+        }
 
-                }
-
-                $this->setSettings('task', 'completed');
-            }else{
-                
-                do_action('wpptsh_export_error_log', 'zip_creation_error');
-                $this->setTaskFailed();
-
-                if ($this->getSettings('receive_email')) {
-                    /*Sent emails*/
-                    $this->sent_email(true);
-                }
-            }
-        } else {
-            do_action('wpptsh_export_error_log', 'html_export_error');
-
-            $this->setTaskFailed();
-
-            if ($this->getSettings('receive_email')) {
-                /*Sent emails*/
-                $this->sent_email(true);
+        if(!empty($settigs)){
+            foreach ($settigs as $key => $setting){
+                $this->setSettings($key, $setting);
             }
         }
-        //delete_transient( 'doing_cron' );
+
+        $this->setSettings('task', 'running');
+        $this->setSettings('pages_data', $datas);
+        $this->clearQueue();
+
+        do_action('html_export_task_running', "");
+
+        $this->create_html_files($datas, false);
     }
 
     public function setTaskFailed()
     {
         $this->setSettings('task', 'failed');
+        $this->setSettings('creating_zip_process', 'canceled');
+        $this->setSettings('creating_html_process', 'canceled');
+
+        $this->setSettings('export_cancel_complete', 'yes');
+
+        do_action('html_export_task_failed', "");
+
+        if ($this->getSettings('receive_email')) {
+            /*Sent emails*/
+            $this->sent_email(true);
+        }
+
     }
 
     /**
@@ -865,43 +1262,68 @@ class Export_Wp_Page_To_Static_Html_Admin {
         if(empty($url)){
             return false;
         }
-        if(!empty($settings)){
-            foreach ($settings as $key => $setting){
-                $this->setSettings($key, $setting);
-            }
-        }
+        // if(!empty($settings)){
+        //     foreach ($settings as $key => $setting){
+        //         $this->setSettings($key, $setting);
+        //     }
+        // }
         //$this->removeAllSettings();
-        $this->setSettings('task', 'running');
+        //$this->setSettings('task', 'running');
 
+        
+        do_action('html_export_task_running', "");
+
+        $this->clearQueue();
+
+        //update_option('ttt32', var_dump($full_site));
         $ok = $this->create_html_files($url, true);
 
-        if ($ok && !$this->is_cancel_command_found()) {
-
-            $zipCreated = $this->zipWorkers($url, true);
-            if($zipCreated){
-                if ($this->getSettings('receive_email')) {
-                    /*Sent emails*/
-                    $this->sent_email();
-                }
-
-                $this->setSettings('is_zip_downloaded', 'no');
-                $this->setSettings('task', 'completed');
-            }else{
-                $this->setSettings('task', 'failed');
-                if ($this->getSettings('receive_email')) {
-                    /*Sent emails*/
-                    $this->sent_email(true);
-                }
+        /*if(!$this->getSettings('full_site')){
+            if ($ok && !$this->is_cancel_command_found()) {
+                do_action('creating_html_files_completed', $url);
+            } else {
+                $this->setTaskFailed();
             }
-
         } else {
-            $this->setSettings('task', 'failed');
-            if ($this->getSettings('receive_email')) {
-                /*Sent emails*/
-                $this->sent_email(true);
-            }
+            $this->setTaskFailed();
+        }*/
+    }
+
+    /**
+     * @param $url
+     * @param $replace_urls
+     * @param $receive_email
+     * @param $full_site
+     * @param $path2
+     */
+    public function start_export_custom_url_to_html_in_ajax($url, $settings ) {
+        if(empty($url)){
+            return false;
         }
-        //wp_clear_scheduled_hook('start_export_internal_wp_page_to_html_event');
+        // if(!empty($settings)){
+        //     foreach ($settings as $key => $setting){
+        //         $this->setSettings($key, $setting);
+        //     }
+        // }
+        //$this->removeAllSettings();
+        //$this->setSettings('task', 'running');
+
+        do_action('html_export_task_running', "");
+
+        $this->clearQueue();
+
+        //update_option('ttt32', var_dump($full_site));
+        $ok = $this->create_html_files($url, true);
+
+        /*if(!$this->getSettings('full_site')){
+            if ($ok && !$this->is_cancel_command_found()) {
+                do_action('creating_html_files_completed', $url);
+            } else {
+                $this->setTaskFailed();
+            }
+        } else {
+            $this->setTaskFailed();
+        }*/
     }
 
 
@@ -970,7 +1392,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function create_html_files($datas, $custom_url = false){
         if (!empty($datas)) {
 
-            /*Clearing previous files and tables data*/
             $this->clear_tables_and_files();
 
             /*Creating required direcories*/
@@ -980,10 +1401,21 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
             $this->setSettings('creating_html_process', 'running');
 
+            do_action('html_export_html_process_start', "");
+
             if (!$custom_url) {
-                if (!empty($datas)){
-                    $c = count($datas);
-                    foreach ($datas as $page) {
+
+                if ($this->getSettings('full_site')) {
+                    $url = home_url();
+                    $html_filename = 'index.html';
+
+                    $ok = $this->export_wp_page_as_static_html_by_page_id($url, $html_filename);
+
+                    if (!$ok) {
+                        return  false;
+                    }
+                } else {
+                    foreach ($datas as $key => $page) {
                         $page_id = $page;
                         if($page_id=='home_page'){
                             $html_filename = 'index.html';
@@ -995,9 +1427,10 @@ class Export_Wp_Page_To_Static_Html_Admin {
                             $url = get_permalink($page_id);
                         }
 
-                        if($c == 1 && get_option('rcExportHtmlCreateIndexOnSinglePage', true)){
+                        if($this->getSettings('singlePage') && get_option('rcExportHtmlCreateIndexOnSinglePage', 'on') == "on"){
                             $html_filename = 'index.html';
                         }
+
                         $ok = $this->export_wp_page_as_static_html_by_page_id($url, $html_filename);
 
                         if (!$ok) {
@@ -1007,12 +1440,11 @@ class Export_Wp_Page_To_Static_Html_Admin {
                     }
                 }
 
-
             }
             else {
-                $url = $datas;
-                $host = $this->get_host($url);
-                if($this->getSettings('singlePage') && get_option('rcExportHtmlCreateIndexOnSinglePage', true)){
+                $url = rtrim($datas, '/');
+                //$host = $this->get_host($url);
+                if($this->getSettings('singlePage') && get_option('rcExportHtmlCreateIndexOnSinglePage', 'on') == 'on'){
                     $html_filename = 'index.html';
                 }
                 elseif ($this->getSettings('full_site')){
@@ -1021,14 +1453,22 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 else{
                     $html_filename = $this->filter_filename(basename($url)) . '.html';
                 }
-                $ok = $this->export_wp_page_as_static_html_by_page_id($url, $html_filename);
-                if (!$ok) {
+
+                if (!$this->export_wp_page_as_static_html_by_page_id($url, $html_filename)) {
                     return  false;
                 }
             }
 
-            $log = $this->update_export_log('', 'all_pages_exported');
-            $this->setSettings('creating_html_process', 'completed');
+            // $main_url = explode('#', $url)[0];
+            // $full_site = $this->getSettings('full_site');
+            // if ($full_site) {
+            //     $this->get_all_links($main_url);
+            //     //$this->readAllLinks($all_links_href, $full_site);
+            // }
+
+            //$this->update_export_log('', 'all_pages_exported');
+            //$this->setSettings('creating_html_process', 'completed');
+            //do_action('html_export_html_process_completed', "");
 
             /*update_option('rc_expoting_errors_appear', false);
             update_option('rc_previous_logs_count', '0');*/
@@ -1070,28 +1510,23 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return false;
     }
 
-    public function removeAllSettings()
+    public function removeAllSettings($key="")
     {
         global $wpdb;
+        if (!empty($key)){
+            $removefromdb = $wpdb->query("DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '{$key}%'");
+        }
+        else{
+            //$removefromdb = $wpdb->query("UPDATE {$wpdb->prefix}options SET option_value = '' WHERE option_name LIKE '{$this->settingsKey}%'");
+            $removefromdb = $wpdb->query("DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '{$this->settingsKey}%'");
+        }
 
-        // Sanitize settingsKey
-        $settingsKey = esc_sql($this->settingsKey);
 
-        // Construct the SQL query
-        $query = "
-        UPDATE {$wpdb->prefix}options 
-        SET option_value = '' 
-        WHERE option_name LIKE '{$settingsKey}%'
-    ";
-
-        // Execute the query
-        $removefromdb = $wpdb->query($query);
-
-        return $removefromdb !== false;
+        if ($removefromdb) {
+            return true;
+        }
+        return false;
     }
-
-
-
 
     public function get_zip_name($datas='')
     {
@@ -1135,19 +1570,10 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function get_exported_html_files_count()
     {
         global $wpdb;
-
-        // Prepare the SQL query
-        $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = %s",
-            'created_html_file'
-        );
-
-        // Execute the query and get the count
-        $count = $wpdb->get_var($query);
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = 'created_html_file' ");
 
         return $count;
     }
-
 
     public function if_fullsite_export_command_found($datas, $return_data = false){
         if (!empty($datas)) {
@@ -1256,27 +1682,52 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return false;
     }
 
-    public function rc_path_to_dot($url){
-        if($this->getSettings('customUrl') && $this->getSettings('full_site')){
-            $url = str_replace( array($this->getSettings('customUrlAddress')), array(''), $url);
-        }
-        $middle_path = str_replace( array(home_url(), $this->get_host($url)), array('', ''), $url);
-        $middle_path = $this->ltrim_and_rtrim($middle_path, '/');
-
-        if($this->getSettings('customUrl') && $this->getSettings('singlePage')){
-            $middle_path = "";
-        }
-
-        $p = './';
-        if (!empty($middle_path)) {
-            $middle_path = explode('/', $middle_path);
-            for ($i=1; $i < count($middle_path); $i++) {
-                $p .= '../';
+    /**
+     * Converts a URL path to a relative path prefix with dots (e.g., "./", "../", "../../").
+     *
+     * @param string $url         The URL to convert.
+     * @param bool   $isSpecific  Optional flag for specific path handling (currently treated same).
+     * @return string             The relative path prefix.
+     */
+    public function rc_path_to_dot($url, $isSpecific = false)
+    {
+        // Remove custom URL base if 'customUrl' and 'full_site' settings are enabled
+        if ($this->getSettings('customUrl') && $this->getSettings('full_site')) {
+            $customBase = $this->getSettings('customUrlAddress');
+            if ($customBase) {
+                $url = str_replace($customBase, '', $url);
             }
         }
 
-        return $p;
+        // Remove home URL and host from URL to get relative path
+        $middle_path = str_replace([home_url(), $this->get_host($url)], ['', ''], $url);
+        $middle_path = $this->ltrim_and_rtrim($middle_path, '/');
+
+        // If single page mode enabled with custom URL, clear the path
+        if ($this->getSettings('customUrl') && $this->getSettings('singlePage')) {
+            $middle_path = "";
+        }
+
+        $relativePath = './';
+
+        // If there's a middle path, calculate how many "../" to add based on its segments
+        if (!empty($middle_path)) {
+            $segments = explode('/', $middle_path);
+            // We add "../" for each segment except the first one (starts from 1)
+            $levels = count($segments) - 1;
+            if ($levels > 0) {
+                $relativePath .= str_repeat('../', $levels);
+            }
+        }
+
+        // If neither full site nor custom URL mode, just return "./"
+        if (!$this->getSettings('full_site') && !$this->getSettings('customUrl')) {
+            $relativePath = "./";
+        }
+
+        return $relativePath;
     }
+
     public function host($url) {
         $url = parse_url($url);
         //$scheme = isset($url['scheme']) ? $url['scheme'] : '';
@@ -1286,9 +1737,9 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function rc_get_url_middle_path($url, $custom_url = false, $full_site = false){
         $url = explode('?', $url)[0];
         $url = explode('#', $url)[0];
-        if($this->getSettings('customUrl') && $this->getSettings('full_site')){
+        /*if($this->getSettings('customUrl') && $this->getSettings('full_site')){
             $url = str_replace( array($this->getSettings('customUrlAddress')), array(''), $url);
-        }
+        }*/
         $middle_path = str_replace( array(home_url(), $this->get_host($url)), array('', ''), $url);
         $middle_path = $this->ltrim_and_rtrim($middle_path, '/');
         //$middle_path = explode($middle_path);
@@ -1296,42 +1747,60 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
         $middle_path = str_replace( basename($url), '', $middle_path);
 
-        if($this->getSettings('customUrl') && $this->getSettings('singlePage')){
+        /*if($this->getSettings('customUrl') && !$this->getSettings('full_site')){
             $middle_path = "";
-        }
+        }*/
 
 
         return $middle_path;
     }
 
-    public function middle_path_for_filename($url='')
+    /**
+     * Generates a dash-separated sub-path string from the middle part of a URL.
+     *
+     * Intended for use in filenames based on URL structure.
+     * It selectively includes parts of the path, skipping the first 1 or 2 segments.
+     *
+     * @param string $url The URL to process.
+     * @return string     The resulting path portion with segments separated by dashes.
+     */
+    public function middle_path_for_filename($url = '')
     {
+        // Get the middle path from the full URL
         $middle_path = $this->rc_get_url_middle_path($url);
-        $middle_path_slash_cut = rtrim($middle_path, '/') ;
 
-        $path_dir = explode( '/', $middle_path_slash_cut);
+        // Remove trailing slash
+        $middle_path_slash_cut = rtrim($middle_path, '/');
 
+        // Split path into directory segments
+        $path_dir = explode('/', $middle_path_slash_cut);
+
+        // Final string to build from segments
         $path_dir_dash = '';
 
+        // If URL contains '-child', skip first segment
         if (strpos($url, '-child') !== false) {
             if (count($path_dir) > 2) {
-                for ($i=1; $i < count($path_dir); $i++) {
+                for ($i = 1; $i < count($path_dir); $i++) {
                     $path_dir_dash .= $path_dir[$i] . '-';
                 }
             }
         } else {
+            // If not child, skip first two segments
             if (count($path_dir) > 2) {
-                for ($i=2; $i < count($path_dir); $i++) {
+                for ($i = 2; $i < count($path_dir); $i++) {
                     $path_dir_dash .= $path_dir[$i] . '-';
                 }
             }
         }
 
-        if(empty($path_dir_dash)){
-            $path_dir_dash = $this->generate_string(3) . '-';
-        }
+        // Optional: Generate a random string if empty
+        // if (empty($path_dir_dash)) {
+        //     $path_dir_dash = $this->generate_string(3) . '-';
+        // }
 
-        //$path_dir_dash = rtrim($path_dir_dash, '-');
+        // Optional: Remove trailing dash (uncomment if needed)
+        // $path_dir_dash = rtrim($path_dir_dash, '-');
 
         return $path_dir_dash;
     }
@@ -1354,40 +1823,41 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return $random_string;
     }
 
-    public function rc_is_link_already_generated($url = '')
+    public function rc_is_link_already_generated($url='')
     {
         global $wpdb;
 
-        // Remove protocol from URL
-        $url = str_replace(array('http:', 'https:'), '', $url);
+        $url = str_replace(array('http:', 'https:'), array('', ''), $url);
         $url = $this->removeParam(urldecode($url), 'ver');
 
-        // Sanitize the URL for use in a SQL LIKE statement
-        $like_url = '%' . $wpdb->esc_like($url);
+        $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}export_page_to_html_logs WHERE path LIKE '$url'");
 
-        // Prepare and execute the SQL query
-        $query = $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}export_page_to_html_logs WHERE path LIKE %s",
-            $like_url
-        );
+        if (!empty($results)) {
+            return true;
+        }
 
-        $results = $wpdb->get_results($query);
-
-        return !empty($results);
+        return false;
     }
 
-
+    public function abs_url_to_path( $path = '' ) {
+        return str_replace(
+            site_url(),
+            wp_normalize_path( untrailingslashit( ABSPATH ) ),
+            wp_normalize_path( $path )
+        );
+    }
 
 
     public function rc_redirect_for_export_page_as_html() {
         if (isset($_GET['rc_exported_zip_file'])) {
-            $url = urldecode(esc_url($_GET['rc_exported_zip_file']));
-            //$this->setSettings('rc_is_export_pages_zip_downloaded', 'yes');
-            wp_safe_redirect($url);
+            $url = isset($_GET['rc_exported_zip_file']) ? esc_url_raw($_GET['rc_exported_zip_file']) : '';
+            // allow only same-site or a specific directory
+            $safe = wp_validate_redirect($url, admin_url());
+            wp_safe_redirect($safe);
             exit;
         }
-    }
 
+    }
 
     public function ltrim_and_rtrim($backend_file_url_full='', $sym = "")
     {
@@ -1397,6 +1867,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
             $backend_file_url_full = rtrim($backend_file_url_full, "'");
             $backend_file_url_full = ltrim($backend_file_url_full, '"');
             $backend_file_url_full = rtrim($backend_file_url_full, '"');
+            $backend_file_url_full = ltrim($backend_file_url_full, ' ');
+            $backend_file_url_full = rtrim($backend_file_url_full, ' ');
 
         }
         else {
@@ -1412,13 +1884,14 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
         $html_export_process = $this->getSettings('task');
         $is_zip_downloaded = $this->getSettings('is_export_pages_zip_downloaded', false);
+        $is_dismiss_notice = $this->getSettings('dismiss_notice', false);
 
-        if ($html_export_process == 'running' && !$is_zip_downloaded) {
+        if ($html_export_process == 'running' && !$is_zip_downloaded && !$is_dismiss_notice) {
             echo '<div class="notice notice-warning is-dismissible export-html-notice">
 	             <p>HTML exporting task has been running... <a href="options-general.php?page=export-wp-page-to-html&notice=true">View details</a></p>
 	         </div>';
         }
-        elseif ($html_export_process == 'completed') {
+        elseif ($html_export_process == 'completed' && !$is_dismiss_notice) {
             echo '<div class="notice notice-success is-dismissible export-html-notice">
 	             <p>HTML exporting task has been completed. <a href="options-general.php?page=export-wp-page-to-html&notice=true">View results</a></p>
 	         </div>';
@@ -1444,31 +1917,29 @@ class Export_Wp_Page_To_Static_Html_Admin {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
         }
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+
         $output = curl_exec($ch);
         curl_close($ch);
-//        if($print) {
-//            print($output);
-//        } else {
+        if($print) {
+            print($output);
+        } else {
             return $output;
-//        }
+        }
     }
 
 
-    public function is_url_already_read($url = '')
+    public function is_url_already_read($url='')
     {
         global $wpdb;
+        $result = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}export_page_to_html_logs WHERE path = '{$url}'");
 
-        // Prepare and execute the SQL query
-        $query = $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}export_page_to_html_logs WHERE path = %s",
-            $url
-        );
+        if (count($result) >= 1) {
+            return true;
+        }
 
-        $result = $wpdb->get_results($query);
-
-        return !empty($result);
+        return false;
     }
-
 
 
 
@@ -1522,10 +1993,16 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
     public function is_cancel_command_found()
     {
-
-//        global $wpdb;
-//        $result = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = 'cancel_export_process' ");
         $result = $this->getSettings('cancel_command', 0);
+        if ($result) {
+            return true;
+        }
+        return false;
+    }
+
+    public function is_paused()
+    {
+        $result = $this->getSettings('paused');
         if ($result) {
             return true;
         }
@@ -1535,15 +2012,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function get_total_exported_file()
     {
         global $wpdb;
-
-        // Prepare and execute the SQL query
-        $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = %s OR type = %s",
-            'copying',
-            'creating_html_file'
-        );
-
-        $result = $wpdb->get_var($query);
+        $result = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = 'copying' OR type = 'creating_html_file' ");
 
         return $result;
     }
@@ -1551,18 +2020,10 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function get_total_uploaded_file()
     {
         global $wpdb;
-
-        // Prepare and execute the SQL query
-        $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = %s",
-            'file_uploaded_to_ftp'
-        );
-
-        $result = $wpdb->get_var($query);
+        $result = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}export_page_to_html_logs WHERE type = 'file_uploaded_to_ftp' ");
 
         return $result;
     }
-
 
 
     public function before_basename_change2($basename, $url){
@@ -1584,10 +2045,11 @@ class Export_Wp_Page_To_Static_Html_Admin {
     /**
      * @return string
      */
-    public function getFontsPath()
-    {
-        return $this->fonts_path;
-    }
+public function getFontsPath()
+{
+    return $this->fonts_path;
+}
+
 
     /**
      * @return string
@@ -1612,6 +2074,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
     {
         return $this->video_path;
     }
+
     /**
      * @return string
      */
@@ -1627,6 +2090,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
     {
         return $this->docs_path;
     }
+
     /**
      * @return string[]
      */
@@ -1664,13 +2128,20 @@ class Export_Wp_Page_To_Static_Html_Admin {
     {
         return $this->html_extensions;
     }
-
     /**
      * @return string[]
      */
     public function getSiteData()
     {
         return $this->site_data;
+    }
+    /**
+     * @return string[]
+     */
+    public function getSiteDataObject()
+    {
+        return $this->getSiteData();
+        //return HtmlDomParser::str_get_html($this->site_data);
     }
 
     /**
@@ -1736,7 +2207,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
     {
         return $this->extract_videos;
     }
-
     /**
      * @return extract_audios
      */
@@ -1752,7 +2222,9 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return $this->extract_docs;
     }
 
-
+    /**
+     * @return extract_videos
+     */
     public function getExportDir()
     {
         return $this->export_dir;
@@ -1765,14 +2237,13 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return $this->export_temp_dir;
     }
 
-    public function getKeepSameName()
-    {
-        return $this->keepSameName;
-    }
-
     public function getSaveAllAssetsToSpecificDir()
     {
         return $this->saveAllAssetsToSpecificDir;
+    }
+    public function getKeepSameName()
+    {
+        return $this->keepSameName;
     }
 
     public function getExportHtmlAddContentsToTheHeader()
@@ -1783,6 +2254,16 @@ class Export_Wp_Page_To_Static_Html_Admin {
     public function getExportHtmlAddContentsToTheFooter()
     {
         return $this->rcExportHtmlAddContentsToTheFooter;
+    }
+
+    public function getExportHtmlSearchFor()
+    {
+        return $this->rcExportHtmlSearchFor;
+    }
+
+    public function getExportHtmlReplaceWith()
+    {
+        return $this->rcExportHtmlReplaceWith;
     }
 
     public function exclude_urls($exclude_bool, $url)
@@ -1812,7 +2293,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
             || in_array($urlExt, $this->getVideoExtensions())
             || in_array($urlExt, $this->getImageExtensions())
             || in_array($urlExt, $this->getDocsExtensions())
-            || in_array($urlExt, $this->getHtmlExtensions())
+            /*|| in_array($urlExt, $this->getHtmlExtensions())*/
         ){
             return true;
         }
@@ -1826,7 +2307,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $settingsExcludeUrls = explode("\n", $settingsExcludeUrls);
         if (!empty($settingsExcludeUrls)){
             foreach ($settingsExcludeUrls as $exclude_url){
-                if( !empty($exclude_url) && strpos($url, $exclude_url) !== false  ){
+                if(!empty($exclude_url) && strpos($url, $exclude_url) !== false  ){
                     return true;
                     break;
                 }
@@ -1844,7 +2325,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
 
         return $exclude_bool;
     }
-
     public function include_urls($include_bool, $url)
     {
         $datas = $this->getSettings('pages_data');
@@ -1878,14 +2358,18 @@ class Export_Wp_Page_To_Static_Html_Admin {
      */
     public function saveHtmlFile($main_url, $full_site, $middle_path, $html_filename)
     {
+        wpptsh_error_log('before html creating');
         $path_to_dot = $this->rc_path_to_dot($main_url);
 
 
         $html_filename = $this->filter_filename($html_filename);
+        if (strpos($html_filename, '.html.html')!==false){
+            $html_filename = str_replace('.html.html', '.html', $html_filename);
+        }
         $my_file = $this->getUploadDir() . '/exported_html_files/tmp_files/' . $middle_path . $html_filename;
         if (!file_exists($my_file)/* && $this->update_export_log('', 'creating_html_file', $html_filename)*/) {
 
-            $src = str_get_html($this->site_data);
+            $src = $this->site_data;
 
             /*Replace urls to html path*/
             //$this->replaceUrlsToLocalHtmlPath($main_url, $full_site, $path_to_dot, $middle_path)
@@ -1894,10 +2378,12 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 return call_user_func(array( $this, 'rc_replaceUrlsToLocalHtmlPath'), $matches[0], $main_url, $full_site, $path_to_dot, $middle_path);
             }
             , $src);*/
+
+
             $anchors = $src->find('a');
             if(!empty($anchors)){
                 foreach ($anchors as $anchor) {
-                    $a = $anchor->href;
+                    $a = url_to_absolute($main_url, $anchor->href);
 
                     $url = apply_filters('before_url_change_to_html', $a);
                     $url_middle_path = $this->rc_get_url_middle_path($url, true, true);
@@ -1911,86 +2397,150 @@ class Export_Wp_Page_To_Static_Html_Admin {
                             continue;
                         }
                     }
-
                     if(!$exclude_url){
-                        if ($this->get_host($url, false) == $this->get_host($main_url, false) && ($full_site||$urlsToExport) ) {
+                        if ($this->get_host($url, false) == $this->get_host($main_url, false) /*strpos($url, $main_url) !== false*/ && ($full_site||$urlsToExport) ) {
                             //$basename = apply_filters('before_basename_change', $basename);
 
-                            $imgExts = array("gif", "jpg", "jpeg", "png", "tiff", "tif");
+                            /*$imgExts = $this->getImageExtensions();
                             $urlExt = pathinfo($url, PATHINFO_EXTENSION);
                             //echo $urlExt;
                             if (in_array($urlExt, $imgExts)) {
                                 $basename = $this->url_to_basename($url);
                                 $basename = $this->filter_filename($basename);
-                                $anchor->href =  $path_to_dot . 'images/' . $basename;
-                            } else {
+                                $anchor->href =  $path_to_dot . $url_middle_path . $basename;
+                            } else {*/
+                            if (strpos($url, '.html')==false){
                                 $basename = $this->url_to_basename($url, true, '.html');
-                                $basename = $this->filter_filename($basename);
+                            }
+                            else{
+                                $basename = $this->url_to_basename($url);
+                            }
+
+                            $basename = $this->filter_filename($basename);
+
+                            if (!$full_site && !$this->getSettings('customUrl')){
+                                $anchor->href =  $path_to_dot . $basename;
+                            }
+                            else {
                                 $anchor->href =  $path_to_dot . $url_middle_path . $basename;
                             }
+                            //}
+
+
                         }
                     }
                 }
             }
 
-            if (!empty($this->getExportHtmlAddContentsToTheHeader()) || !empty($this->getExportHtmlAddContentsToTheHeader())) {
-                $e = @$src->find("body", 0);
+            if( !empty($this->getExportHtmlAddContentsToTheHeader()) || !empty($this->getExportHtmlAddContentsToTheHeader()) ){
+                $e = $src->find("body", 0);
 
-                if (!empty($e)) {
-                    $e->outertext = wp_kses_post($this->getExportHtmlAddContentsToTheHeader()) . wp_kses_post($e->outertext) . wp_kses_post($this->getExportHtmlAddContentsToTheFooter());
+                if(!empty($e)){
+                    $e->outertext = $this->getExportHtmlAddContentsToTheHeader() . $e->outertext . $this->getExportHtmlAddContentsToTheFooter();
                 }
             }
 
-            $src = (string) $src;
+            // Implement search and replace functionality
+            $searchFor = $this->getExportHtmlSearchFor();
+            $replaceWith = $this->getExportHtmlReplaceWith();
 
-//            $src = $this->replaceOtherSiteUrls($src, $main_url);
-//            //$this->site_data = $src2;
-//            $handle = @fopen(esc_html($my_file), 'w') or die('Cannot open file:  ' . esc_html($my_file));
-//            $t = @fwrite($handle, $src);
-//            if ($t) {
-//                $this->update_export_log('', 'created_html_file', $middle_path . $html_filename);
-//            }
-//            fclose($handle);
+            // Ensure the search and replace variables are not empty
+            if (!empty($searchFor) && !empty($replaceWith)) {
+                $e = $src->find("head", 0);
+                // Convert inputs to arrays if they are comma-separated strings
+                $searchForArray = explode(',', $searchFor);
+                $replaceWithArray = explode(',', $replaceWith);
 
-            // Ensure the WP_Filesystem is available
-            if ( ! function_exists( 'request_filesystem_credentials' ) ) {
-                require_once ABSPATH . 'wp-admin/includes/file.php';
+                // Check if arrays match in size, else fill replacements with empty strings
+                //$replaceWithArray = array_pad($replaceWithArray, count($searchForArray), '');
+
+                // Perform search and replace on the content
+                $e->outertext = str_replace($searchForArray, $replaceWithArray, $e->outertext);
+
+                $e2 = $src->find("body", 0);
+                // Convert inputs to arrays if they are comma-separated strings
+                $searchForArray = explode(',', $searchFor);
+                $replaceWithArray = explode(',', $replaceWith);
+
+                // Check if arrays match in size, else fill replacements with empty strings
+                //$replaceWithArray = array_pad($replaceWithArray, count($searchForArray), '');
+
+                // Perform search and replace on the content
+                $e2->outertext = str_replace($searchForArray, $replaceWithArray, $e2->outertext);
             }
 
-// Get the credentials and initialize the WP_Filesystem
-            $creds = request_filesystem_credentials( site_url() );
-            if ( ! WP_Filesystem( $creds ) ) {
-                // If we cannot initialize the filesystem, handle the error appropriately
-                return false;
+
+            $adminbar = $src->find('#wpadminbar');
+            if (!empty($adminbar)){
+                $styles = $src->find('style');
+
+                foreach( $styles as $item) {
+                    if (strpos($item, "html { margin-top: 32px !important; }
+	@media screen and ( max-width: 782px ) {
+		html { margin-top: 46px !important; }
+	}") !==false){
+
+                        $item->outertext = '';
+                    }
+                }
+
+
+                foreach( $adminbar as $item) {
+                    $item->outertext = '';
+                }
             }
 
-            global $wp_filesystem;
 
-// Replace the site URLs
-            $src = $this->replaceOtherSiteUrls($src, $main_url);
+            //$data = $this->replaceOtherSiteUrls($src->save(), $main_url);
+            $data = $this->replaceOtherSiteUrls($src->save(), $main_url);
 
-// Use WP_Filesystem to write to the file
-            if ( $wp_filesystem->put_contents( $my_file, $src, FS_CHMOD_FILE ) ) {
+            $src->clear();
+
+
+            // if(true){
+            //     $images = $this->extract_images_from_dynamic_attrs_exact($data);
+            //     if (!empty($images)) {
+            //         foreach ($images as $img) {
+            //             $image_url = $this->json_decode_url($img);
+
+            //             error_log("\nimg: $img");
+            //             error_log("\nimage_url: $image_url");
+            //         }
+            //     }
+            // }
+
+            $handle = fopen($my_file, 'w') or die('Cannot open file:  ' . $my_file);
+            $t = fwrite($handle, $data);
+            if ($t) {
+                
                 $this->update_export_log('', 'created_html_file', $middle_path . $html_filename);
-            } else {
-                die('Cannot open file: ' . esc_html($my_file));
             }
+            fclose($handle);
+            //$this->site_data = null;
 
         }
         $this->update_urls_log($main_url, 1);
 
     }
-
-
+    public function json_decode_url($url) {
+        // Remove JSON-style escaping of slashes
+        $url = str_replace('\\/', '/', $url);
+        $url = str_replace('\\\\/', '/', $url); // in case of double escaping
+        
+        // Remove surrounding quotes if present
+        $url = trim($url, '"\'');
+        
+        return $url;
+    }
     public function makeUrlWithoutProtocol($url)
     {
         $parsedUrl = parse_url($url);
+
         $host = isset($parsedUrl['host']) ? $parsedUrl['host'] : '';
         $path = isset($parsedUrl['path']) ? $parsedUrl['path'] : '';
 
         return $host . $path;
     }
-
 
     function addBackSlash($url){
         return str_replace('/', '\/', $url);
@@ -2030,8 +2580,6 @@ class Export_Wp_Page_To_Static_Html_Admin {
         return $processedText;
     }
 
-
-
     /*
      * @since 2.0.4
      * @parm $name
@@ -2039,6 +2587,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
      */
     public function filter_filename($name) {
         // remove illegal file system characters https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words
+
+        //$is_encoded = preg_match('~%[0-9A-F]{2}~i', $name);
         $name = str_replace(array_merge(
             array_map('chr', range(0, 31)),
             array('<', '>', ':', '"', '/', '\\', '|', '?', '*')
@@ -2046,8 +2596,8 @@ class Export_Wp_Page_To_Static_Html_Admin {
         // maximise filename length to 255 bytes http://serverfault.com/a/9548/44086
         $ext = pathinfo($name, PATHINFO_EXTENSION);
         $name= mb_strcut(pathinfo($name, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($name)) . ($ext ? '.' . $ext : '');
-        $name = str_replace('=', '', $name);
-        return urldecode($name);
+
+        return str_replace('=', '', urldecode($name));
     }
 
     /**
@@ -2071,12 +2621,12 @@ class Export_Wp_Page_To_Static_Html_Admin {
                     $home_url = home_url();
 
                     $url = explode('#', $url)[0];
-                    $url = explode('?', $url)[0];
+                    //$url = explode('?', $url)[0];
 
                     if ($slug !== 0 && !$this->is_url_already_read($url)) {
 
                         if ($full_site) {
-                           $this->export_wp_page_as_static_html_by_page_id($url, $html_filename);
+                            $this->export_wp_page_as_static_html_by_page_id($url, $html_filename);
                         }
 
                     }
@@ -2087,6 +2637,13 @@ class Export_Wp_Page_To_Static_Html_Admin {
     }
 
 
+    /**
+     * @param array $files
+     * @param string $destination
+     * @param string $middle_patheplace_path
+     * @param bool $overwrite
+     * @return false|string
+     */
     public function create_zip($files = array(), $destination = '', $middle_patheplace_path = "", $overwrite = true) {
         if ($this->is_cancel_command_found()) {
             return false;
@@ -2146,35 +2703,15 @@ class Export_Wp_Page_To_Static_Html_Admin {
     }
 
 
+    /**
+     * @param $datas
+     * @param false $customUrl
+     * @return bool
+     */
     public function zipWorkers($datas, $customUrl = false)
     {
-        if(!$customUrl){
-            if (count($datas) == 1) {
-                $postId = isset($datas[0]) ? $datas[0] : 0;
-                $post = get_post($postId);
-                $permalink = isset($post->permalink) ? $post->permalink : "";
-                if($permalink == home_url() || $postId = "home_page"){
-                    $zipFileName = $this->get_host(home_url(), false) . '-homepage';
-                }
-                else{
-                    $zipFileName = $post->post_name;
-                }
-            }
-            elseif (count($datas) > 1) {
 
-                $zipFileName = $this->get_zip_name($datas);
-            }
-        }else{
-            if ($this->get_host($datas) == $datas && !$this->getSettings('full_site')) {
-                $zipFileName = $this->get_host($datas, false);
-            }
-            else {
-                $zipFileName = $this->url_to_basename($datas);
-            }
-        }
-
-        $zipFileName = $this->filter_filename($zipFileName);
-
+        $this->setSettings('creating_zip_process', 'running');
         if($this->getSettings('full_site')){
             if(!$customUrl){
                 $site_name = $this->get_host(home_url(), false);
@@ -2183,10 +2720,40 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 $site_name = $this->get_host($datas, false);
             }
             $zipFileName = $site_name . "-fullsite";
+
+        }else{
+
+//            if(!$customUrl){
+//                if (/*count($datas) == 1*/ true) {
+//                    $postId = isset($datas[0]) ? $datas[0] : 0;
+//                    $post = get_post($postId);
+//                    $permalink = isset($post->permalink) ? $post->permalink : "";
+//                    if($permalink == home_url() || $postId == "home_page"){
+//                        $zipFileName = $this->get_host(home_url(), false) . '-homepage';
+//                    }
+//                    else{
+//                        $zipFileName = !empty($post) ? $post->post_name: "";
+//                    }
+//                }
+//                elseif (count($datas) > 1) {
+//
+//                    $zipFileName = $this->get_zip_name($datas);
+//                }
+//            }else{
+//                if (/*$this->get_host($datas) == $datas && */ !$this->getSettings('full_site')) {
+//                    $zipFileName = $this->get_host($datas, false);
+//                }
+//                else {
+//                    $zipFileName = $this->url_to_basename($datas);
+//                }
+//            }
+
+            $zipFileName = $this->getZipFileName();
+
+
         }
 
-        $this->update_export_log('', 'creating_zip_file', $zipFileName.'-html.zip');
-        $this->setSettings('creating_zip_process', 'running');
+        $this->update_export_log('', 'creating_zip_file', $zipFileName);
         //sleep(1.1);
 
         $upload_path = $this->export_dir;
@@ -2196,21 +2763,25 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->setSettings('total_zip_files', $totalFiles);
 
 
-        $zip_file_name = $upload_path.'/'.$zipFileName.'-html.zip';
+        $zip_file_name = $upload_path.'/'.$zipFileName;
 
         ob_start();
-        echo esc_html($this->create_zip($files, $zip_file_name, $all_files . '/'));
+        echo $this->create_zip($files, $zip_file_name, $all_files . '/');
         $create_zip = ob_get_clean();
 
         global $wpdb;
         if ($create_zip == 'created') {
-            $uploadPath = $upload_path . '/'.sanitize_file_name($zipFileName).'-html.zip';
-            $downloadUrl = $this->export_url . '/'.sanitize_file_name($zipFileName).'-html.zip';
-
-            $this->update_export_log($uploadPath, 'created_zip_file', $downloadUrl);
+            $uploadPath = $upload_path . '/'.$zipFileName;
+            $downloadUrl = $this->export_url . '/'.$zipFileName;
+            
+            if (!$this->is_log_type_exists('created_zip_file')) {
+                $this->update_export_log($zipFileName, 'created_zip_file', $downloadUrl);
+            }
+           
             $this->setSettings('zipDownloadLink', $downloadUrl);
             $this->setSettings('rc_is_export_pages_zip_downloaded', 'no');
             $this->setSettings('creating_zip_process', 'completed');
+            $this->setSettings('zip_process', 'completed');
 
             return true;
         }
@@ -2219,6 +2790,66 @@ class Export_Wp_Page_To_Static_Html_Admin {
         }
     }
 
+public function getZipFileName() {
+    global $wpdb;
+
+    $get_result = $wpdb->get_results("
+        SELECT path 
+        FROM {$wpdb->prefix}export_page_to_html_logs 
+        WHERE type = 'reading' 
+        ORDER BY id DESC 
+        LIMIT 1
+    ");
+
+    // Default prefix
+    $prefix = 'export';
+
+    if (!empty($get_result) && !empty($get_result[0]->path)) {
+        $url = $get_result[0]->path;
+        $prefix = $this->url_to_filename($url);
+    }
+
+    // Always append datetime
+    $date = date('Ymd_His');
+
+    return $prefix . '_' . $date . '.zip';
+}
+
+private function url_to_filename($url) {
+    $parts = parse_url($url);
+
+    // Always start with the host (domain)
+    $filename = $parts['host'] ?? 'file';
+
+    // If path exists, take only the last segment (basename)
+    if (!empty($parts['path'])) {
+        $basename = basename($parts['path']);
+        if ($basename !== '' && $basename !== '/' && $basename !== '\\') {
+            $filename .= '_' . $basename;
+        }
+    }
+
+    // If query exists, add it (sanitized)
+    if (!empty($parts['query'])) {
+        $filename .= '_' . $parts['query'];
+    }
+
+    // Replace unsafe characters
+    $filename = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
+
+    // Truncate for safety
+    $filename = substr($filename, 0, 180);
+
+    return $filename ?: 'file';
+}
+
+
+
+
+    /**
+     * @param array $files
+     * @return int
+     */
     public function totalExtractedFiles($files = array())
     {
         $total = 0;
@@ -2256,7 +2887,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
             if ($this->get_host($url, false) == $this->get_host($main_url, false) && !$exclude_url) {
                 //$basename = apply_filters('before_basename_change', $basename);
 
-                $imgExts = array("gif", "jpg", "jpeg", "png", "tiff", "tif");
+                $imgExts = $this->getImageExtensions();
                 $urlExt = pathinfo($url, PATHINFO_EXTENSION);
                 //echo $urlExt;
                 if (in_array($urlExt, $imgExts)) {
@@ -2294,13 +2925,19 @@ class Export_Wp_Page_To_Static_Html_Admin {
         if ($this->get_host($url, false) == $this->get_host($main_url, false) && ($full_site||$urlsToExport)) {
             //$basename = apply_filters('before_basename_change', $basename);
 
-            $imgExts = array("gif", "jpg", "jpeg", "png", "tiff", "tif");
+            $imgExts = $this->getImageExtensions();
+            $audioExts = $this->getAudioExtensions();
             $urlExt = pathinfo($url, PATHINFO_EXTENSION);
             //echo $urlExt;
             if (in_array($urlExt, $imgExts)) {
                 $basename = $this->url_to_basename($url);
                 return $path_to_dot . 'images/' . $basename;
-            } else {
+            }
+            elseif (in_array($urlExt, $audioExts)){
+                $basename = $this->url_to_basename($url);
+                return $path_to_dot . 'audios/' . $basename;
+            }
+            else {
                 $basename = $this->url_to_basename($url, true, '.html');
                 return $path_to_dot . $url_middle_path . $basename;
             }
@@ -2332,90 +2969,505 @@ class Export_Wp_Page_To_Static_Html_Admin {
     }
 
 
-    public function abs_url_to_path( $path = '' ) {
-        return str_replace(
-            site_url(),
-            wp_normalize_path( untrailingslashit( ABSPATH ) ),
-            wp_normalize_path( $path )
-        );
+    public function add_user() {
+
+        if($this->getSettings('task') == "running" && $this->getSettings('login_as') !== ""){
+            $username = 'html_export';
+            $password = $this->getSettings('login_pass');
+            $email = 'drew@example.com';
+
+            if (username_exists($username) == null && email_exists($email) == false) {
+
+                // Create the new user
+                $user_id = wp_create_user($username, $password, $email);
+                $user = get_user_by('id', $user_id);
+                // Add role
+                $user->add_role($this->getSettings('login_as'));
+
+
+                /*                $user = array();
+                                $user['user'] = $username;
+                                $user['password'] = $password;
+
+                                $user_info = json_encode($user);
+
+                                $this->setSettings('user_info', $user_info);*/
+            }
+        }
     }
 
+    public function remove_user(){
+
+        require_once(ABSPATH.'wp-admin/includes/user.php' );
+
+        $user = get_user_by('login', 'html_export');
+        if($user){
+            wp_delete_user($user->ID);
+        }
+
+        if (file_exists($this->getExportDir() . '/cookie.txt')){
+            @unlink($this->getExportDir() . '/cookie.txt');
+        }
+    }
+
+    public function login(){
+        $login_url = wp_login_url();
+        //These are the post data username and password
+        $post_data = 'log=html_export&pwd=' . $this->getSettings('login_pass');
+
+        //Create a curl object
+        $ch = curl_init();
+
+        //Set the URL
+        curl_setopt($ch, CURLOPT_URL, $login_url );
+
+        //This is a POST query
+        curl_setopt($ch, CURLOPT_POST, 1 );
+
+        //Set the post data
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+
+        //We want the content after the query
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        //Follow Location redirects
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+
+        /*
+        Set the cookie storing files
+        Cookie files are necessary since we are logging and session data needs to be saved
+        */
+
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $this->getExportDir() . '/cookie.txt');
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $this->getExportDir() . '/cookie.txt');
+
+        //Execute the action to login
+        $postResult = curl_exec($ch);
+        curl_close($ch);
+    }
+
+    public function next_page_export_from_queue($page_id){
+        if (is_numeric($page_id)) {
+            $url = $this->get_url_by_id($page_id);
+        }
+        else{
+            $url = $page_id;
+            $page_id = 0;
+        }
+
+        //update_option('test-333', $page_id);
+
+        if ($url !== false){
+            $url = urldecode($url);
+            $slug = basename($url);
+            $html_filename = $slug . '.html';
+
+            $pageNowArray = array();
+            $pageNowArray['id'] = $page_id;
+            $pageNowArray['url'] = $url;
+            $pageNowArray['html_filename'] = $html_filename;
+
+            $this->setSettings('pageNow', $pageNowArray);
+
+            $this->export_wp_page_as_static_html_by_page_id($url, $html_filename, $page_id+1);
+        }
+        else{
+
+
+            $this->update_export_log('', 'all_pages_exported');
+            $this->setSettings('creating_html_process', 'completed');
+
+            do_action('creating_html_files_completed', $this->get_url_by_id(1));
+        }
+    }
+
+    public function get_url_by_id($url_id=2)
+    {
+        global $wpdb;
+
+        $results = $wpdb->get_results("SELECT url FROM {$wpdb->prefix}exportable_urls WHERE id = '{$url_id}'");
+
+        if (!empty($results)) {
+            return $results[0]->url;
+        }
+
+        return false;
+    }
+
+    public function assets_files_exporting_completed_handler(){
+        $this->remove_user();
+        $zipCreated = $this->zipWorkers($this->get_url_by_id(1), $this->getSettings('customUrl'));
+
+
+        /*ftpFunctions*/
+        $this->ftpFunctions = new FtpFunctions\FtpFunctions($this);
+
+        if($zipCreated){
+            if ($this->getSettings('receive_email')) {
+                /*Sent emails*/
+                $this->sent_email();
+
+            }
+
+            if ($this->getSettings('ftp_upload_enabled') == 'yes') {
+                /*Upload to ftp*/
+                $this->ftpFunctions->uploadToFtp();
+            }
+
+            $this->setSettings('task', 'completed');
+            \do_action('html_export_task_completed', "");
+
+
+        }else{
+            $this->setTaskFailed();
+        }
+    }
+
+    public function getFirstUrl(){
+        global $wpdb;
+        $theUrl = $wpdb->get_results("SELECT url FROM {$wpdb->prefix}export_urls_logs WHERE id = '1'");
+        if(!empty($theUrl)){
+            return rtrim($theUrl[0]->url, '/') . '/';
+        }
+        return false;
+    }
+
+    public function getCustomPosts(){
+        global $wpdb;
+        $posts = $wpdb->get_results("SELECT id, post_title FROM {$wpdb->prefix}posts WHERE post_status = 'publish' AND WHERE ping_status = 'open'");
+        return $posts;
+    }
 
     function removeParam($url, $param) {
         $url = preg_replace('/(&|\?)'.preg_quote($param).'=[^&]*$/', '', $url);
         $url = preg_replace('/(&|\?)'.preg_quote($param).'=[^&]*&/', '$1', $url);
         return $url;
     }
-
-
-
-//    public function saveFile($url, $savePath)
-//    {
-//        $abs_url_to_path = $this->abs_url_to_path($url);
-//        if (strpos($url, home_url()) !== false && file_exists($abs_url_to_path)){
-//            @copy($abs_url_to_path, esc_html($savePath));
-//        }
-//        else{
-//            $handle = @fopen(esc_html($savePath), 'w') or die('Cannot open file:  ' . esc_html($savePath));
-//            $data = $this->get_url_data($url);
-//            @fwrite($handle, $data);
-//            @fclose($handle);
-//        }
-//
-//    }
-
+    /**
+     * Saves a file from a given URL to a specified local path.
+     *
+     * - If the URL is from the same site and exists locally, it copies the file directly.
+     * - Otherwise, it fetches the data via HTTP and saves it to the path.
+     *
+     * @param string $url      The source URL.
+     * @param string $savePath The destination file path.
+     */
     public function saveFile($url, $savePath)
     {
-        // Ensure the WP_Filesystem is available
-        if ( ! function_exists( 'request_filesystem_credentials' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-        }
+        $localPath = $this->abs_url_to_path($url);
 
-        // Get the credentials and initialize the WP_Filesystem
-        $creds = request_filesystem_credentials( site_url() );
-        if ( ! WP_Filesystem( $creds ) ) {
-            // If we cannot initialize the filesystem, handle the error appropriately
-            return false;
-        }
+        // Check if the file is local and exists
+        if (strpos($url, home_url()) !== false && file_exists($localPath)) {
+            wpptsh_error_log("Copying local file: $localPath -> $savePath");
 
-        global $wp_filesystem;
-
-        $abs_url_to_path = $this->abs_url_to_path($url);
-
-        // Use WP_Filesystem to check if the file exists and copy it
-        if ( strpos($url, home_url()) !== false && $wp_filesystem->exists($abs_url_to_path) ) {
-            if ( !$wp_filesystem->copy($abs_url_to_path, $savePath, true) ) {
-                die('Cannot copy file: ' . esc_html($abs_url_to_path));
+            if (!@copy($localPath, $savePath)) {
+                wpptsh_error_log("❌ Failed to copy local file: $localPath");
+            } else {
+                wpptsh_error_log("✅ Local file copied successfully.");
             }
+
+            return;
+        }
+
+        // Handle remote file saving
+        $directory = dirname($savePath);
+
+        // Ensure directory exists
+        if (!file_exists($directory)) {
+            if (@mkdir($directory, 0777, true)) {
+                wpptsh_error_log("📁 Created directory: $directory");
+            } else {
+                wpptsh_error_log("❌ Failed to create directory: $directory");
+                return;
+            }
+        }
+
+        // Fetch remote data
+        $data = $this->get_url_data($url);
+
+        if (empty($data)) {
+            wpptsh_error_log("❌ No data fetched from: $url");
+            $data = "";
+        }
+        if (is_array($data)) {
+            wpptsh_error_log("❌ No data fetched from: $url");
+            $data = "";
+        }
+
+        // Attempt to write data to file
+        if (!$handle = @fopen($savePath, 'w')) {
+            wpptsh_error_log("❌ Cannot open file for writing: $savePath");
+            return;
+        }
+
+        $bytes = @fwrite($handle, $data);
+        @fclose($handle);
+
+        if ($bytes !== false) {
+            wpptsh_error_log("✅ Successfully saved file to: $savePath");
         } else {
-            $data = $this->get_url_data($url);
-            if ( !$wp_filesystem->put_contents($savePath, $data, FS_CHMOD_FILE) ) {
-                die('Cannot open file: ' . esc_html($savePath));
+            wpptsh_error_log("❌ Failed to write data to file: $savePath");
+        }
+    }
+
+    public function setDownloadTotalQueue()
+    {
+        $option = intval(get_option('RcDownloadTotalQueue', 0));
+        $option +=1;
+        update_option('RcDownloadTotalQueue', $option);
+    }
+
+    public function setTotalDownloaded()
+    {
+        $option = intval(get_option('SetTotalDownloaded', 0));
+        $option +=1;
+        update_option('SetTotalDownloaded', $option);
+    }
+
+    public function clearQueue()
+    {
+        delete_option('RcDownloadTotalQueue');
+        delete_option('SetTotalDownloaded');
+    }
+
+
+    public function saveImageToWebp($imagePath, $img_path_src)
+    {
+        if (strpos($imagePath, 'http')!==false){
+            $abs_url_to_path = $this->abs_url_to_path($imagePath);
+            if (strpos($imagePath, home_url()) !== false && file_exists($abs_url_to_path)){
+                @copy($abs_url_to_path, $img_path_src);
+            }
+            else{
+                $handle = @fopen($img_path_src, 'w') or die('Cannot open file:  ' . $img_path_src);
+                $data = $this->get_url_data($imagePath);
+                @fwrite($handle, $data);
+                @fclose($handle);
             }
         }
+        $im = false;
+        if (strpos($img_path_src, 'jpg')!==false){
+            $im = imagecreatefromjpeg($img_path_src);
+        }
+        elseif (strpos($img_path_src, 'png')!==false){
+            $im = imagecreatefrompng($img_path_src);
+            imagepalettetotruecolor($im);
+        }
+        elseif (strpos($img_path_src, 'gif')!==false){
+            $im = imagecreatefromgif($img_path_src);
+        }
+        elseif (strpos($img_path_src, 'wbmp')!==false){
+            $im = imagecreatefromwbmp($img_path_src);
+        }
+        //Create an image object.
+
+        //if (!$im) return;
+        //The path that we want to save our webp file to.
+        $newImagePath = str_replace( array("jpg","jpeg", "png"), "webp", $img_path_src);
+
+        //Quality of the new webp image. 1-100.
+        //Reduce this to decrease the file size.
+
+        $quality = 80;
+        $settingQuality = $this->getSettings('image_quality');
+
+        if ($settingQuality!==0){
+            $quality = intval($settingQuality);
+        }
+
+        //$this->update_export_log('webp>>>'.$img_path_src);
+        //Create the webp image.
+        if( $im !== false && imagewebp($im, $newImagePath, $quality)){
+            $this->update_export_log(basename($newImagePath), 'created');
+            @unlink($img_path_src);
+        }
+    }
+
+    public function file_exists($url)
+    {
+        $abs_url_to_path = $this->abs_url_to_path($url);
+        if (file_exists($abs_url_to_path)){
+            return true;
+        }
+        return false;
+    }
+
+    public function getCookiesIntoArray($cookieFilePath){
+        $cookieData = [];
+
+        if (file_exists($cookieFilePath)) {
+            $lines = file($cookieFilePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+            foreach ($lines as $line) {
+                $line = trim($line);
+                $parts = explode("\t", $line);
+
+                if (count($parts) >= 7) {
+                    $cookieName = $parts[5];
+                    $cookieValue = $parts[6];
+                    $cookieData[$cookieName] = $cookieValue;
+                }
+            }
+        }
+        return $cookieData;
+    }
+
+    public function replaceTheJsContents($js_content, $file_url)
+    {
+        // Define a regular expression pattern to match JavaScript file names
+        $pattern = '/(["\'])([^"\']+\.js)\1/';
+
+        // Match all JavaScript file names using the defined pattern
+        if (preg_match_all($pattern, $js_content, $matches)) {
+            // Extracted JavaScript file names are stored in $matches[2]
+            $js_files = $matches[2];
+
+            // Initialize a variable to store modified JavaScript content
+            $modified_js_content = $js_content;
+
+            // Iterate over each matched JavaScript file name
+            foreach ($js_files as $file) {
+
+                $generated_file_url = $file_url.'/'.$file;
+                $pathname_js = $this->getJsPath();
+                $basename = $this->url_to_basename($generated_file_url);
+                $file_save_path = $pathname_js . $basename;
+
+                $elementor = 'elementor';
+                if (strpos($file_url, 'elementor-pro')!==false){
+                    $elementor = 'elementor-pro';
+                }
+                $uploadDir = $this->export_temp_dir . '/wp-content/plugins/'.$elementor.'/assets/js/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $this->saveFile($generated_file_url, $uploadDir.$basename);
+
+                //$this->update_export_log('-------elementor-pro-runtime---'.$file_url.'/'.$file);
+
+                // Replace the filename with the changed filename
+                /*$changedFileName = '../../../../../js/';
+                $modified_name = $changedFileName . $file;
+
+                // Replace the filename in the JavaScript content
+                $modified_js_content = str_replace($file, $modified_name, $modified_js_content);*/
+            }
+
+            // Return the modified JavaScript contents as a string
+            return $modified_js_content;
+        } else {
+            // If no JavaScript file names found, return the original content
+            return $js_content;
+        }
+    }
+
+    public function currently_exporting_url($url){
+        $settingsKey = $this->settingsKey;
+        update_option($settingsKey . 'currently_exporting_url', $url);
+    }
+
+    public function currently_exporting_item($url){
+        $settingsKey = $this->settingsKey;
+        update_option($settingsKey . 'currently_exporting_item', $url);
+    }
+    public function clean_url($url, $base_url = '')
+    {
+        $url = html_entity_decode($url, ENT_QUOTES);
+        $url = $this->ltrim_and_rtrim($url);
+        return \url_to_absolute($base_url, $url);
+    }
+
+    /**
+     * Get clean filename from a path or URL
+     *
+     * @param string $url The full URL or file path
+     * @return string The cleaned filename
+     */
+    public function getFilename($url, $type="")
+    {
+        if (!is_string($url) || trim($url) === '') {
+            return ''; // or return null, or throw exception depending on use case
+        }
+
+        $clean_path = parse_url($url, PHP_URL_PATH);
+        return basename($clean_path, $type);
     }
 
 
-    public function create_directory($exportTempDir, $middle_p = '') {
-        global $wp_filesystem;
+    public function update_asset_url_status($url, $status){
+        global $wpdb;
+        $table = $wpdb->prefix . 'export_urls_logs';
 
-        if (empty($wp_filesystem)) {
-            require_once ABSPATH . '/wp-admin/includes/file.php';
-            WP_Filesystem();
-        }
+        // Sanitize inputs
+        $sanitized_url = sanitize_text_field($url);
+        $sanitized_status = sanitize_text_field($status);
 
-        // Build the directory path
-        $directory = $exportTempDir;
-        if (!empty($middle_p)) {
-            $directory .= '/' . $middle_p;
-        }
+        // Prepare and run the query
+        $sql = $wpdb->prepare(
+            "UPDATE $table SET status = %s WHERE url LIKE %s",
+            $sanitized_status,
+            $sanitized_url
+        );
 
-        if (!$wp_filesystem->mkdir($directory, 0777)) {
-            // Handle error appropriately
-            error_log('Failed to create directory: ' . $directory);
-        }
+        return $wpdb->query($sql); // Returns number of affected rows
     }
+
+    function extract_images_from_dynamic_attrs_exact(string $html, ?string $baseUrl = null): array {
+        $doc = new DOMDocument();
+        @$doc->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_COMPACT);
+
+        // image extensions to detect
+        $imgExt = '(?:png|jpe?g|gif|svg|webp|avif)';
+
+        // 1) absolute http/https
+        $re_abs        = '#https?://[^"\',\s>]+\.' . $imgExt . '(?:\?[^\s"\',>]*)?#i';
+        // 2) absolute but JSON-escaped http(s): https:\/\/...
+        $re_abs_esc    = '#https?:\\\\/\\\\/[^"\',\s>]+?\.' . $imgExt . '(?:\?[^\s"\',>]*)?#i';
+        // 3) protocol-relative: //cdn.example.com/...
+        $re_proto_rel  = '#(?<=["\'\s]|^)//[^"\',\s>]+\.' . $imgExt . '(?:\?[^\s"\',>]*)?#i';
+        // 4) relative paths (only if you pass $baseUrl): /img.jpg, ./img.jpg, ../img.jpg
+        $re_rel        = '#(?<=["\'\s]|^)(?:\./|\.\./|/)[^"\',\s>]+\.' . $imgExt . '(?:\?[^\s"\',>]*)?#i';
+
+        $out = [];
+        foreach ($doc->getElementsByTagName('*') as $el) {
+            if (!$el->hasAttributes()) continue;
+
+            foreach ($el->attributes as $attr) {
+                $name = strtolower($attr->name);
+                // you said: ignore direct <img src> / srcset
+                if ($name === 'src' || $name === 'srcset') continue;
+
+                // IMPORTANT: use the attribute VALUE AS-IS (don’t unescape \/ or entities)
+                $v = (string)$attr->value;
+                if ($v === '') continue;
+
+                // collect matches; push exactly as present
+                if (preg_match_all($re_abs, $v, $m1))       { foreach ($m1[0] as $u) $out[] = $u; }
+                if (preg_match_all($re_abs_esc, $v, $m2))   { foreach ($m2[0] as $u) $out[] = $u; }
+                if (preg_match_all($re_proto_rel, $v, $m3)) { foreach ($m3[0] as $u) $out[] = $u; }
+
+                if ($baseUrl !== null) {
+                    if (preg_match_all($re_rel, $v, $m4))   { foreach ($m4[0] as $u) $out[] = $u; }
+                }
+            }
+        }
+
+        // Dedupe while preserving first-seen order
+        $seen = [];
+        $res = [];
+        foreach ($out as $u) {
+            if (!isset($seen[$u])) {
+                $seen[$u] = true;
+                $res[] = $u;
+            }
+        }
+        return $res;
+    }
+
 
 
 }
+
+
 

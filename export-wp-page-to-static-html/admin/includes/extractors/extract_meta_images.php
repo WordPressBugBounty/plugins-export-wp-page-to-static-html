@@ -45,6 +45,8 @@ class extract_meta_images
 
                     $exclude_url = apply_filters('wp_page_to_html_exclude_urls_settings_only', false, $src_link);
                     if ( (in_array($urlExt, $imgExts) || in_array($urlExt, array('webmanifest')) ) && !$exclude_url) {
+                        
+                        $this->admin->currently_exporting_url($src_link);
                         $this->save_images($src_link, $url);
                         $basename = $this->admin->url_to_basename($src_link);
                         $basename = $this->admin->filter_filename($basename);
@@ -141,10 +143,10 @@ class extract_meta_images
         $basename = $this->admin->filter_filename($basename);
 
         if (!(strpos($img_src, 'data:') !== false)) {
-            $this->admin->add_urls_log($img_src, $found_on, 'image5');
+            $this->admin->add_urls_log($img_src, $found_on, 'image');
 
             if (strpos($basename, ".") == false) {
-                $basename = wp_rand(5000, 9999) . ".jpg";
+                $basename = rand(5000, 9999) . ".jpg";
             }
             $basename = $this->admin->filter_filename($basename);
 
@@ -153,9 +155,7 @@ class extract_meta_images
             if(!$saveAllAssetsToSpecificDir){
                 $middle_p = $this->admin->rc_get_url_middle_path_for_assets($img_src);
                 if(!file_exists($exportTempDir .'/'. $middle_p)){
-                    //@mkdir($exportTempDir .'/'. $middle_p, 0777, true);
-
-                    $this->admin->create_middle_directory($exportTempDir, $middle_p);
+                    @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                 }
                 $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
             }

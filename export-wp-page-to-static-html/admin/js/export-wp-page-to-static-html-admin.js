@@ -78,6 +78,7 @@ $(document).on("click", ".select_multi_pages", function(){
 
 
 $(document).on("click", ".static_html_settings .nav-item .nav-link", function(e){
+
 	e.preventDefault();
 
 	$('.static_html_settings .nav-item .nav-link').removeClass('active');
@@ -86,6 +87,11 @@ $(document).on("click", ".static_html_settings .nav-item .nav-link", function(e)
 
 	var link = $(this).attr('href');
 	$(link).addClass('active');
+
+	var data= $(this).data('id');
+	var url=window.location.href.split('#')[0];
+	var to_url=url+"#"+data;
+	window.location.href=to_url;
 
 });
 
@@ -100,35 +106,66 @@ $(document).on("click", ".newly-added-list", function(){
 });
 
 function rc_ajax_select2(){
-
-	$('#export_pages').select2({
-			minimumInputLength: 1,
-			maximumSelectionLength: 3,
-		  ajax: {
-			url: rcewpp.ajax_url, // AJAX URL is predefined in WordPress admin
-				dataType: 'json',
-				delay: 250, // delay in ms while typing when to perform a AJAX search
-				data: function (params) {
-					return {
-						value: params.term, // search query
-						action: 'rc_search_posts', // AJAX action for admin-ajax.php
-						rc_nonce: rcewpp.nonce
-					};
-				}
-		  },
-            templateResult: function (idioma) {
-                var permalink = $(idioma.element).attr('permalink');
-                var $span = $("<span permalink='"+idioma.permalink+"'>" + idioma.text + "</span>");
-                return $span;
-            }
-	});	
+	rc_select2_for_posts();
 }
-$(document).on("change", "#search_posts_to_select2", function(e){
-	if ($(this).is(":checked")) {
-		rc_ajax_select2();
-	} else {
-		rc_select2_is_not_ajax();
-	}
+
+function rc_select2_for_posts(post_status="", fieldTitle="Select a post") {
+	$('#export_pages').select2({
+		ajax: {
+			url: rcewpp.ajax_url,
+			dataType: 'json',
+			delay: 250,
+			data: function(params) {
+				return {
+					action: 'rcewpp_get_wp_posts',
+					rc_nonce: rcewpp.nonce,
+					q: params.term, // search term
+					page: params.page || 1,
+					post_status: post_status
+				};
+			},
+			processResults: function(data, params) {
+				params.page = params.page || 1;
+
+				return {
+					results: data.results,
+					pagination: {
+						more: data.pagination.more
+					}
+				};
+			},
+			cache: true
+		},
+		placeholder: fieldTitle,
+		minimumInputLength: 0,
+	});
+}
+
+$(document).on("click", ".select_posts_section .radio-container", function(e){
+	setTimeout(function(){
+		var ps = post_status = $('.select_posts_section [name="post_status"]:checked').val();
+		if (post_status == "future"){
+			ps = "scheduled";
+		}
+		rc_select2_for_posts(post_status, "Select a "+ps+" post");
+
+		if (post_status != "publish"){
+			$('#login_as').val('editor').change();
+		}
+
+	}, 100);
+
+
+
+});
+
+
+$(document).on("input", "#image_quality, #custom_image_quality", function(e){
+	$(this).parent().siblings('input').val($(this).val())
+});
+
+$(document).on("keyup", "#image_quality_input, #custom_image_quality_input", function(e){
+	$(this).siblings('.brightness-box').children('input').val($(this).val())
 });
 
 
@@ -142,6 +179,21 @@ $(document).on("change", ".checkbox-container input", function(){
 	}
 });
 
+$(document).on("click", "#full_site", function(){
+	if ($(this).is(':checked')) {
+		$('#export_pages').val('home_page').trigger('change');
+	}
+});
+$(document).on("click", "#selectAllPages", function(){
+	if($(this).is(':checked') ){ //select all
+		$("#export_pages").find('option').prop("selected",true);
+		$("#export_pages").trigger('change');
+	} else { //deselect all
+		$("#export_pages").find('option').prop("selected",false);
+		$("#export_pages").trigger('change');
+	}
+});
+
 $(document).on("change", "#upload_to_ftp2", function(){
 	if ($(this).is(':checked')) {
 		$('.ftp_Settings_section2').slideDown();
@@ -150,13 +202,20 @@ $(document).on("change", "#upload_to_ftp2", function(){
 	}
 });
 
-$(document).on("change", "#email_notification", function(){
+/*$(document).on("change", "#email_notification", function(){
 	if ($(this).is(":checked")) {
 		$('.email_settings_item').slideDown();
 	} else {
 		$('.email_settings_item').slideUp();
 	}
 });
+$(document).on("change", "#email_notification2", function(){
+	if ($(this).is(":checked")) {
+		$('.email_settings_item2').slideDown();
+	} else {
+		$('.email_settings_item2').slideUp();
+	}
+});*/
 function removeHtmlZipFile() {
   var txt;
   var r = confirm("Are you sure you would like to remove the file?");
@@ -211,17 +270,23 @@ $(document).on("click", ".delete_zip_file", function(){
 	 console.log('Interval Stopped')
   });
 
+ /*Save advanced settings*/
 $(document).on("click", ".btn_save_settings", function(e){
     e.preventDefault();
 
     var createIndexOnSinglePage = $('#createIndexOnSinglePage').is(':checked') ? true : false;
     var saveAllAssetsToSpecificDir = $('#saveAllAssetsToSpecificDir').is(':checked') ? true : false;
+    var keepSameName = $('[name="keepSameName"]:checked').val();
+    var excludeUrls = $('#excludeUrls').val();
     var addContentsToTheHeader = $('#addContentsToTheHeader').val();
     var addContentsToTheFooter = $('#addContentsToTheFooter').val();
-    var userRoles = $('[name*="user_roles"]:checked');
 
+    var searchFor = $('#searchFor').val();
+    var replaceWith = $('#replaceWith').val();
+
+	var userRoles = $('[name*="user_roles"]:checked');
     var userRolesArray = [];
-    $(userRoles).each(function (i, v) {
+	$(userRoles).each(function (i, v) {
 		userRolesArray.push($(v).val());
 	})
      var datas = {
@@ -229,9 +294,15 @@ $(document).on("click", ".btn_save_settings", function(e){
        'rc_nonce': rcewpp.nonce,
        'createIndexOnSinglePage': createIndexOnSinglePage,
        'saveAllAssetsToSpecificDir': saveAllAssetsToSpecificDir,
+       'keepSameName': keepSameName,
+       'excludeUrls': excludeUrls,
        'addContentsToTheHeader': addContentsToTheHeader,
        'addContentsToTheFooter': addContentsToTheFooter,
-		 'userRolesArray': userRolesArray
+
+       'searchFor': searchFor,
+       'replaceWith': replaceWith,
+
+       'userRolesArray': userRolesArray,
      };
 
      $.ajax({
@@ -263,53 +334,177 @@ $(document).on("click", ".btn_save_settings", function(e){
      });
 });
 
-$(document).on("click", ".btn_save_pdf_settings", function(e){
-    e.preventDefault();
 
-    var userRoles = $('[name*="user_roles_for_pdf"]:checked');
+$(document).on("click", "#test_ftp_connection", function(e){
+	e.preventDefault();
 
-    var userRolesArray = [];
-    $(userRoles).each(function (i, v) {
-		userRolesArray.push($(v).val());
-	})
-     var datas = {
-    	'action': 'savePdfSettings',
-    	'rc_nonce': rcewpp.nonce,
-		'userRolesArray': userRolesArray
-     };
+	var ftp_data = {};
+	if ($('#ftp_host2').val() !== "") {
+		ftp_data['host'] = $('#ftp_host3').val();
+	}
 
-     $.ajax({
-         url: rcewpp.ajax_url,
-         data: datas,
-         type: 'post',
-         dataType: 'json',
+	if ($('#ftp_user2').val() !== "") {
+		ftp_data['user'] = $('#ftp_user3').val();
+	}
 
-         beforeSend: function(){
-			$('.btn_save_pdf_settings .spinner_x').removeClass('hide_spin');
-         },
-         success: function(r){
-            if(r.success){
-                $('.badge_save_settings').show();
-				$('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
+	if ($('#ftp_pass2').val() !== "") {
+		ftp_data['pass'] = $('#ftp_pass3').val();
+	}
 
-                setTimeout(function(){
-					$('.badge_save_settings').hide();
-				}, 5000)
-            } else {
-                console.log('Something went wrong, please try again!');
-				$('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
-            }
-         },
-         error: function(){
-            console.log('Something went wrong, please try again!');
-			 $('.btn_save_pdf_settings .spinner_x').addClass('hide_spin');
-         }
-     });
+	if ($('#ftp_path2').val() !== "") {
+		ftp_data['path'] = $('#ftp_path3').val();
+	}
+
+	var ftp_data = JSON.stringify(ftp_data)
+	
+	 var datas = {
+	  'action': 'rc_check_ftp_connection_status',
+	  'rc_nonce': rcewpp.nonce,
+	  'ftp_data': ftp_data,
+	};
+	
+	$.ajax({
+	    url: rcewpp.ajax_url,
+	    data: datas,
+	    type: 'post',
+	    dataType: 'json',
+	
+	    beforeSend: function(){
+	
+	    },
+	    success: function(r){
+	      	if(r.success == 'true'){
+	        	console.log(r.response);
+				if (r.response) {
+					$('.tab_ftp_status').addClass('connected').removeClass('not_connected');
+					$('.ftp_status .ftp_connected').show();
+					$('.ftp_status .ftp_not_connected').hide();
+					$('.ftp_authentication_failed').hide();
+					$('.ftp_upload_checkbox').removeClass('ftp_disabled');
+					$('.ftp_upload_checkbox').find('input').attr('disabled', 'disabled');
+					setTimeout(function() {
+						window.location.reload();
+					}, 3000);
+				}
+				else{
+					$('.tab_ftp_status').removeClass('connected').addClass('not_connected');
+					$('.ftp_status .ftp_connected').hide();
+					$('.ftp_status .ftp_not_connected').text('Authentication failed').show();
+					$('.ftp_authentication_failed').show();
+					$('.ftp_upload_checkbox').addClass('ftp_disabled');
+					$('.ftp_upload_checkbox').find('input').removeAttr('disabled');
+				}
+	        
+	        } else {
+	          console.log('Something went wrong, please try again!');
+	        }
+	    	
+	    }, error: function(){
+	    	
+	  }
+	});
+});
+
+$(document).on("click", ".ftp_dark_blur", function(){
+	$(this).fadeOut(300);
+	$('.ftp_path_select').fadeOut(300);
+});
+
+$(document).on("click", ".ftp_path_browse1", function(e){
+	e.preventDefault();
+	$(".ftp_dark_blur").fadeIn(300);
+	$('.ftp_path_select').fadeIn(300);
+
+	 var datas = {
+	  'action': 'get_ftp_dir_file_list',
+	  'rc_nonce': rcewpp.nonce,
+	  'path': $('#ftp_path').val(),
+	};
+	
+	$.ajax({
+	    url: rcewpp.ajax_url,
+	    data: datas,
+	    type: 'post',
+	    dataType: 'json',
+	
+	    beforeSend: function(){
+			$('.loading_section').show();
+			$('.ftp_path_select .spinner_x').removeClass('hide_spin');
+			$('.ftp_path_select .list-group').addClass('blurry');
+
+	    },
+	    success: function(r){
+			console.log(r);
+
+	      if(r.success == 'true'){
+	       // console.log(r.response);
+			$('.ftp_dir_lists').html(r.response);
+	        
+	        } else {
+	          console.log('Something went wrong, please try again!');
+	        }
+
+			$('.loading_section').hide();
+			$('.ftp_path_select .list-group').removeClass('blurry');
+	    	
+	    }, error: function(){
+	    	
+	  }
+	});
+});
+
+$(document).on("click", ".ftp_path_select .list-group-item", function(){
+	var path = $(this).attr('dir_path');
+	 var datas = {
+	  'action': 'rc_html_export_get_dir_path',
+	  'rc_nonce': rcewpp.nonce,
+	  'path': path,
+	};
+	
+	$.ajax({
+	    url: rcewpp.ajax_url,
+	    data: datas,
+	    type: 'post',
+	    dataType: 'json',
+	
+	    beforeSend: function(){
+			$('.loading_section').show();
+			$('.ftp_path_select .spinner_x').removeClass('hide_spin');
+			$('.ftp_path_select .list-group').addClass('blurry');
+	    },
+	    success: function(r){
+	      if(r.success == 'true'){
+	        //console.log(r.response);
+	
+	        $('.ftp_dir_lists').html(r.response);
+	        } else {
+	          console.log('Something went wrong, please try again!');
+	        }
+			$('.loading_section').hide();
+			$('.ftp_path_select .list-group').removeClass('blurry');
+	    	
+	    }, error: function(){
+	    	
+	  }
+	});
+});
+
+$(document).on("click", ".ftp_select_path", function(e){
+	e.preventDefault();
+	var current_path = $('.ftp_current_path').text();
+	$('#ftp_path, #ftp_path2').val(current_path);
+	$('.ftp_dark_blur').click();
+});
+
+$(document).on("click", ".ftp_disabled", function(){
+	alert("Please connect to the ftp server first from the \"FTP Settings\" tab");
 });
 
 $(document).on("click", ".cancel_rc_html_export_process", function(e){
 	e.preventDefault();
-
+	stop_export_log_percentage();
+	$('.export_internal_page_to_html, .export_external_page_to_html').removeAttr('disabled').siblings('.spinner_x').addClass('hide_spin').siblings('.cancel_rc_html_export_process').hide();
+	
 	$('#cancel_ftp_process').val('true');
 
 	var datas = {
@@ -329,12 +524,9 @@ $(document).on("click", ".cancel_rc_html_export_process", function(e){
 	    },
 	    success: function(r){
 	      	if(r.success == 'true'){
-				rc_export_pages_failed(true)
-				.then( (message) => {
-					if(!$('.log.cancel_command').length){
-						$('.logs_list').prepend('<div class="log main_log cancel_command" id="48"><span class="danger log_type">Export process has been canceled!</span></div>')
-					}
-				})
+				if(!$('.log.cancel_command').length){
+					$('.logs_list').prepend('<div class="log main_log cancel_command" id="48"><span class="danger log_type">Export process has been canceled!</span></div>')
+				}
 	        } else {
 	          console.log('Something went wrong, please try again!');
 	        }
@@ -345,137 +537,143 @@ $(document).on("click", ".cancel_rc_html_export_process", function(e){
 	});
 });
 
-
-$(document).on("input", "#image_quality, #custom_image_quality", function(e){
-	$(this).parent().siblings('input').val($(this).val())
+$(document).on("click", "#check_all_files", function () {
+	if ($(this).is(':checked')){
+		$('.exported_zip_file input').prop('checked', true)
+	}
+	else{
+		$('.exported_zip_file input').prop('checked', false)
+	}
 });
 
+$(document).on("click", ".submit_files_action", function (e) {
+	e.preventDefault();
+	var action = $('#files_action').val();
+	var fileIds = [];
 
-jQuery(document).ready(function($) {
-  let selectedRating = 0;
-
-  // Mouseenter: Highlight stars on hover
-  $('.wpptsh-stars span').on('mouseenter', function() {
-    const hoverValue = $(this).data('star');
-    $('.wpptsh-stars span').each(function() {
-      const starVal = $(this).data('star');
-      if (starVal <= hoverValue) {
-        $(this).addClass('hovered');
-      } else {
-        $(this).removeClass('hovered');
-      }
-    });
-  });
-
-  // Mouseleave: Remove hover highlight
-  $('.wpptsh-stars').on('mouseleave', function() {
-    $('.wpptsh-stars span').removeClass('hovered');
-  });
-
-  // Star click
-  $('.wpptsh-stars span').on('click', function() {
-    selectedRating = $(this).data('star');
-    $('.wpptsh-stars span').removeClass('selected');
-    $(this).prevAll().addBack().addClass('selected');
-
-    if (selectedRating == 5) {
-      $('#wpptsh-feedback-form').hide();
-      $('#wpptsh-review-message').html("🌟 Thank you for the 5-star! Redirecting you to leave a review...");
-	  
-		$.ajax({
-		url: rcewpp.ajax_url,
-		method: 'POST',
-		data: {
-			action: 'wpptsh_save_review',
-			rating: selectedRating,
-		}
-		});
-
-      setTimeout(function() {
-        window.open('https://wordpress.org/support/plugin/export-wp-page-to-static-html/reviews/?filter=5', '_blank');
-      }, 2000);
-    } else {
-      $('#wpptsh-feedback-form').fadeIn();
-    }
-  });
-
-  // Feedback submit
-  $('#wpptsh-submit-review').on('click', function() {
-    const comment = $('#wpptsh-review-text').val();
-    if (comment.trim() === '') {
-      $('#wpptsh-review-message').text('Please write your feedback.');
-      return;
-    }
-
-    $.ajax({
-      url: rcewpp.ajax_url,
-      method: 'POST',
-      data: {
-        action: 'wpptsh_save_review',
-        rating: selectedRating,
-        comment: comment,
-		'rc_nonce': rcewpp.nonce,
-      },
-      success: function(response) {
-        $('#wpptsh-review-message').text('Thanks! Your feedback has been submitted.');
-        $('#wpptsh-feedback-form').hide();
-      }
-    });
-  });
-
-  	$('#wpptsh-already-rated').on('click', function() {
-		$('#wpptsh-review-section').fadeOut();
-		    $.ajax({
-			url: rcewpp.ajax_url,
-			method: 'POST',
-			data: {
-				action: 'wpptsh_hide_review',
-	  			'rc_nonce': rcewpp.nonce,
-			},
-			success: function(response) {
-				$('#wpptsh-feedback-form').hide();
-			}
-		});
-	});
-
-	$('#wpptsh-close-review').on('click', function() {
-	const now = Date.now(); // Current timestamp in milliseconds
-	localStorage.setItem('wpptsh_review_later', now);
-	console.log('Review box hidden until next week');
-	// Hide the review box (optional)
-	$('#wpptsh-review-section').hide();
-	});
-
-});
-  function showReviewSection() {
-    const reviewLater = localStorage.getItem('wpptsh_review_later');
-    const oneWeek = 7 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-	if (reviewLater !== null) {
-
-    console.log('Current Time:', now);
-    console.log('Stored reviewLater:', reviewLater);
-		const reviewTimestamp = parseInt(reviewLater, 10);
-
-		if (!isNaN(reviewTimestamp)) {
-			const timeSince = now - reviewTimestamp;
-			console.log('Time since reviewLater:', timeSince, 'ms');
-
-			if (timeSince < oneWeek) {
-			console.log('Review postponed recently. Hiding box.');
-			$('#wpptsh-review-section').hide();
-			return;
-			} else {
-			console.log('More than 7 days passed. Showing box.');
-			localStorage.removeItem('wpptsh_review_later');
-			}
-		} else {
-			console.log('Invalid reviewLater timestamp in localStorage.');
-			localStorage.removeItem('wpptsh_review_later');
-		}
+	if (action.length == 0){
+		alert('Please select an action.');
+		return false;
+	}
+	if ($('.exported_zip_file input:checked').length > 0){
+		$('.exported_zip_file input:checked').each(function(){
+			fileIds.push($(this).val())
+		})
+	}
+	else{
+		alert('Please check atleast 1 file.');
+		return false;
 	}
 
-    $('#wpptsh-review-section').fadeIn();
-  }
+	var datas = {
+		'action': 'rc_html_export_files_action',
+		'rc_nonce': rcewpp.nonce,
+		'files_action': action,
+		'fileIds': fileIds,
+	};
 
+	$.ajax({
+		url: rcewpp.ajax_url,
+		data: datas,
+		type: 'post',
+		dataType: 'json',
+
+		beforeSend: function () {
+
+		},
+		success: function (r) {
+			if (r.success) {
+
+				$('.exported_zip_file input:checked').each(function(){
+					if (action=='remove'){
+						$(this).parent().remove()
+					}
+					else if(action=='hide'){
+						$(this).parent().addClass('hidden').removeClass('visible');
+					}
+					else if(action=='visible'){
+						$(this).parent().removeClass('visible').removeClass('hidden');
+					}
+				})
+
+
+			} else {
+				console.log('Something went wrong, please try again!');
+			}
+
+		}, error: function () {
+
+		}
+	});
+});
+
+$(document).on("click", ".show_hidden_files", function (e) {
+	e.preventDefault();
+
+	$('.exported_zip_file').each(function(){
+		if ($(this).hasClass('hidden')){
+			$(this).addClass('visible').removeClass('hidden');
+		}
+	})
+});
+
+
+$(document).on("click", ".select_all_posts", function (e) {
+	//$('#search_posts_to_select2').prop('checked', false);
+});
+$(document).on("click", ".select_all_posts", function (e) {
+	//$('#search_posts_to_select2').prop('checked', false);
+});
+
+$(document).ready(function () {
+	setTimeout(function(){
+		if (window.location.hash) {
+			var hash = window.location.hash.substring(1);
+			$('[data-id="'+hash+'"]').click();
+		}
+	}, 500);
+
+
+});
+
+jQuery(document).ready(function($) {
+	// Dismiss the notice
+	$('.wp-plugin-dismiss').click(function(e) {
+		e.preventDefault();
+		$.post(rcewpp.ajax_url, {
+			action: 'wp_plugin_dismiss_notice',
+			nonce: rcewpp.nonce,
+		}, function(response) {
+			if (response.success) {
+				$('.wp-plugin-notice').hide();
+			}
+		});
+	});
+
+	// Close the notice forever
+	$('.wp-plugin-close').click(function(e) {
+		e.preventDefault();
+		$.post(rcewpp.ajax_url, {
+			action: 'wp_plugin_close_notice',
+			nonce: rcewpp.close_nonce,
+		}, function(response) {
+			if (response.success) {
+				$('.wp-plugin-notice').hide();
+			}
+		});
+	});
+});
+
+
+
+function createRandomId(length) {
+	let result = '';
+	const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+	const charactersLength = characters.length;
+	let counter = 0;
+	while (counter < length) {
+		result += characters.charAt(Math.floor(Math.random() * charactersLength));
+		counter += 1;
+	}
+	return result;
+}

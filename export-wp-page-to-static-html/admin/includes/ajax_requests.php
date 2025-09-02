@@ -21,29 +21,45 @@ class EWPPTH_AjaxRequests
         include 'AjaxRequests/searchPosts.php';
         include 'AjaxRequests/checkExportingProcessOnSettingsPageLoad.php';
         include 'AjaxRequests/deleteExportedZipFile.php';
+        include 'AjaxRequests/exploreFtpDirectory.php';
+        include 'AjaxRequests/getFtpDirFileList.php';
+        include 'AjaxRequests/checkFtpConnectionStatus.php';
         include 'AjaxRequests/cancelRcExportProcess.php';
         include 'AjaxRequests/saveAdvancedSettings.php';
-        include 'AjaxRequests/savePdfSettings.php';
-        include 'AjaxRequests/submit-review.php';
+        include 'AjaxRequests/dismiss_export_html_notice.php';
+        include 'AjaxRequests/rc_html_export_files_action.php';
+        include 'AjaxRequests/pause_and_resume.php';
+        include 'AjaxRequests/get_wp_posts.php';
         include 'AjaxRequests/increament-pdf-count.php';
+        include 'AjaxRequests/assetsExporter.php';
+        include 'AjaxRequests/pageExporter.php';
+
+        include 'Zip.php';
+
     }
 
     public function initAjaxRequestsClass()
     {
-        new seeLogsInDetails\initAjax($this);
-        new exportLogPercentage\initAjax($this);
-        new searchPosts\initAjax($this);
-        new requestForWpPageToStaticHtml\initAjax($this);
-        new checkExportingProcessOnSettingsPageLoad\initAjax($this);
-        new deleteExportedZipFile\initAjax($this);
-        new cancelRcExportProcess\initAjax($this);
-        new saveAdvancedSettings\initAjax($this);
-        new savePdfSettings\initAjax($this);
-        new submitReview\initAjax($this);
-        new increamentPdfCount\initAjax($this);
+        new seeLogsInDetails\initAjax;
+        new exportLogPercentage\initAjax;
+        new searchPosts\initAjax;
+        new requestForWpPageToStaticHtml\initAjax;
+        new checkExportingProcessOnSettingsPageLoad\initAjax;
+        new deleteExportedZipFile\initAjax;
+        new getFtpDirFileList\initAjax;
+        new exploreFtpDirectory\initAjax;
+        new checkFtpConnectionStatus\initAjax;
+        new cancelRcExportProcess\initAjax;
+        new saveAdvancedSettings\initAjax;
+        new dismissExportHtmlNotice\initAjax;
+        new rcHtmlExportFilesAction\initAjax;
+        new rcExportSetPause\initAjax;
+        new getWpPosts\initAjax;
+        new increamentPdfCount\initAjax;
+        new assetsExporter\initAjax;
+        new pageExporter\initAjax;
 
     }
-
     public function nonceCheck()
     {
         $nonce = isset($_REQUEST['rc_nonce']) ? sanitize_text_field($_REQUEST['rc_nonce']) : '';
@@ -67,7 +83,8 @@ class EWPPTH_AjaxRequests
         }
         return false;
     }
-
 }
 
 new EWPPTH_AjaxRequests;
+
+

@@ -51,7 +51,7 @@ class extract_audios
         if (!empty($audioLinks)) {
             $audios_path = $this->admin->getAudiosPath();
             if (!file_exists($audios_path)) {
-                @$this->admin->create_directory($audios_path);
+                @mkdir($audios_path);
             }
 
             foreach ($audioLinks as $link) {
@@ -76,6 +76,7 @@ class extract_audios
 
                     if (in_array($urlExt, $audioExts) && strpos($url, $host) !== false && !$this->admin->is_link_exists($src_link) && !$exclude_url) {
 
+                        $this->admin->currently_exporting_url($src_link);
                         $newlyCreatedBasename = $this->save_audio($src_link, $url);
                         if (!$saveAllAssetsToSpecificDir) {
                             $middle_p   = $this->admin->rc_get_url_middle_path_for_assets($src_link);
@@ -171,7 +172,7 @@ class extract_audios
 
 
             if (!(strpos($basename, ".") !== false)) {
-                $basename = wp_rand(5000, 9999) . ".mp3";
+                $basename = rand(5000, 9999) . ".mp3";
                 $this->admin->update_urls_log($audio_url_prev, $basename, 'new_file_name');
             }
             $basename = $this->admin->filter_filename($basename);
@@ -182,19 +183,19 @@ class extract_audios
             if (!$saveAllAssetsToSpecificDir) {
 
                 if (!file_exists($exportTempDir . '/' . $middle_p)) {
-                    @$this->admin->create_directory($exportTempDir . '/' . $middle_p, 0777, true);
+                    @mkdir($exportTempDir . '/' . $middle_p, 0777, true);
                 }
                 $my_file = $exportTempDir . '/' . $middle_p . '/' . $basename;
             } else {
                 if ($saveAllAssetsToSpecificDir && $keepSameName && !empty($m_basename)) {
                     if (!file_exists($audios_path . '/' . $m_basename)) {
-                        @$this->admin->create_directory($audios_path . $m_basename, 0777, true);
+                        @mkdir($audios_path . $m_basename, 0777, true);
                     }
 
                     $my_file = $audios_path . $m_basename . $basename;
                 } else {
                     if (!file_exists($audios_path)) {
-                        @$this->admin->create_directory($audios_path);
+                        @mkdir($audios_path);
                     }
                 }
             }
@@ -240,48 +241,19 @@ class extract_audios
      *
      * @return void
      */
-//    public function saveFile($url, $savePath)
-//    {
-//        $savePath = esc_html($savePath);
-//        $abs_url_to_path = $this->admin->abs_url_to_path($url);
-//        if (strpos($url, home_url()) !== false && file_exists($abs_url_to_path)) {
-//            @copy($abs_url_to_path, $savePath);
-//            $this->admin->setTotalDownloaded();
-//        } else {
-//            $handle = @fopen($savePath, 'w') or die('Cannot open file:  ' . $savePath);
-//            $data = $this->admin->get_url_data($url);
-//            @fwrite($handle, $data);
-//            @fclose($handle);
-//            $this->admin->setTotalDownloaded();
-//        }
-//
-//    }
-
     public function saveFile($url, $savePath)
     {
-        global $wp_filesystem;
-
-        // Initialize the WP Filesystem
-        if (empty($wp_filesystem)) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-            WP_Filesystem();
-        }
-
-        $savePath = esc_html($savePath);
         $abs_url_to_path = $this->admin->abs_url_to_path($url);
-
         if (strpos($url, home_url()) !== false && file_exists($abs_url_to_path)) {
-            $wp_filesystem->copy($abs_url_to_path, $savePath, true);
+            @copy($abs_url_to_path, $savePath);
             $this->admin->setTotalDownloaded();
         } else {
+            $handle = @fopen($savePath, 'w') or die('Cannot open file:  ' . $savePath);
             $data = $this->admin->get_url_data($url);
-
-            if (!$wp_filesystem->put_contents($savePath, $data, FS_CHMOD_FILE)) {
-                die('Cannot open file: ' . $savePath);
-            }
-
+            @fwrite($handle, $data);
+            @fclose($handle);
             $this->admin->setTotalDownloaded();
         }
-    }
 
+    }
 }

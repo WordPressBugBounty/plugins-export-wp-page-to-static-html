@@ -4,11 +4,15 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
 
     ClearExportLogsData();
     StopInterval('intrvar');
+    var exportId = createRandomId(5);
+    $('.export_id').val(exportId);
 
     var page_list = $('#tabs-1 .select_pages_to_export .pages_list .single_page');
     var replace_urls = $('#tabs-1 #replace_all_url').is(':checked') ? true : false;
     var receive_email = $('#tabs-1 #email_notification').is(':checked') ? true : false;
     var email_lists = $('#tabs-1 #receive_notification_email').val();
+
+    var image_to_webp = $('#tabs-1 #image_to_webp').is(':checked') ? true : false;
 
     var skip_assets = $('#tabs-1 #skip_assets').is(':checked') ? true : false;
     var skip_stylesheets = $('#tabs-1 #skip_stylesheets').is(':checked') ? true : false;
@@ -17,16 +21,21 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
     var skip_videos = $('#tabs-1 #skip_videos').is(':checked') ? true : false;
     var skip_audios = $('#tabs-1 #skip_audios').is(':checked') ? true : false;
     var skip_docs = $('#tabs-1 #skip_docs').is(':checked') ? true : false;
+    var run_task_in_bg = $('#tabs-1 #run_task_in_bg').is(':checked') ? true : false;
+
+    var alt_export = $('#tabs-1 #alt_export').is(':checked') ? true : false;
 
     var pages = $('#export_pages').val();
+
+    console.log(pages)
     if (pages.length > 0) {
 
-        $('.logs_list').html('');
+        $('.logs_list').html('<div class="log log--info"><span class="type">Loading</span><code class="path">Preparing exporter…</code><span class="time">--:--:--</span></div>');
         $('.progress').removeClass('completed');
         $('.see_logs_in_details').show();
-        $('.htmlExportLogs').show();
+        $('.htmlExportLogs').fadeIn();
 
-        $(this).find('.spinner_x').removeClass('hide_spin');
+        $(this).parent().find('.spinner_x').removeClass('hide_spin');
         $('.download-btn').addClass('hide');
         $('.export_failed.error').hide();
         $('.cancel_rc_html_export_process').show()
@@ -37,10 +46,21 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
 
         var ftp = 'no';
         var path = '';
+        if ($('#tabs-1 #upload_to_ftp').is(":checked")) {
+            ftp = 'yes';
 
+            if ($('#tabs-1 #ftp_path').val() !== "") {
+                path = $('#ftp_path').val();
+            }
+        }
         var full_site = 'no';
         if ($('#full_site').is(":checked")) {
             full_site = 'yes';
+        }
+
+        var login_as = '';
+        if ($('#login_as').val().length > 0) {
+            login_as = $('#login_as').val();
         }
 
         var skip_assets_data = {};
@@ -71,14 +91,19 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
             'pages': pages,
             'replace_urls': replace_urls,
             'skip_assets': skip_assets_data,
+            'image_to_webp': image_to_webp,
+            'image_quality': $('#image_quality').val(),
             'full_site': full_site,
+            'login_as': login_as,
             'ftp': ftp,
             'path': path,
+            'run_task_in_bg': run_task_in_bg,
             'receive_email': receive_email,
             'email_lists': email_lists,
+            'alt_export': alt_export,
+            'exportId': exportId,
             'time': Date.now()
         };
-
 
         $.ajax({
             url: rcewpp.ajax_url,
@@ -90,12 +115,21 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
 
             beforeSend: function(){
 
+                if (!run_task_in_bg){
+                    setTimeout(function(){
+                        $('.flat-button.pause').show();
+                        get_export_log_percentage(2000);
+                    }, 1000);
+                }
             },
             success: function(r){
                 if(r.success == 'true'){
-                    setTimeout(function(){
-                        get_export_log_percentage(1000);
-                    }, 2000);
+                    if (run_task_in_bg){
+                        setTimeout(function(){
+                            $('.flat-button.pause').show();
+                            get_export_log_percentage(1000);
+                        }, 2000);
+                    }
 
                 } else {
                     console.log('Something went wrong, please try again!');
@@ -110,81 +144,20 @@ $(document).on("click", ".export_internal_page_to_html", function(e){
         alert('Please select a page');
     }
 });
+  function ClearExportLogsData() {
+    $('.progress_').text(0);
+    $('.total_').text(0);
 
-jQuery(document).ready(function($) {
-    // Handle "Done!" button click
-    $(document).on('click', '#submit-review-done', function(e) {
-        e.preventDefault();
-
-        // Perform AJAX request
-        $.ajax({
-            url: ajaxurl,
-            method: 'POST',
-            data: {
-                action: 'ewpptsh_submit_review',
-                rc_nonce: rcewpp.nonce,
-                type: 'done'
-            },
-            success: function(response) {
-                // Handle the success response
-                $('.export-html-review-notice').remove();
-                console.log('Review submitted successfully.');
-            },
-            error: function(xhr, status, error) {
-                // Handle the error response
-                console.log('Error submitting review:', error);
-            }
-        });
-    });
-
-    // Handle "Remind me later" button click
-    $(document).on('click', '#submit-remind-later', function(e) {
-        e.preventDefault();
-
-        // Perform AJAX request
-        $.ajax({
-            url: ajaxurl,
-            method: 'POST',
-            data: {
-                action: 'ewpptsh_submit_review',
-                rc_nonce: rcewpp.nonce,
-                type: 'remind_later'
-            },
-            success: function(response) {
-                // Handle the success response
-                $('.export-html-review-notice').remove();
-                console.log('Remind me later request submitted successfully.');
-            },
-            error: function(xhr, status, error) {
-                // Handle the error response
-                console.log('Error submitting remind me later request:', error);
-            }
-        });
-    });
-
-    // Handle "Hide" button click
-    $(document).on('click', '#submit-hide', function(e) {
-        e.preventDefault();
-
-        // Perform AJAX request
-        $.ajax({
-            url: ajaxurl,
-            method: 'POST',
-            data: {
-                action: 'ewpptsh_submit_review',
-                rc_nonce: rcewpp.nonce,
-                type: 'hide'
-            },
-            success: function(response) {
-                // Handle the success response
-                $('.export-html-review-notice').remove();
-                console.log('Hide request submitted successfully.');
-            },
-            error: function(xhr, status, error) {
-                // Handle the error response
-                console.log('Error submitting hide request:', error);
-            }
-        });
-    });
-});
+    $('.progress-bar').css({'width': 0 + '%'});
+    $('.progress-value').html(0 + '%');
+    $('.download-btn').addClass('hide').attr('href', "");
+    $('.creatingZipFileLogs').hide();
+    $('.uploadingFilesToFtpLogs').hide();
+    //$('.logs').hide();
+    $('.logs_list').html('');
+    $('.view_exported_file').attr('href', '').addClass('hide');
+    $('.error-notice').hide()
+    $('#export_id').val("");
+    $('#checkpoints .cp').removeClass("is-complete");
+  }
 

@@ -102,6 +102,7 @@ class Generate_PDF_Button {
         
         <div class="pdf-download-modal" id="pdf-download-modal">
             <div class="pdf-download-modal-content">
+
                 <?php if ($this->ewpptsh_can_generate_pdf_today()) : ?>
                     <h2><?php esc_html_e('Generating PDF...', 'export-wp-page-to-static-html'); ?></h2>
                     <p><?php esc_html_e('Please wait while your file is being prepared.', 'export-wp-page-to-static-html'); ?></p>
@@ -158,7 +159,7 @@ class Generate_PDF_Button {
 
         $wp_admin_bar->add_node(array(
             'id'    => 'generate-pdf',
-            'title' => '<img src="'.EWPPTSH_PLUGIN_URL.'/admin/images/down3.png">Generate PDF',
+            'title' => '<img src="'.EWPPTSH_PLUGIN_DIR_URL.'/admin/images/down3.png">Generate PDF',
             'href'  => '?generate-pdf=true',
             'meta'  => array(
                 'class' => 'download-pdf-button',
@@ -173,14 +174,15 @@ class Generate_PDF_Button {
     
         $data = get_transient($key);
     
-        if ($data && isset($data['date']) && $data['date'] === $today) {
+        if ( false && $data && isset($data['date']) && $data['date'] === $today) {
             if ($data['count'] >= 2) {
                 return false;
             }
         }
-
+    
         return true;
     }
+    
     
 
     public function ewpsh_generate_pdf_shortcode($atts) {
@@ -264,9 +266,9 @@ class Generate_PDF_Button {
         }
             
         // Enqueue jsPDF and html2canvas
-        wp_enqueue_script('html2pdf', EWPPTSH_PLUGIN_URL.'/admin/js/pdf-making/html2pdf.bundle.min.js', array(), null, true);
-        wp_enqueue_script('jspdf', EWPPTSH_PLUGIN_URL.'/admin/js/pdf-making/jspdf.umd.min.js', array(), null, true);
-        wp_enqueue_script('pdf-custom-js', EWPPTSH_PLUGIN_URL.'/admin/js/pdf-making/pdf-making-custom.js', array('jspdf'), null, true);
+        wp_enqueue_script('html2pdf', EWPPTSH_PLUGIN_DIR_URL.'/admin/js/pdf-making/html2pdf.bundle.min.js', array(), null, true);
+        wp_enqueue_script('jspdf', EWPPTSH_PLUGIN_DIR_URL.'/admin/js/pdf-making/jspdf.umd.min.js', array(), null, true);
+        wp_enqueue_script('pdf-custom-js', EWPPTSH_PLUGIN_DIR_URL.'/admin/js/pdf-making/pdf-making-custom.js', array('jspdf'), null, true);
         
 
         // Ensure this runs only on the frontend (avoid errors in the admin panel)

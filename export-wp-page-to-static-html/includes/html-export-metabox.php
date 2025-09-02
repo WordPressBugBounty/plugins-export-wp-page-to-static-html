@@ -26,48 +26,37 @@ abstract class pp_group_notif_Meta_Box {
      *
      * @param int $post_id  The post ID.
      */
-
     public static function save( int $post_id ) {
-
-        $nonce = isset($_POST['nonce']) ? sanitize_key($_POST['nonce']) : "";
-        if (array_key_exists( 'upload_to_ftp', $_POST ) && !wp_verify_nonce($nonce, "rc-nonce")) {
-            echo wp_json_encode(array('success' => false, 'status' => 'nonce_verify_error', 'response' => ''));
-
-            die();
-        }
         if ( array_key_exists( 'upload_to_ftp', $_POST ) ) {
             if ( array_key_exists( 'ftp_upload_path', $_POST ) ) {
-                $ftp_upload_path = sanitize_textarea_field($_POST['ftp_upload_path']);
-                //rc_export_page_to_ftp_server($post_id, $ftp_upload_path);
+                //rc_export_page_to_ftp_server($post_id, $_POST['ftp_upload_path']);
 
                 update_post_meta(
                     $post_id,
                     '_upload_to_ftp_path',
-                    $ftp_upload_path
+                    $_POST['ftp_upload_path']
                 );
             }
-
+            
             update_option('rc_export_pages_as_html_task', 'running');
             update_option('rc_is_export_pages_zip_downloaded', 'no');
 
-            $upload_to_ftp = sanitize_text_field($_POST['upload_to_ftp']);
             update_post_meta(
                 $post_id,
                 '_upload_to_ftp',
-                $upload_to_ftp
+                $_POST['upload_to_ftp']
             );
         }
-        else {
-            update_post_meta(
+        else{
+        	update_post_meta(
                 $post_id,
                 '_upload_to_ftp',
                 ''
             );
         }
     }
-
-
-
+ 
+ 
     /**
      * Display the meta box HTML to the user.
      *
@@ -87,20 +76,17 @@ abstract class pp_group_notif_Meta_Box {
         if (empty($path) && $status == 'connected' && isset($data->path)){
             $path = $data->path;
         }
-
     	?>
         <div class="ftp_uploading_section">
-            <input id="nonce" type="hidden" name="nonce" value="<?php echo wp_create_nonce('rc-nonce'); ?>">
-
             <input id="upload_to_ftp" type="checkbox" name="upload_to_ftp"
             <?php if ($status !== 'connected'): ?>
                 disabled =""
-            <?php endif ?> <?php echo esc_html($checked); ?>>
+            <?php endif ?> <?php echo $checked; ?>>
             <label for="upload_to_ftp">Upload to ftp server</label>
 
             <br>
 
-            <input id="ftp_upload_path" type="text" name="ftp_upload_path" placeholder="FTP path to upload" value="<?php echo esc_html($path); ?>" style="<?php if ($is_ftp=='on'): ?>
+            <input id="ftp_upload_path" type="text" name="ftp_upload_path" placeholder="FTP path to upload" value="<?php echo $path; ?>" style="<?php if ($is_ftp=='on'): ?>
                 display: block;
             <?php endif ?>">
             <?php if ($status !== 'connected'): ?>
@@ -176,60 +162,24 @@ function add_cron_job_to_start_html_exporting_for_save_post($post_id = 0, $path=
 
     wp_schedule_single_event( time() , 'start_export_custom_url_to_html_event', array( $permalink, $settings ) );
     
-    return wp_json_encode(array('success' => 'true', 'status' => 'success', 'response' => 'task running'));
+    return json_encode(array('success' => 'true', 'status' => 'success', 'response' => 'task running'));
 
 }
 
-//    function rmdir_recursive2($dir) {
-//        foreach(scandir($dir) as $file) {
-//            if ('.' === $file || '..' === $file) continue;
-//            if (is_dir("$dir/$file")) rmdir_recursive2("$dir/$file");
-//            else unlink("$dir/$file");
-//        }
-//        rmdir($dir);
-//    }
-
-function rmdir_recursive2($dir) {
-    global $wp_filesystem;
-
-    // Initialize the WP_Filesystem
-    if ( ! function_exists( 'WP_Filesystem' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-    }
-
-    WP_Filesystem();
-
-    // Ensure WP_Filesystem is initialized
-    if ( ! $wp_filesystem ) {
-        return false;
-    }
-
-    // Check if the directory exists
-    if ( ! $wp_filesystem->is_dir( $dir ) ) {
-        return false;
-    }
-
-    // Iterate over the directory contents
-    $file_list = $wp_filesystem->dirlist( $dir );
-    foreach ( $file_list as $file => $fileinfo ) {
-        $filepath = trailingslashit( $dir ) . $file;
-        if ( 'd' === $fileinfo['type'] ) {
-            rmdir_recursive2( $filepath );
-        } else {
-            $wp_filesystem->delete( $filepath );
+    function rmdir_recursive2($dir) {
+        foreach(scandir($dir) as $file) {
+            if ('.' === $file || '..' === $file) continue;
+            if (is_dir("$dir/$file")) rmdir_recursive2("$dir/$file");
+            else unlink("$dir/$file");
         }
+        rmdir($dir);
     }
-
-    // Remove the directory itself
-    return $wp_filesystem->rmdir( $dir );
-}
-
 
 
 function rc_after_posts_save_hook(){
-    if (isset($_GET['post'])&&isset($_GET['action'])&&isset($_GET['message'])&&(sanitize_text_field($_GET['message'])=='1'||sanitize_text_field($_GET['message'])=='6')) {
+    if (isset($_GET['post'])&&isset($_GET['action'])&&isset($_GET['message'])&&($_GET['message']=='1'||$_GET['message']=='6')) {
         
-        $post_id = sanitize_key($_GET['post']);
+        $post_id = $_GET['post'];
         $is_ftp = get_post_meta($post_id, '_upload_to_ftp', true);
         $path = get_post_meta($post_id, '_upload_to_ftp_path', true);
         if ($is_ftp == 'on') {

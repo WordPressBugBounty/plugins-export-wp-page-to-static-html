@@ -55,6 +55,7 @@ class extract_documents
 
                     if ( in_array($urlExt, $docsExts) && strpos($url, $host) !== false && !$exclude_url) {
 
+                        $this->admin->currently_exporting_url($src_link);
                         $newlyCreatedBasename = $this->save_document($src_link, $url);
                         if(!$saveAllAssetsToSpecificDir){
                             $middle_p = $this->admin->rc_get_url_middle_path_for_assets($src_link);
@@ -107,21 +108,21 @@ class extract_documents
             if(!$saveAllAssetsToSpecificDir){
 
                 if(!file_exists($exportTempDir .'/'. $middle_p)){
-                    @$this->admin->create_directory($exportTempDir .'/'. $middle_p, 0777, true);
+                    @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                 }
                 $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
             }
             else{
                 if($saveAllAssetsToSpecificDir && $keepSameName && !empty($m_basename)){
                     if(!file_exists($documents_path .'/'. $m_basename)){
-                        @$this->admin->create_directory($documents_path . $m_basename, 0777, true);
+                        @mkdir($documents_path . $m_basename, 0777, true);
                     }
 
                     $my_file = $documents_path . $m_basename . $basename;
                 }
                 else{
                     if(!file_exists($documents_path)){
-                        @$this->admin->create_directory($documents_path);
+                        @mkdir($documents_path);
                     }
                 }
             }
@@ -156,28 +157,18 @@ class extract_documents
 
     public function saveFile($url, $savePath)
     {
-        global $wp_filesystem;
-
-        // Initialize the WP Filesystem
-        if (empty($wp_filesystem)) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-            WP_Filesystem();
-        }
-
-        $savePath = esc_html($savePath);
         $abs_url_to_path = $this->admin->abs_url_to_path($url);
-
-        if (strpos($url, home_url()) !== false && file_exists($abs_url_to_path)) {
-            $wp_filesystem->copy($abs_url_to_path, $savePath, true);
-            $this->admin->setTotalDownloaded();
-        } else {
-            $data = $this->admin->get_url_data($url);
-
-            if (!$wp_filesystem->put_contents($savePath, $data, FS_CHMOD_FILE)) {
-                die('Cannot open file: ' . $savePath);
-            }
-
+        if (strpos($url, home_url()) !== false && file_exists($abs_url_to_path)){
+            @copy($abs_url_to_path, $savePath);
             $this->admin->setTotalDownloaded();
         }
+        else{
+            $handle = @fopen($savePath, 'w') or die('Cannot open file:  ' . $savePath);
+            $data = $this->admin->get_url_data($url);
+            @fwrite($handle, $data);
+            @fclose($handle);
+            $this->admin->setTotalDownloaded();
+        }
+
     }
 }

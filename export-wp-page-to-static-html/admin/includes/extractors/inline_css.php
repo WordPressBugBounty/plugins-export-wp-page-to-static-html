@@ -83,8 +83,7 @@ class inline_css
                                 if(!$saveAllAssetsToSpecificDir){
                                     $middle_p = $this->admin->rc_get_url_middle_path_for_assets($item_url);
                                     if(!file_exists($exportTempDir .'/'. $middle_p)){
-                                        //@mkdir($exportTempDir .'/'. $middle_p, 0777, true);
-                                        $this->admin->create_middle_directory($exportTempDir, $middle_p);
+                                        @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                                     }
                                     $img_path_src = $exportTempDir .'/'. $middle_p .'/'. $url_basename;
                                 }
@@ -96,6 +95,8 @@ class inline_css
 
                                 if (!empty($img_path_src)&&!file_exists($img_path_src)) {
                                     $this->admin->update_export_log($item_url);
+                                    
+                                    //$this->admin->currently_exporting_url($item_url);
 
                                     $urlExt = pathinfo($url_basename, PATHINFO_EXTENSION);
                                     if ( in_array($urlExt, array('jpg', 'jpeg', 'png')) && $this->admin->getSettings('image_to_webp')){
@@ -203,8 +204,7 @@ class inline_css
                                     if(!$saveAllAssetsToSpecificDir){
                                         $middle_p = $this->admin->rc_get_url_middle_path_for_assets($item_url);
                                         if(!file_exists($exportTempDir .'/'. $middle_p)){
-                                            //@mkdir($exportTempDir .'/'. $middle_p, 0777, true);
-                                            $this->admin->create_middle_directory($exportTempDir, $middle_p);
+                                            @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                                         }
                                         $img_path_src = $exportTempDir .'/'. $middle_p .'/'. $url_basename;
                                     }
