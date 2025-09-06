@@ -73,9 +73,9 @@ function rcwpth_hidden_class($filename){
             <div class="card-body">
                 <h2 class="title"><?php _e('Export WP Pages to Static HTML/CSS', 'export-wp-page-to-static-html'); ?><span class="badge badge-success" style="position: relative;top: -4px;font-size: 15px;margin-left: 8px;">Free</span><span class="badge badge-dark version">v<?php echo EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION; ?></span></h2>
 
-                <div class="error-notice" style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;margin-bottom: 20px;">
-                    <p><?php echo __('Every site environment is unique, if your site failed to export to html then <a href="https://myrecorp.com/contact-us/" style="color: #721c24; font-weight: bold;">contact us.</a>. We\'ll try to help you as soon as possible.', 'export-wp-page-to-static-html'); ?></p>
-                </div>
+                <!-- <div class="error-notice" style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;margin-bottom: 20px;">
+                    <p><?php // echo __('Every site environment is unique, if your site failed to export to html then <a href="https://myrecorp.com/contact-us/" style="color: #721c24; font-weight: bold;">contact us.</a>. We\'ll try to help you as soon as possible.', 'export-wp-page-to-static-html'); ?></p>
+                </div> -->
 
                 <?php if (!extension_loaded('zip')) {
                     ?>

@@ -9,7 +9,7 @@
  * Plugin Name: Export WP Page to Static HTML & PDF
  * Plugin URI:        https://myrecorp.com
  * Description:       Seamlessly export any WordPress page or post into lightweight, fully responsive static HTML/CSS and print-ready PDF with a single click. Boost your site’s performance and security by serving pre-rendered pages, create offline-friendly backups. Perfect for developers, content creators, and businesses needing fast, reliable exports of WordPress content.
- * Version:           4.2.5
+ * Version:           4.2.7
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -56,7 +56,7 @@ if ( ! defined( 'WPINC' ) ) {
          * Start at version 1.0.0 and use SemVer - https://semver.org
          * Rename this for your plugin and update it as you release new versions.
          */
-        define( 'EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION', '4.2.4' );
+        define( 'EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION', '4.2.7' );
         define( 'EWPPTSH_PLUGIN_DIR_URL', plugin_dir_url(__FILE__) );
         define( 'EWPPTSH_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__) );
         define( 'EWPPTSH_DEVELOPER_MODE', false );

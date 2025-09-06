@@ -9,10 +9,11 @@
 
     <!-- Your original locked content -->
     <div class="locked-content">
-        
-    <div class="custom_link_section">
-        <input type="text" name="custom_link" placeholder="Enter a url">
-    </div>
+        <div class="custom_link_section">
+           <input type="text" id="custom_link" name="custom_link" placeholder="https://example.com" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+        </div>
+        <p style="font-size:13px; color:#555; margin-top:6px;"><?php _e('Enter the any website URL that you want to export as static HTML/CSS.', 'export-wp-page-to-static-html'); ?></p>
+
 
 
     <div class="p-t-10">

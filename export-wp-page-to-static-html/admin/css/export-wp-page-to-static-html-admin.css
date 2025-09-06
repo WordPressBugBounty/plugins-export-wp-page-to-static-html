@@ -2602,7 +2602,7 @@ button.toast-close-button {
   display: none;
   position: absolute;
   top: 50%;
-  left: 110%;
+  left: 100%;
   transform: translateY(-50%);
   background: #fff;
   padding: 75px 50px;
@@ -2611,6 +2611,22 @@ button.toast-close-button {
   white-space: nowrap;
   z-index: 999;
   text-align: center;
+}
+.pro-content {
+  border: 2px solid #e5e7eb;                  /* soft neutral border */
+  border-radius: 14px;                        /* rounded corners */
+  padding: 20px;
+  background: #fff;                           /* light background */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06); /* subtle card shadow */
+  text-align: center;                         /* center button + text */
+  max-width: 260px;                            /* center horizontally */
+  transition: all 0.25s ease;                 /* smooth hover */
+}
+
+/* Optional hover effect */
+.pro-content:hover {
+  border-color: #a855f7;                      /* purple highlight */
+  box-shadow: 0 8px 22px rgba(168, 85, 247, 0.25);
 }
 
 .go-pro-btn {

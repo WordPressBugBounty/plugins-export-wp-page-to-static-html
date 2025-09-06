@@ -12,6 +12,11 @@
         <a href="https://myrecorp.com/support"><span><?php _e('Support', 'export-wp-page-to-static-html'); ?> </span></a>
     </div>
 
+    <div class="pro-content">
+        <a href="https://myrecorp.com/export-wp-pages-to-static-html-css-pro?ref=custom_url" class="go-pro-btn">🚀 Go to Pro</a>
+        <p class="pro-note">Unlock advanced features with Pro</p>
+    </div>
+    
     <?php
     if (!isset($_GET['welcome'])&&!(PHP_VERSION_ID >= 70205)) {
         echo $versionIssue;
