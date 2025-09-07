@@ -9,7 +9,7 @@
  * Plugin Name: Export WP Page to Static HTML & PDF
  * Plugin URI:        https://myrecorp.com
  * Description:       Seamlessly export any WordPress page or post into lightweight, fully responsive static HTML/CSS and print-ready PDF with a single click. Boost your site’s performance and security by serving pre-rendered pages, create offline-friendly backups. Perfect for developers, content creators, and businesses needing fast, reliable exports of WordPress content.
- * Version:           4.2.8
+ * Version:           4.3.0
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -41,13 +41,13 @@ if ( ! defined( 'WPINC' ) ) {
      *
      * This action is documented in includes/class-export-wp-page-to-static-html-activator.php
      */
-    function activate_export_wp_page_to_static_html_pro() {
+    function activate_export_wp_page_to_static_html() {
         require_once plugin_dir_path( __FILE__ ) . 'includes/class-export-wp-page-to-static-html-activator.php';
         Export_Wp_Page_To_Static_Html_Activator::activate();
     }
 
 
-    register_activation_hook( __FILE__, 'activate_export_wp_page_to_static_html_pro' );
+    register_activation_hook( __FILE__, 'activate_export_wp_page_to_static_html' );
 
     if (!function_exists('run_export_wp_page_to_static_html')){
 
@@ -56,7 +56,7 @@ if ( ! defined( 'WPINC' ) ) {
          * Start at version 1.0.0 and use SemVer - https://semver.org
          * Rename this for your plugin and update it as you release new versions.
          */
-        define( 'EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION', '4.2.8' );
+        define( 'EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION', '4.3.0' );
         define( 'EWPPTSH_PLUGIN_DIR_URL', plugin_dir_url(__FILE__) );
         define( 'EWPPTSH_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__) );
         define( 'EWPPTSH_DEVELOPER_MODE', false );
@@ -90,7 +90,7 @@ if ( ! defined( 'WPINC' ) ) {
         function export_wp_page_to_html_redirect_to_menu() {
             if (get_option('export_wp_page_to_html_activation_check', false)) {
                 delete_option('export_wp_page_to_html_activation_check');
-                exit( wp_redirect("options-general.php?page=export-wp-page-to-html&welcome=true") );
+                exit( wp_redirect("admin.php?page=export-wp-page-to-html&welcome=true") );
             }
         }
 
@@ -110,42 +110,42 @@ if ( ! defined( 'WPINC' ) ) {
          *
          * @since    1.0.0
          */
-        function run_export_wp_page_to_static_html_pro() {
+        function run_export_wp_page_to_static_html() {
 
             $plugin = new Export_Wp_Page_To_Static_Html();
             $plugin->run();
 
         }
-        run_export_wp_page_to_static_html_pro();
+        run_export_wp_page_to_static_html();
     }
 
 //}
-function wpptsh_error_log($log){
-    if (EWPPTSH_DEVELOPER_MODE) {
-        error_log($log);
+    function wpptsh_error_log($log){
+        if (EWPPTSH_DEVELOPER_MODE) {
+            error_log($log);
+        }
     }
-}
-// On plugin activation (once), create/store a token
-register_activation_hook(__FILE__, function(){
-    if (!get_option('ewptshp_worker_token')) {
-        add_option('ewptshp_worker_token', wp_generate_password(32, false, false));
+    // On plugin activation (once), create/store a token
+    register_activation_hook(__FILE__, function(){
+        if (!get_option('ewptshp_worker_token')) {
+            add_option('ewptshp_worker_token', wp_generate_password(32, false, false));
+        }
+    });
+
+    // Runs on every load, no __FILE__ here
+    function wpptsh_update_db_check() {
+        $installed_ver = get_option('wpptsh_db_version');
+
+        if ($installed_ver !=WPPTSH_DB_VERSION) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'export_urls_logs';
+
+            // Add only missing column(s)
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN type TINYTEXT NOT NULL");
+
+
+            update_option('wpptsh_db_version', WPPTSH_DB_VERSION);
+        }
+        
     }
-});
-
-// Runs on every load, no __FILE__ here
-function wpptsh_update_db_check() {
-    $installed_ver = get_option('wpptsh_db_version');
-
-    if ($installed_ver !=WPPTSH_DB_VERSION) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'export_urls_logs';
-
-        // Add only missing column(s)
-        $wpdb->query("ALTER TABLE $table_name ADD COLUMN type TINYTEXT NOT NULL");
-
-
-        update_option('wpptsh_db_version', WPPTSH_DB_VERSION);
-    }
-    
-}
-add_action('plugins_loaded', 'wpptsh_update_db_check');
+    add_action('plugins_loaded', 'wpptsh_update_db_check');

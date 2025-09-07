@@ -31,8 +31,8 @@ class Export_Wp_Page_To_Static_Html_Activator {
 	 */
 	public static function activate() {
 
-        if ( is_plugin_active( 'export-wp-page-to-static-html/export-wp-page-to-static-html.php' ) ) {
-            deactivate_plugins( 'export-wp-page-to-static-html/export-wp-page-to-static-html.php' );
+        if ( is_plugin_active( 'export-wp-page-to-static-html-pro-premium/export-wp-page-to-static-html.php' ) ) {
+            deactivate_plugins( 'export-wp-page-to-static-html-pro-premium/export-wp-page-to-static-html.php' );
         }
 
 		global $wpdb;

@@ -178,6 +178,36 @@
 }
 </style>
 
+<style>
+  /* Scoped to advanced settings only */
+  #advanced_settings .info-icon {
+    display: inline-block;
+    margin-left: 6px;
+    cursor: help;
+    font-size: 14px;
+    color: #2271b1; /* WP admin blue */
+    line-height: 1;
+    position: relative;
+  }
+  #advanced_settings .info-icon::before {
+    content: "ℹ️";
+  }
+  #advanced_settings .info-icon:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: -6px;
+    left: 20px;
+    white-space: nowrap;
+    background: #1e1e1e;
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    z-index: 9999;
+  }
+</style>
+
 <details class="adv-settings" id="advanced_settings" aria-label="Advanced settings">
   <summary class="adv-summary">
     <span class="caret" aria-hidden="true"></span>
@@ -188,7 +218,10 @@
     <div class="col-8">
       <div class="p-t-10">
         <div class="input-group">
-          <label class="label label_login_as" style="font-weight: bold" for="login_as"><?php _e('Login as (optional)', 'export-wp-page-to-static-html'); ?></label>
+          <label class="label label_login_as" style="font-weight: bold" for="login_as">
+            <?php _e('Login as (optional)', 'export-wp-page-to-static-html'); ?>
+            <span class="info-icon" data-tooltip="Select a role to run the export as that user."></span>
+          </label>
           <select id="login_as" name="login_as">
             <option value="" selected=""><?php _e('Select a user role', 'export-wp-page-to-static-html'); ?></option>
             <?php
@@ -204,45 +237,61 @@
         </div>
 
         <div class="p-t-10">
-          <label class="checkbox-container m-r-45"><?php _e('Replace all url to #', 'export-wp-page-to-static-html'); ?>
+          <label class="checkbox-container m-r-45">
+            <?php _e('Replace all url to #', 'export-wp-page-to-static-html'); ?>
+            <span class="info-icon" data-tooltip="Rewrites all links to # placeholders for safe testing."></span>
             <input type="checkbox" id="replace_all_url" name="replace_all_url">
             <span class="checkmark"></span>
           </label>
         </div>
 
         <div class="p-t-10">
-          <label class="checkbox-container m-r-45" for="skip_assets"><?php _e('Skip Assets (Css, Js, Images or Videos)', 'export-wp-page-to-static-html'); ?>
+          <label class="checkbox-container m-r-45" for="skip_assets">
+            <?php _e('Skip Assets (Css, Js, Images or Videos)', 'export-wp-page-to-static-html'); ?>
+            <span class="info-icon" data-tooltip="Exclude all CSS, JS, image, and video files from the export."></span>
             <input type="checkbox" id="skip_assets" name="skip_assets">
             <span class="checkmark"></span>
           </label>
 
           <div class="skip_assets_subsection export_html_sub_settings">
-            <label class="checkbox-container m-r-45" for="skip_stylesheets"><?php _e('Skip Stylesheets (.css)', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_stylesheets">
+              <?php _e('Skip Stylesheets (.css)', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Do not download or rewrite .css files."></span>
               <input type="checkbox" id="skip_stylesheets" name="skip_stylesheets" checked>
               <span class="checkmark"></span>
             </label>
 
-            <label class="checkbox-container m-r-45" for="skip_scripts"><?php _e('Skip Scripts (.js)', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_scripts">
+              <?php _e('Skip Scripts (.js)', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Do not download or rewrite .js files."></span>
               <input type="checkbox" id="skip_scripts" name="skip_scripts" checked>
               <span class="checkmark"></span>
             </label>
 
-            <label class="checkbox-container m-r-45" for="skip_images"><?php _e('Skip Images', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_images">
+              <?php _e('Skip Images', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Exclude image files and &lt;img&gt; tags."></span>
               <input type="checkbox" id="skip_images" name="skip_images" checked>
               <span class="checkmark"></span>
             </label>
 
-            <label class="checkbox-container m-r-45" for="skip_videos"><?php _e('Skip Videos', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_videos">
+              <?php _e('Skip Videos', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Exclude video files and &lt;video&gt; sources."></span>
               <input type="checkbox" id="skip_videos" name="skip_videos" checked>
               <span class="checkmark"></span>
             </label>
 
-            <label class="checkbox-container m-r-45" for="skip_audios"><?php _e('Skip Audios', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_audios">
+              <?php _e('Skip Audios', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Exclude audio files and &lt;audio&gt; sources."></span>
               <input type="checkbox" id="skip_audios" name="skip_audios" checked>
               <span class="checkmark"></span>
             </label>
 
-            <label class="checkbox-container m-r-45" for="skip_docs"><?php _e('Skip Documnets', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container m-r-45" for="skip_docs">
+              <?php _e('Skip Documnets', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Exclude document files such as .pdf, .docx, etc."></span>
               <input type="checkbox" id="skip_docs" name="skip_docs" checked>
               <span class="checkmark"></span>
             </label>
@@ -250,7 +299,9 @@
         </div>
 
         <div class="p-t-10">
-          <label class="checkbox-container m-r-45" for="image_to_webp"><?php _e('Compress images size (image to webp)', 'export-wp-page-to-static-html'); ?>
+          <label class="checkbox-container m-r-45" for="image_to_webp">
+            <?php _e('Compress images size (image to webp)', 'export-wp-page-to-static-html'); ?>
+            <span class="info-icon" data-tooltip="Convert images to WebP using the selected quality."></span>
             <input type="checkbox" id="image_to_webp" name="image_to_webp">
             <span class="checkmark"></span>
           </label>
@@ -265,14 +316,19 @@
 
         <div class="p-t-10">
           <div class="checkbox-lock" style="margin-top:0;">
-            <label class="checkbox-container ftp_upload_checkbox m-r-45 <?php if ($ftp_status !== 'connected') { echo 'disabled'; } ?>"><?php _e('Upload to ftp', 'export-wp-page-to-static-html'); ?>
+            <label class="checkbox-container ftp_upload_checkbox m-r-45 <?php if ($ftp_status !== 'connected') { echo 'disabled'; } ?>">
+              <?php _e('Upload to ftp', 'export-wp-page-to-static-html'); ?>
+              <span class="info-icon" data-tooltip="Upload exported files to your configured FTP server."></span>
               <input type="checkbox" id="upload_to_ftp" name="upload_to_ftp" <?php if ($ftp_status !== 'connected') { echo 'disabled=""'; } ?> >
               <span class="checkmark"></span>
             </label>
 
             <div class="ftp_Settings_section export_html_sub_settings">
               <div class="ftp_settings_item">
-                <label for="ftp_path"><?php _e('FTP upload path', 'export-wp-page-to-static-html'); ?></label>
+                <label for="ftp_path">
+                  <?php _e('FTP upload path', 'export-wp-page-to-static-html'); ?>
+                  <span class="info-icon" data-tooltip="Remote directory (path) where files will be uploaded."></span>
+                </label>
                 <input type="text" id="ftp_path" name="ftp_path" placeholder="Upload path" value="<?php echo $path; ?>">
                 <div class="ftp_path_browse1"><a href="#"><?php _e('Browse', 'export-wp-page-to-static-html'); ?></a></div>
               </div>
@@ -289,6 +345,7 @@
     </div>
   </div>
 </details>
+
 
         <div class="p-t-15">
             <button class="flat-button primary export_internal_page_to_html" type="submit"><?php _e('Export HTML', 'export-wp-page-to-static-html'); ?> </button>
