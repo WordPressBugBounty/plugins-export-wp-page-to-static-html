@@ -3,7 +3,7 @@ Contributors: recorp
 Tags: HTML, wp to html, pdf, static website generator, pdf generator, export, page to html, static, css, wp page, page, wp, save as html
 Requires at least: 4.1  
 Tested up to: 6.8 
-Stable tag: 4.2.7
+Stable tag: 4.2.8
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
@@ -90,6 +90,10 @@ Admin or Users see a friendly popup informing them they have reached their expor
 Absolutely. Exports capture the fully rendered front-end outputâ€”page builder layouts included.  
 
 == Changelog ==
+
+= 4.2.8 - 7 September 2025 =
+* Updated little thing.
+
 
 = 4.2.7 - 6 September 2025 =
 * Updated the export page interface.

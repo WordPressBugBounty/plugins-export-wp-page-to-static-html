@@ -28,21 +28,17 @@ jQuery(document).ready(function ($) {
         });
     });
 
-    $(document).on('click', '.static_html_settings .go_pro a', function (e) {
+    $(document).on('click', '.go-pro-btn', function (e) {
         e.preventDefault();
         var goProLink = $(this).attr('href');
+        const url = new URL(goProLink);
+        const ref = url.searchParams.get('ref');
+
         $.post(wpptshData.ajaxUrl, {
             action: 'wpptsh_click_go_pro',
-            button: 'go_pro'
+            button: ref
         }, function () {
             window.location.href = goProLink;
-        });
-    });
-    $(document).on('click', '.export_html.main_settings_page .go_pro2 #purchase', function (e) {
-        e.preventDefault();
-        $.post(wpptshData.ajaxUrl, {
-            action: 'wpptsh_click_go_pro',
-            button: 'go_pro2'
         });
     });
 });
