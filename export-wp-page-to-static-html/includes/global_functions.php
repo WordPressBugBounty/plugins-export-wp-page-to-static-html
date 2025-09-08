@@ -9,7 +9,7 @@ function rc_static_html_task_events_activate() {
 add_action( 'wpptsh_daily_schedules', 'wpptsh_active_cron_job_after_five_second', 10, 2 );
 function wpptsh_active_cron_job_after_five_second() {
 	$home_url = get_home_url();
-	$notices = file_get_contents('http://api.myrecorp.com/wpptsh_notices.php?version=pro&url='.$home_url);
+	$notices = file_get_contents('http://api.myrecorp.com/wpptsh_notices.php?version=free&url='.$home_url);
 
     update_option('wpptsh_notices', $notices);
 }
@@ -40,7 +40,7 @@ function wpptsh_right_side_notice(){
 			$publish_time = strtotime($publishing_date);
 			$auto_hide_time = strtotime($auto_hide_date);
 
-			if ( $status && $is_right_sidebar == 1 && $current_time > $publish_time && $current_time < $auto_hide_time && in_array('pro', $version) ) {
+			if ( $status && $is_right_sidebar == 1 && $current_time > $publish_time && $current_time < $auto_hide_time && in_array('free', $version) ) {
 				$html .= '<div class="sidebar_notice_section">';
 				$html .=	'<div class="right_notice_title">'.$title.'</div>';
 				$html .=	'<div class="right_notice_details">'.$content.'</div>';
@@ -86,7 +86,7 @@ function wpptsh_admin_notices(){
 
 			$clicked_data = (array) get_option('wpptsh_notices_clicked_data');
 
-			if ( $status && !$is_right_sidebar && $current_time > $publish_time && $current_time < $auto_hide_time && !in_array($key, $clicked_data) && in_array('pro', $version) ) {
+			if ( $status && !$is_right_sidebar && $current_time > $publish_time && $current_time < $auto_hide_time && !in_array($key, $clicked_data) && in_array('free', $version) ) {
 				$html .=  '<div class="notice notice-'. $alert_type .' is-dismissible dcim-alert wpptsh" wpptsh_notice_key="'.$key.'">
 						'.$content.'
 					</div>';
