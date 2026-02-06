@@ -279,6 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     else if (r.creating_html_process === 'completed' && r.are_all_assets_exported && r.creating_zip_status !== 'completed') {
+      toggleComplete('html', true);
       exporting_assets_completed(r);
       const frac = (r.total_pushed_file_to_zip || 0) / Math.max(1, r.total_zip_files || 1);
       percentage = 66 + frac * 34;

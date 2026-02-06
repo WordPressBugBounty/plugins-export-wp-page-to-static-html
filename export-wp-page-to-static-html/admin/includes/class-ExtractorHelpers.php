@@ -684,7 +684,7 @@ class ExtractorHelpers{
 
         // Ensure directory exists
         if (!file_exists($directory)) {
-            if (@mkdir($directory, 0777, true)) {
+            if (@wpptsh_maybe_create_dir($directory)) {
                 wpptsh_error_log("📁 Created directory: $directory");
             } else {
                 wpptsh_error_log("❌ Failed to create directory: $directory");
@@ -707,15 +707,9 @@ class ExtractorHelpers{
         }
 
         // Attempt to write data to file
-        if (!$handle = @fopen($savePath, 'w')) {
-            wpptsh_error_log("❌ Cannot open file for writing: $savePath");
-            return;
-        }
 
-        $bytes = @fwrite($handle, $data);
-        @fclose($handle);
 
-        if ($bytes !== false) {
+        if (wpptsh_write_file($savePath, $data)) {
             wpptsh_error_log("✅ Successfully saved file to: $savePath");
         } else {
             wpptsh_error_log("❌ Failed to write data to file: $savePath");
@@ -947,14 +941,11 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
         $sanitized_url = sanitize_text_field($url);
         $sanitized_status = sanitize_text_field($status);
 
-        // Prepare and run the query
-        $sql = $wpdb->prepare(
+        return $wpdb->query($wpdb->prepare(
             "UPDATE $table SET status = %s WHERE url LIKE %s",
             $sanitized_status,
             $sanitized_url
-        );
-
-        return $wpdb->query($sql); // Returns number of affected rows
+        )); // Returns number of affected rows
     }
 
 
@@ -1050,7 +1041,7 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
                             wpptsh_error_log("Font detected: $item_url | Extension: $urlExt");
 
                             if (!file_exists($pathname_fonts)) {
-                                @mkdir($pathname_fonts, 0777, true);
+                                @wpptsh_maybe_create_dir($pathname_fonts);
                                 wpptsh_error_log("Font directory created: $pathname_fonts");
                             }
 
@@ -1060,7 +1051,7 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
                             wpptsh_error_log("Image detected: $item_url");
 
                             if (!file_exists($pathname_images)) {
-                                @mkdir($pathname_images, 0777, true);
+                                @wpptsh_maybe_create_dir($pathname_images);
                             }
 
                             $my_file = $pathname_images . $url_basename;
@@ -1111,9 +1102,14 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
 
                 $this->update_export_log($stylesheet_url, 'copying', '');
                 $this->update_asset_url_status($stylesheet_url, 'exported');
-                $handle = @fopen($my_file, 'w') or die('Cannot open file:  ' . $my_file);
-                @fwrite($handle, $data);
-                fclose($handle);
+                // $handle = @fopen( $my_file, 'w' );
+                // if ( ! $handle ) {
+                //     wp_die( sprintf( 'Cannot open file: %s', esc_html( $my_file ) ) );
+                // }
+
+                // @fwrite($handle, $data);
+                // fclose($handle);
+                wpptsh_write_file($my_file, $data);
                 
                 wpptsh_error_log("File written: $my_file");
                 $this->update_urls_log($stylesheet_url, 1);
@@ -1214,7 +1210,7 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
     private function ensure_dir($dir)
     {
         if (!file_exists($dir)) {
-            @mkdir($dir, 0777, true);
+            @wpptsh_maybe_create_dir($dir);
         }
     }
     
@@ -1250,9 +1246,6 @@ public function get_next_export_asset($asset_type = null, $limit = 1) {
                 }
 
                 $uploadDir = $file_save_path;
-                // if (!file_exists($uploadDir)) {
-                //     mkdir($uploadDir, 0777, true);
-                // }
 
                 $this->saveFile($generated_file_url, $uploadDir.$basename);
 

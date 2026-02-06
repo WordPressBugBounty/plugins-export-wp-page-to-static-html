@@ -108,21 +108,21 @@ class extract_documents
             if(!$saveAllAssetsToSpecificDir){
 
                 if(!file_exists($exportTempDir .'/'. $middle_p)){
-                    @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
+                    @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
                 }
                 $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
             }
             else{
                 if($saveAllAssetsToSpecificDir && $keepSameName && !empty($m_basename)){
                     if(!file_exists($documents_path .'/'. $m_basename)){
-                        @mkdir($documents_path . $m_basename, 0777, true);
+                        @wpptsh_maybe_create_dir($documents_path . $m_basename);
                     }
 
                     $my_file = $documents_path . $m_basename . $basename;
                 }
                 else{
                     if(!file_exists($documents_path)){
-                        @mkdir($documents_path);
+                        @wpptsh_maybe_create_dir($documents_path);
                     }
                 }
             }
@@ -163,10 +163,7 @@ class extract_documents
             $this->admin->setTotalDownloaded();
         }
         else{
-            $handle = @fopen($savePath, 'w') or die('Cannot open file:  ' . $savePath);
-            $data = $this->admin->get_url_data($url);
-            @fwrite($handle, $data);
-            @fclose($handle);
+            wpptsh_write_file($savePath, $data);
             $this->admin->setTotalDownloaded();
         }
 

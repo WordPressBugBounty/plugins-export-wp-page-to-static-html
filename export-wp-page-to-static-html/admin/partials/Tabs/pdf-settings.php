@@ -36,8 +36,22 @@
                     echo '<div style="color:red;">Error: User roles could not be loaded properly.</div>';
                 }
 
-            $guest_checked = in_array('guest', $selected_user_roles) ? 'checked': '';
-            echo '<br><label for="roles-for-pdf-guest" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;"><input id="roles-for-pdf-guest" type="checkbox" name="user_roles_for_pdf[guest]" value="guest" '.$guest_checked. '> Visitor</label>';
+                // Make sure roles array is sanitized beforehand:
+                $selected_user_roles = array_map( 'sanitize_key', (array) $selected_user_roles );
+
+                $guest_checked = in_array( 'guest', $selected_user_roles, true );
+                ?>
+                <br>
+                <label for="roles-for-pdf-guest" class="checkbox-label roles-for-pdf-user-roles" style="margin-right: 12px;">
+                    <input
+                        id="roles-for-pdf-guest"
+                        type="checkbox"
+                        name="user_roles_for_pdf[guest]"
+                        value="guest"
+                        <?php checked( $guest_checked ); ?>
+                    >
+                    <?php esc_html_e( 'Visitor', 'export-wp-page-to-static-html' ); ?>
+                </label>
 
             ?>
             <div style="margin-top: 5px; font-size: 13px;"><i><?php esc_html_e('Select the user roles that have access to generate PDF of a page.', 'export-wp-page-to-static-html'); ?></i></div>

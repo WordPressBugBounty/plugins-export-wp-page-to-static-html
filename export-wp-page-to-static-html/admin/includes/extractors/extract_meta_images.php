@@ -146,7 +146,7 @@ class extract_meta_images
             $this->admin->add_urls_log($img_src, $found_on, 'image');
 
             if (strpos($basename, ".") == false) {
-                $basename = rand(5000, 9999) . ".jpg";
+                $basename = wp_rand(5000, 9999) . ".jpg";
             }
             $basename = $this->admin->filter_filename($basename);
 
@@ -155,7 +155,7 @@ class extract_meta_images
             if(!$saveAllAssetsToSpecificDir){
                 $middle_p = $this->admin->rc_get_url_middle_path_for_assets($img_src);
                 if(!file_exists($exportTempDir .'/'. $middle_p)){
-                    @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
+                    @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
                 }
                 $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
             }

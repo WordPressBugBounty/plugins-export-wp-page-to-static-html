@@ -2650,3 +2650,63 @@ button.toast-close-button {
 .checkbox-lock:hover .go-pro-popup {
   display: block;
 }
+
+
+/* Collapsible "Advanced settings" styles (pure CSS) */
+.adv-settings{border:1px solid #e5e7eb; border-radius:10px; background:#fff;}
+.adv-settings[open]{box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.adv-summary{list-style:none; cursor:pointer; padding:12px 14px; display:flex; align-items:center; gap:10px; font-weight:700}
+.adv-summary::marker{display:none}
+.adv-summary .caret{width:10px; height:10px; border-right:2px solid #9aa3b2; border-bottom:2px solid #9aa3b2; transform:rotate(-45deg); transition:transform .25s ease}
+.adv-settings[open] .adv-summary .caret{transform:rotate(45deg)}
+.adv-summary .meta{margin-left:auto; color:#64748b; font-weight:600; font-size:12px}
+.adv-panel{max-height:0; overflow:hidden; transition:max-height .35s ease; border-top:1px solid #eef1f5}
+.adv-settings[open] .adv-panel{max-height:2000px; padding: 10px 25px 25px 25px;}
+/* Optional: light admin-friendly look; remove if you have your own styles */
+.checkbox-container{display:inline-flex; align-items:center; gap:8px}
+.p-t-10{padding-top:10px}
+.m-r-45{margin-right:45px}
+.input-group{display:flex; flex-direction:column; gap:6px}
+.label{font-weight:600}
+.brightness-box{display:inline-block; margin-right:8px}
+.checkbox-lock{position:relative}
+.go-pro-popup{margin-top:8px}
+.badge-pro {
+	margin-left: 8px;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+	padding: 4px 6px;
+	border-radius: 6px;
+	background: linear-gradient(135deg, #ff6a00, #ee0979);
+	color: #fff;
+	border: 1px solid rgba(0,0,0,.08);
+}
+
+  /* Scoped to advanced settings only */
+  #advanced_settings .info-icon {
+    display: inline-block;
+    margin-left: 6px;
+    cursor: help;
+    font-size: 14px;
+    color: #2271b1; /* WP admin blue */
+    line-height: 1;
+    position: relative;
+  }
+  #advanced_settings .info-icon::before {
+    content: "ℹ️";
+  }
+  #advanced_settings .info-icon:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: -6px;
+    left: 20px;
+    white-space: nowrap;
+    background: #1e1e1e;
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    z-index: 9999;
+  }

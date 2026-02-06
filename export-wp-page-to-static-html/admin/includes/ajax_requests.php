@@ -19,7 +19,6 @@ class EWPPTH_AjaxRequests
         include 'AjaxRequests/seeLogsInDetails.php';
         include 'AjaxRequests/exportLogPercentage.php';
         include 'AjaxRequests/searchPosts.php';
-        include 'AjaxRequests/checkExportingProcessOnSettingsPageLoad.php';
         include 'AjaxRequests/deleteExportedZipFile.php';
         include 'AjaxRequests/exploreFtpDirectory.php';
         include 'AjaxRequests/getFtpDirFileList.php';
@@ -44,7 +43,6 @@ class EWPPTH_AjaxRequests
         new exportLogPercentage\initAjax;
         new searchPosts\initAjax;
         new requestForWpPageToStaticHtml\initAjax;
-        new checkExportingProcessOnSettingsPageLoad\initAjax;
         new deleteExportedZipFile\initAjax;
         new getFtpDirFileList\initAjax;
         new exploreFtpDirectory\initAjax;

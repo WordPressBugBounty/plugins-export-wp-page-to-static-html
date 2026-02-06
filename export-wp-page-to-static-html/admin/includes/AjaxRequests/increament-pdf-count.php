@@ -26,7 +26,7 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
         }
 
         $key = 'ewpptsh_global_pdf_limit';
-        $today = date('Y-m-d');
+        $today = current_time('Y-m-d');
     
         $data = get_transient($key);
         if (!$data || $data['date'] !== $today) {

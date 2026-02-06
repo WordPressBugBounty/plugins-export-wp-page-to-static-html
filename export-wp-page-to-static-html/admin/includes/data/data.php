@@ -89,9 +89,11 @@ if (!class_exists('WPPTSH_DataCollector')) {
         }
 
         public function handle_ajax() {
+            $reason_key = isset($_POST['reason_key']) ? sanitize_text_field($_POST['reason_key']) : '';
+
             $data = [
                 'site_url'    => get_site_url(),
-                'reason_key'  => sanitize_text_field($_POST['reason_key']),
+                'reason_key'  => $reason_key,
                 'feedback'    => sanitize_textarea_field($_POST['feedback']),
                 'wp_version'  => get_bloginfo('version'),
                 'plugin_version' => EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION

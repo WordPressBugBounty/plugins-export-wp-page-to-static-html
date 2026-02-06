@@ -23,12 +23,13 @@ class initAjax
      */
 
     public function rc_html_export_files_action(){
+        \rcCheckNonce();
+        
         $files_action = isset($_POST['files_action']) ? sanitize_key($_POST['files_action']) : "";
         $fileIds = isset($_POST['fileIds']) ? (array) ($_POST['fileIds']) : "";
 
         $fileIds = array_map( 'sanitize_text_field', $fileIds );
 
-        \rcCheckNonce();
 
         $upload_dir = wp_upload_dir()['basedir'] . '/exported_html_files/';
 

@@ -24,27 +24,28 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
      */
 
     public function rc_export_wp_page_to_static_html(){
-        $pages = isset($_POST['pages']) ? $_POST['pages'] : "";
+        \rcCheckNonce();
+
+        $pages = isset($_POST['pages']) ? wp_unslash($_POST['pages']) : "";
         $pages = array_map('sanitize_key', $pages);
 
         $replace_urls = isset($_POST['replace_urls']) && sanitize_key($_POST['replace_urls']) == "true" ? true : false;
         $image_to_webp = isset($_POST['image_to_webp']) ? sanitize_key($_POST['image_to_webp']) == "true" : false;
         $image_quality = isset($_POST['image_quality']) ? (int) sanitize_key($_POST['image_quality']) : 80;
 
-        $skip_assets_data = isset($_POST['skip_assets']) ? (array) $_POST['skip_assets'] : array();
+        $skip_assets_data = isset($_POST['skip_assets']) ? (array) wp_unslash($_POST['skip_assets']) : array();
         $skip_assets_data = array_map('sanitize_key', $skip_assets_data);
 
         $run_task_in_bg = isset($_POST['run_task_in_bg']) && sanitize_key($_POST['run_task_in_bg']) == "true" ? true : false;
         $receive_email = isset($_POST['receive_email']) && sanitize_key($_POST['receive_email']) == "true" ? true : false;
-        $email_lists = isset($_POST['email_lists'] ) ? sanitize_textarea_field($_POST['email_lists']) : "";
+        $email_lists = isset($_POST['email_lists'] ) ? sanitize_textarea_field(wp_unslash($_POST['email_lists'])) : "";
         $ftp = isset($_POST['ftp']) ? sanitize_key($_POST['ftp']) : 'no';
         $full_site = isset($_POST['full_site']) && sanitize_key($_POST['full_site']) == "yes" ? true : false;
-        $ftpPath = isset($_POST['path']) ? sanitize_text_field($_POST['path']) : '';
-        $login_as = isset($_POST['login_as']) ? sanitize_text_field($_POST['login_as']) : '';
+        $ftpPath = isset($_POST['path']) ? sanitize_text_field(wp_unslash($_POST['path'])) : '';
+        $login_as = isset($_POST['login_as']) ? sanitize_text_field(wp_unslash($_POST['login_as']))  : '';
         $alt_export = isset($_POST['alt_export']) ? sanitize_key($_POST['alt_export']) == "true" : false;
         $exportId = isset($_POST['exportId']) ? sanitize_key($_POST['exportId']) : 0;
 
-        \rcCheckNonce();
 
         $settingsKey = 'rcwpptsh__';
 
@@ -74,7 +75,7 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
             'replaceUrlsToHash' => $replace_urls,
             'full_site' => $full_site,
             'login_as' => $login_as,
-            'login_pass' => rand(111111, 9999999999),
+            'login_pass' => $this->generateRandomPassword(40),
             'receive_email' => $receive_email,
             'email_lists' => $email_lists,
             'ftp_upload_enabled' => $ftp,
@@ -132,6 +133,15 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
         die();
 
+    }
+    public function generateRandomPassword($length = 30) {
+        // Generate 30 random bytes
+        $bytes = random_bytes($length);
+
+        // Convert bytes to hexadecimal and take the first 30 characters
+        $password = substr(bin2hex($bytes), 0, $length);
+
+        return $password;
     }
 
     private function setDefaultSettings()

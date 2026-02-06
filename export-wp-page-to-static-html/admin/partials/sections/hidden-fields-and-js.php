@@ -34,12 +34,12 @@
             }
 
             selectBox.select2({
-            placeholder: "Choose up to 3 pages",
+            placeholder: "Choose up to 6 pages",
             dropdownParent: selectDropdown,
-            maximumSelectionLength: 3,
+            maximumSelectionLength: 6,
             language: {
                 maximumSelected: function (args) {
-                return "Maximum 3 pages can be selected. Upgrade to pro version to select unlimited pages.";
+                return "Maximum 6 pages can be selected. Upgrade to pro version to select unlimited pages.";
                 }
             },
             matcher: function (params, option) {

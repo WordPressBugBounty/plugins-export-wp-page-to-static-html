@@ -27,11 +27,10 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
      * @return json
      */
     public function export_log_percentage(){
-        $id = isset($_POST['id']) ? sanitize_key($_POST['id']) : "0";
-        $exportId = isset($_POST['exportId']) ? sanitize_key($_POST['exportId']) : "0";
-
         \rcCheckNonce();
 
+        $id = isset($_POST['id']) ? sanitize_key($_POST['id']) : "0";
+        $exportId = isset($_POST['exportId']) ? sanitize_key($_POST['exportId']) : "0";
         
         global $wpdb;
         $totalUrlsToExport = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}export_urls_logs WHERE type = 'url' ");
@@ -64,11 +63,23 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
             $logs = array();
             //if($logs_in_details == 1){
-                if ($id == 0||$id == '0') {
-                    $logs = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}export_page_to_html_logs ORDER BY id ASC");
-                } else {
-                    $logs = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}export_page_to_html_logs ORDER BY id ASC LIMIT 5000 OFFSET {$id}");
-                }
+
+            $table = "{$wpdb->prefix}export_page_to_html_logs";
+
+            if ( (int) $id === 0 ) {
+                // no offset
+                $logs = $wpdb->get_results(
+                    "SELECT * FROM {$table} ORDER BY id ASC"
+                );
+            } else {
+                // offset with prepare
+                $logs = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT * FROM {$table} ORDER BY id ASC LIMIT 5000 OFFSET %d",
+                        (int) $id
+                    )
+                );
+            }
             //}
 
 
@@ -193,56 +204,63 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
      * @param int               $limit      How many rows to fetch (default 1).
      * @return array|null                   ARRAY_A row when $limit === 1, array of rows when $limit > 1, or null/[] if none.
      */
-    public function get_next_export_asset($asset_type = null, $limit = 1) {
+
+    public function get_next_export_asset( $asset_type = null, $limit = 1 ) {
         global $wpdb;
 
         $table   = $wpdb->prefix . 'export_urls_logs';
-        $allowed = ['css', 'js', 'url', 'image'];
+        $allowed = [ 'css', 'js', 'url', 'image' ];
 
-        // Normalize $asset_type into a validated list of types
-        if (is_string($asset_type) && $asset_type !== '') {
-            $types = in_array($asset_type, $allowed, true) ? [$asset_type] : [];
-        } elseif (is_array($asset_type)) {
-            $types = array_values(array_intersect($allowed, array_map('strval', $asset_type)));
+        // 1) normalize asset types
+        if ( is_string( $asset_type ) && $asset_type !== '' ) {
+            $types = in_array( $asset_type, $allowed, true ) ? [ $asset_type ] : [];
+        } elseif ( is_array( $asset_type ) ) {
+            $types = array_values( array_intersect( $allowed, array_map( 'strval', $asset_type ) ) );
         } else {
-            $types = $allowed; // default: all
+            $types = $allowed;
         }
 
-        // If nothing valid remains, return early
-        if (empty($types)) {
-            return $limit === 1 ? null : [];
+        if ( empty( $types ) ) {
+            return ( (int) $limit === 1 ) ? null : [];
         }
 
-        // Sanitize/guard limit
-        $limit = max(1, (int) $limit);
+        // 2) guard limit
+        $limit = max( 1, (int) $limit );
 
-        // Build dynamic placeholders for the IN() list
-        $in_placeholders = implode(',', array_fill(0, count($types), '%s'));
+        // 3) build IN (...) placeholders
+        $placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 
-        // Prepare SQL: filter by type, not yet exported, oldest first, limit N
-        $sql = $wpdb->prepare(
-            "SELECT * 
+        // 4) build base SQL
+        $sql = "
+            SELECT *
             FROM {$table}
-            WHERE type IN ($in_placeholders)
+            WHERE type IN ($placeholders)
             AND exported = %d
             ORDER BY id ASC
-            LIMIT %d",
-            array_merge($types, [0, $limit])
-        );
+            LIMIT %d
+        ";
 
-        // Return one row or many based on $limit
-        if ($limit === 1) {
-            return $wpdb->get_row($sql, ARRAY_A); // null if no match
+        // 5) build params: all types first, then exported=0, then limit
+        $params = array_merge( $types, [ 0, $limit ] );
+
+        // 6) let prepare see each argument (PHP 8+)
+        $prepared = $wpdb->prepare( $sql, ...$params );
+
+        if ( 1 === (int) $limit ) {
+            return $wpdb->get_row( $prepared, ARRAY_A );
         }
-        $results = $wpdb->get_results($sql, ARRAY_A);
-        if (!empty($results)) {
-            foreach ($results as $index => $result) {
-                $this->update_asset_url_status($result['url'], 'processing');
+
+        $results = $wpdb->get_results( $prepared, ARRAY_A );
+
+        if ( ! empty( $results ) ) {
+            foreach ( $results as $result ) {
+                $this->update_asset_url_status( $result['url'], 'processing' );
             }
         }
 
-        return $results; // [] if no matches
+        return $results;
     }
+
 
     public function update_asset_url_status($url, $status){
         global $wpdb;
@@ -253,40 +271,64 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
         $sanitized_status = sanitize_text_field($status);
 
         // Prepare and run the query
-        $sql = $wpdb->prepare(
-            "UPDATE $table SET status = %s WHERE url LIKE %s",
-            $sanitized_status,
-            $sanitized_url
-        );
-
-        return $wpdb->query($sql); // Returns number of affected rows
+        return $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table} SET status = %s WHERE url LIKE %s",
+                $sanitized_status,
+                $sanitized_url
+            )
+        ); // Returns number of affected rows
     }
+
     public function are_all_assets_exported() {
         global $wpdb;
+
         $table = $wpdb->prefix . 'export_urls_logs';
 
-        // Count total css/js assets
-        $total = $wpdb->get_var("
-            SELECT COUNT(*) 
-            FROM {$table} 
-            WHERE type IN ('css', 'js')
-        ");
+        // which types to check
+        $types = [];
+        $skip  = (array) $this->getSettings( 'skipAssetsFiles', [] );
 
-        // If no css/js assets exist, return false (or change this to true if preferred)
-        if ((int) $total === 0) {
+        if ( ! array_key_exists( 'stylesheets', $skip ) ) {
+            $types[] = 'css';
+        }
+
+        if ( ! array_key_exists( 'scripts', $skip ) ) {
+            $types[] = 'js';
+        }
+
+        // if nothing to check, consider "all exported"
+        if ( empty( $types ) ) {
+            return true;
+        }
+
+        // build IN (%s,%s,...) safely
+        $in_placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+
+        // 1) total matching assets
+        $params_all = $types;
+
+        // PHP 8+ spread → PHPCS is happier
+        $total = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE type IN ({$in_placeholders})", ...$params_all )
+        );
+
+        // if no asset of those types exists, you returned false before
+        if ( 0 === $total ) {
             return false;
         }
 
-        // Count how many of those have been exported
-        $exported = $wpdb->get_var("
-            SELECT COUNT(*) 
-            FROM {$table} 
-            WHERE type IN ('css', 'js') AND exported = 1
-        ");
+        // 2) exported assets
+        $params_export = array_merge( $types, [ 1 ] );
 
-        // Return true only if all css/js assets are exported
-        return ((int) $total === (int) $exported);
+        $exported = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE type IN ({$in_placeholders}) AND exported = %d", ...$params_export )
+        );
+
+        return $total === $exported;
     }
+
+
 
 
 }

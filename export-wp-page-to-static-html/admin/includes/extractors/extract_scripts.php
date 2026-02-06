@@ -25,8 +25,8 @@ public function process($script_elements = [], $url = '')
     $imgPath   = rtrim($this->admin->getImgPath(), '/\\') . DIRECTORY_SEPARATOR; // absolute
     $jsPath    = rtrim($this->admin->getJsPath(),  '/\\') . DIRECTORY_SEPARATOR; // absolute
 
-    if (!is_dir($imgPath)) { @mkdir($imgPath, 0777, true); }
-    if (!is_dir($jsPath))  { @mkdir($jsPath,  0777, true); }
+    if (!is_dir($imgPath)) { @wpptsh_maybe_create_dir($imgPath); }
+    if (!is_dir($jsPath))  { @wpptsh_maybe_create_dir($jsPath); }
 
     foreach ($script_elements as $script) {
 
@@ -154,7 +154,7 @@ public function save_image($img_src = "", $found_on = "")
         $this->admin->add_urls_log($img_url, $found_on, 'image');
 
         if (strpos($basename, '.') === false) {
-            $basename = rand(5000, 9999) . ".jpg";
+            $basename = wp_rand(5000, 9999) . ".jpg";
             $this->admin->update_urls_log($img_url, $basename, 'new_file_name');
         }
 
@@ -258,7 +258,7 @@ public function normalize_url($url) {
         $this->admin->update_export_log($script_url);
 
         if (!(strpos($basename, '.') !== false)) {
-            $basename = rand(5000, 9999) . ".js";
+            $basename = wp_rand(5000, 9999) . ".js";
             $this->admin->update_urls_log($script_url_prev, $basename, 'new_file_name');
         }
 
@@ -293,7 +293,7 @@ public function normalize_url($url) {
     private function ensure_dir($dir)
     {
         if (!file_exists($dir)) {
-            @mkdir($dir, 0777, true);
+            @wpptsh_maybe_create_dir($dir);
         }
     }
 }

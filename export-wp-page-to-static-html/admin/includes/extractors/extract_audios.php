@@ -51,7 +51,7 @@ class extract_audios
         if (!empty($audioLinks)) {
             $audios_path = $this->admin->getAudiosPath();
             if (!file_exists($audios_path)) {
-                @mkdir($audios_path);
+                @wpptsh_maybe_create_dir($audios_path);
             }
 
             foreach ($audioLinks as $link) {
@@ -172,7 +172,7 @@ class extract_audios
 
 
             if (!(strpos($basename, ".") !== false)) {
-                $basename = rand(5000, 9999) . ".mp3";
+                $basename = wp_rand(5000, 9999) . '.mp3';
                 $this->admin->update_urls_log($audio_url_prev, $basename, 'new_file_name');
             }
             $basename = $this->admin->filter_filename($basename);
@@ -183,19 +183,19 @@ class extract_audios
             if (!$saveAllAssetsToSpecificDir) {
 
                 if (!file_exists($exportTempDir . '/' . $middle_p)) {
-                    @mkdir($exportTempDir . '/' . $middle_p, 0777, true);
+                    @wpptsh_maybe_create_dir($exportTempDir . '/' . $middle_p);
                 }
                 $my_file = $exportTempDir . '/' . $middle_p . '/' . $basename;
             } else {
                 if ($saveAllAssetsToSpecificDir && $keepSameName && !empty($m_basename)) {
                     if (!file_exists($audios_path . '/' . $m_basename)) {
-                        @mkdir($audios_path . $m_basename, 0777, true);
+                        @wpptsh_maybe_create_dir($audios_path . $m_basename);
                     }
 
                     $my_file = $audios_path . $m_basename . $basename;
                 } else {
                     if (!file_exists($audios_path)) {
-                        @mkdir($audios_path);
+                        @wpptsh_maybe_create_dir($audios_path);
                     }
                 }
             }
@@ -248,10 +248,7 @@ class extract_audios
             @copy($abs_url_to_path, $savePath);
             $this->admin->setTotalDownloaded();
         } else {
-            $handle = @fopen($savePath, 'w') or die('Cannot open file:  ' . $savePath);
-            $data = $this->admin->get_url_data($url);
-            @fwrite($handle, $data);
-            @fclose($handle);
+            \wpptsh_write_file($savePath, $data);
             $this->admin->setTotalDownloaded();
         }
 
