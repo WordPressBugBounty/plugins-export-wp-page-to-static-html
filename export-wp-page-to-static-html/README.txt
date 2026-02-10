@@ -3,14 +3,14 @@ Contributors: recorp
 Tags: HTML, html, pdf, static, site
 Requires at least: 4.1  
 Tested up to: 6.8 
-Stable tag: 5.0.0
+Stable tag: 5.0.1
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
 Simply turn your WordPress site into a secure, SEO-friendly static website. Export pages to optimized HTML/CSS and professional PDFs in one click.
 
 == Description ==
-**Export WP Page to Static HTML & PDF** is a powerful site and page exporter plugin for WordPress. It helps you convert any post or page into **static HTML/CSS** files or **print-ready PDF documents**. You can host your exported content from a static hosting provider, CDN, or your own server â€” boosting speed and reducing server-side risks.
+**Export WP Page to HTML & PDF – Simply Create a Static Website** is a powerful site and page exporter plugin for WordPress. It helps you convert any post or page into **static HTML/CSS** files or **print-ready PDF documents**. You can host your exported content from a static hosting provider, CDN, or your own server â€” boosting speed and reducing server-side risks.
 It significantly improves your website's performance and security by removing the need for database connections when serving exported content.
 🎥 [Watch Demo](https://www.youtube.com/watch?v=VEDG-5saLzY)
 
@@ -90,6 +90,9 @@ Admin or Users see a friendly popup informing them they have reached their expor
 Absolutely. Exports capture the fully rendered front-end outputâ€”page builder layouts included.  
 
 == Changelog ==
+
+= 5.0.1 - 2 February 2026 =
+* FIXED - A minor issue.
 
 = 5.0.0 - 1 November 2025 =
 * FIXED - A critical issue has been fixed.

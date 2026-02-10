@@ -171,65 +171,55 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
     public function are_all_assets_exported() {
         global $wpdb;
 
-        // Known/whitelisted table (not user input)
         $table = $wpdb->prefix . 'export_urls_logs';
 
-        // Figure out which types we actually care about
+        // Determine which asset types to check
         $skip  = (array) $this->getSettings( 'skipAssetsFiles', array() );
         $types = array();
+
         if ( ! array_key_exists( 'stylesheets', $skip ) ) { $types[] = 'css'; }
         if ( ! array_key_exists( 'scripts', $skip ) )     { $types[] = 'js';  }
 
-        // If everything is skipped, nothing to verify
+        // Nothing to check → everything is fine
         if ( empty( $types ) ) {
             return true;
         }
 
-        // Build a stable cache key for this check
+        // Cache
         $cache_group = 'wpptsh_assets';
         $cache_key   = 'all_exported_' . md5( $table . '|' . implode( ',', $types ) );
 
-        // Use $found flag to distinguish "cached false" from "not found"
         $found  = null;
         $cached = wp_cache_get( $cache_key, $cache_group, false, $found );
         if ( $found ) {
             return (bool) $cached;
         }
 
-        // Build a prepared IN() clause safely
+        // Prepare IN() clause
         $placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 
-        // Note: identifiers (table/column) cannot be prepared; ensure $table is whitelisted.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a known internal table
-        $sql = "
-            SELECT 
-                COUNT(*) AS total,
-                SUM(CASE WHEN exported = 1 THEN 1 ELSE 0 END) AS exported
-            FROM `{$table}`
-            WHERE type IN ({$placeholders})
-        ";
-
-        // One read-only, prepared query (cached below).
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $row = $wpdb->get_row(
-            // Variadic args so PHPCS recognizes proper preparation
-            $wpdb->prepare( "
-            SELECT 
-                COUNT(*) AS total,
-                SUM(CASE WHEN exported = 1 THEN 1 ELSE 0 END) AS exported
-            FROM `{$table}`
-            WHERE type IN ({$placeholders})
-        ", ...$types ),
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $wpdb->prepare(
+                "
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN exported = 1 THEN 1 ELSE 0 END) AS exported
+                FROM `{$table}`
+                WHERE type IN ({$placeholders})
+                ",
+                ...$types
+            ),
             ARRAY_A
         );
 
-        $total    = isset( $row['total'] )    ? (int) $row['total']    : 0;
-        $exported = isset( $row['exported'] ) ? (int) $row['exported'] : 0;
+        $total    = (int) ( $row['total']    ?? 0 );
+        $exported = (int) ( $row['exported'] ?? 0 );
 
-        // If there are no matching assets, "not all exported"
-        $all_done = ( $total > 0 ) && ( $total === $exported );
+        // ✔ Your rule: if nothing exists, return true
+        $all_done = ( $total === 0 ) || ( $total === $exported );
 
-        // Short TTL to keep it fresh; adjust if your export status changes less/more often
         wp_cache_set( $cache_key, (int) $all_done, $cache_group, 60 );
 
         return $all_done;
