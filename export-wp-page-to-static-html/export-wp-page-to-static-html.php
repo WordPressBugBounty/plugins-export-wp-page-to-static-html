@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.3
+ * Version:           6.0.5.1
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.3');
+define('WP_TO_HTML_VERSION', '6.0.6.1');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
@@ -154,41 +154,28 @@ register_activation_hook(__FILE__, function() {
 
 /**
  * Redirect to "What's New" page after plugin update (not on first activation).
+ *
+ * Uses a dedicated transient set by wp_to_html_plugin_update() so that the
+ * version bump and the redirect trigger are fully decoupled.
  */
 add_action('admin_init', function () {
-    // Only run for admins.
     if (!current_user_can('manage_options')) return;
-
-    // Skip during AJAX, cron, bulk activate, or CLI.
     if (wp_doing_ajax() || wp_doing_cron()) return;
     if (isset($_GET['activate-multi'])) return;
     if (defined('WP_CLI') && WP_CLI) return;
 
-    $stored = get_option('wp_to_html_version', '');
+    // Only redirect if the update routine flagged it.
+    if (!get_transient('wp_to_html_redirect_to_whats_new')) return;
 
-    if ($stored === '') {
-        // First install — store version, no redirect.
-        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
-        return;
-    }
-
-    if (version_compare($stored, WP_TO_HTML_VERSION, '<')) {
-        // Plugin was updated — set transient and bump stored version.
-        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
-        set_transient('wp_to_html_show_whats_new', 1, 60);
-    }
-}, 1);
-
-add_action('admin_init', function () {
-    if (!get_transient('wp_to_html_show_whats_new')) return;
-    delete_transient('wp_to_html_show_whats_new');
+    // Clear immediately so it only fires once.
+    delete_transient('wp_to_html_redirect_to_whats_new');
 
     // Don't redirect if already on the page.
     if (isset($_GET['page']) && $_GET['page'] === 'wp-to-html-whats-new') return;
 
     wp_safe_redirect(admin_url('admin.php?page=wp-to-html-whats-new'));
     exit;
-}, 99);
+});
 
 register_deactivation_hook(__FILE__, function() {
     wp_clear_scheduled_hook('wp_to_html_process_event');
@@ -328,29 +315,31 @@ function wp_to_html_ensure_tables() {
 function wp_to_html_plugin_update() {
     global $wpdb;
 
-    $installed_version = get_option('wp_to_html_version'); // previous plugin version
-    $current_version   = '6.0.0';
+    $installed_version = get_option('wp_to_html_version', ''); // previous stored version
+    $current_version   = WP_TO_HTML_VERSION;
     $tables_removed    = get_option('wp_to_html_old_tables_removed', false);
 
-    // Run only if plugin version has changed
-    if ( $installed_version !== $current_version ) {
+    // Nothing to do if already up to date.
+    if ($installed_version === $current_version) return;
 
-        // Remove old tables only once
-        if ( ! $tables_removed ) {
-            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}exportable_urls" );
-            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}export_page_to_html_logs" );
-            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}export_urls_logs" );
+    // Remove legacy tables only once (upgrades from pre-6.x).
+    if (!$tables_removed) {
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}exportable_urls");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}export_page_to_html_logs");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}export_urls_logs");
 
-            // Mark old tables as removed
-            update_option( 'wp_to_html_old_tables_removed', true );
+        update_option('wp_to_html_old_tables_removed', true);
 
-            // Create new tables
-            wp_to_html_ensure_tables();
-        }
+        // Create new tables for fresh/migrating installs.
+        wp_to_html_ensure_tables();
+    }
 
+    // Bump stored version FIRST so this block won't re-run on the next load.
+    update_option('wp_to_html_version', $current_version, false);
 
-        // Update plugin version
-        update_option( 'wp_to_html_version', $current_version );
+    // Signal the admin_init redirect — but only for real updates, not first installs.
+    if ($installed_version !== '') {
+        set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
     }
 }
 add_action( 'plugins_loaded', 'wp_to_html_plugin_update' );
