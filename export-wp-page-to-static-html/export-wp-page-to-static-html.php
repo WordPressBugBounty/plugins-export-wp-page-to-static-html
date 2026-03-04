@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.0
+ * Version:           6.0.3
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.0');
+define('WP_TO_HTML_VERSION', '6.0.3');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
