@@ -1,9 +1,8 @@
 <?php
+
 abstract class pp_group_notif_Meta_Box {
-
-    const NONCE_NAME = 'rc_export_html_settings_nonce';
-    const NONCE_ACTION = 'rc_export_html_settings_action';
-
+ 
+ 
     /**
      * Set up and add the meta box.
      */
@@ -12,141 +11,87 @@ abstract class pp_group_notif_Meta_Box {
         foreach ( $screens as $screen ) {
             add_meta_box(
                 '_export_html_settings',          // Unique ID
-                __( 'Export HTML settings', 'export-wp-page-to-static-html' ), // Box title
-                [ self::class, 'html' ],          // Content callback
-                $screen,                          // Post type
+                'Export html settings', // Box title
+                [ self::class, 'html' ],   // Content callback, must be of type callable
+                $screen,                  // Post type
                 'side',
                 'high'
             );
         }
     }
-
+ 
+ 
     /**
      * Save the meta box selections.
      *
      * @param int $post_id  The post ID.
      */
     public static function save( int $post_id ) {
+        if ( array_key_exists( 'upload_to_ftp', $_POST ) ) {
+            if ( array_key_exists( 'ftp_upload_path', $_POST ) ) {
+                //rc_export_page_to_ftp_server($post_id, $_POST['ftp_upload_path']);
 
-        // ✓ 1. Don't run on autosave/revision/cron
-        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-            return;
-        }
-        if ( wp_is_post_revision( $post_id ) ) {
-            return;
-        }
-
-        // ✓ 2. Check nonce
-        if ( ! isset( $_POST[ self::NONCE_NAME ] ) ) {
-            return;
-        }
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) ), self::NONCE_ACTION ) ) {
-            return;
-        }
-
-        // ✓ 3. Check user capability
-        if ( ! current_user_can( 'edit_post', $post_id ) ) {
-            return;
-        }
-
-        // Now it is safe to touch POST.
-
-        // Is the checkbox sent at all?
-        if ( isset( $_POST['upload_to_ftp'] ) ) {
-
-            // ✓ 4. Sanitize checkbox
-            $upload_to_ftp_raw = wp_unslash( $_POST['upload_to_ftp'] );
-            // Usually checkbox is 'on'
-            $upload_to_ftp     = ( 'on' === $upload_to_ftp_raw ) ? 'on' : '';
-
-            // ✓ 5. Sanitize path (if present)
-            $ftp_upload_path = '';
-            if ( isset( $_POST['ftp_upload_path'] ) ) {
-                $ftp_upload_path = sanitize_text_field( wp_unslash( $_POST['ftp_upload_path'] ) );
                 update_post_meta(
                     $post_id,
                     '_upload_to_ftp_path',
-                    $ftp_upload_path
+                    $_POST['ftp_upload_path']
                 );
             }
-
-            // ✓ 6. Keep your options update
-            update_option( 'rc_export_pages_as_html_task', 'running' );
-            update_option( 'rc_is_export_pages_zip_downloaded', 'no' );
+            
+            update_option('rc_export_pages_as_html_task', 'running');
+            update_option('rc_is_export_pages_zip_downloaded', 'no');
 
             update_post_meta(
                 $post_id,
                 '_upload_to_ftp',
-                $upload_to_ftp
+                $_POST['upload_to_ftp']
             );
-
-        } else {
-            // If box unchecked, clear meta
-            update_post_meta(
+        }
+        else{
+        	update_post_meta(
                 $post_id,
                 '_upload_to_ftp',
                 ''
             );
         }
     }
-
+ 
+ 
     /**
      * Display the meta box HTML to the user.
      *
      * @param \WP_Post $post   Post object.
      */
     public static function html( $post ) {
-        $status = get_option( 'rc_export_html_ftp_connection_status' );
-        $data   = get_option( 'rc_export_html_ftp_data' );
+        $status = get_option('rc_export_html_ftp_connection_status');
+        $data = get_option('rc_export_html_ftp_data');
 
-        $is_ftp = (string) get_post_meta( $post->ID, '_upload_to_ftp', true );
-        $path   = (string) get_post_meta( $post->ID, '_upload_to_ftp_path', true );
+        $is_ftp = get_post_meta($post->ID, '_upload_to_ftp', true);
+        $path = get_post_meta($post->ID, '_upload_to_ftp_path', true);
 
-        // Fallback path if empty and FTP reports connected.
-        if ( empty( $path ) && isset( $status, $data->path ) && 'connected' === $status ) {
-            $path = (string) $data->path;
+        $checked = '';
+        if ($is_ftp == 'on') {
+            $checked = 'checked=""';
         }
-
-        $is_connected    = ( isset( $status ) && 'connected' === $status );
-        $show_path_style = ( 'on' === $is_ftp ) ? 'display: block;' : '';
-        $settings_url    = admin_url( 'options-general.php?page=export-wp-page-to-html&tab=ftp_settings' );
-        ?>
-        <!-- ✓ Nonce for save_post -->
-        <?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME ); ?>
-
+        if (empty($path) && $status == 'connected' && isset($data->path)){
+            $path = $data->path;
+        }
+    	?>
         <div class="ftp_uploading_section">
-            <input
-                id="upload_to_ftp"
-                type="checkbox"
-                name="upload_to_ftp"
-                <?php disabled( ! $is_connected ); ?>
-                <?php checked( 'on' === $is_ftp ); ?>
-            >
-            <label for="upload_to_ftp"><?php esc_html_e( 'Upload to FTP server', 'export-wp-page-to-static-html' ); ?></label>
+            <input id="upload_to_ftp" type="checkbox" name="upload_to_ftp"
+            <?php if ($status !== 'connected'): ?>
+                disabled =""
+            <?php endif ?> <?php echo $checked; ?>>
+            <label for="upload_to_ftp">Upload to ftp server</label>
 
             <br>
 
-            <input
-                id="ftp_upload_path"
-                type="text"
-                name="ftp_upload_path"
-                placeholder="<?php echo esc_attr__( 'FTP path to upload', 'export-wp-page-to-static-html' ); ?>"
-                value="<?php echo esc_attr( $path ); ?>"
-                style="<?php echo esc_attr( $show_path_style ); ?>"
-            >
-
-            <?php if ( ! $is_connected ) : ?>
-                <span>
-                    <?php
-                    /* translators: %s: settings page URL */
-                    printf(
-                        esc_html__( 'FTP server is not connected. Configure it on the %s settings page.', 'export-wp-page-to-static-html' ),
-                        // Safe internal admin URL.
-                        '<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Export WP Page to Static HTML', 'export-wp-page-to-static-html' ) . '</a>'
-                    );
-                    ?>
-                </span>
-            <?php endif; ?>
+            <input id="ftp_upload_path" type="text" name="ftp_upload_path" placeholder="FTP path to upload" value="<?php echo $path; ?>" style="<?php if ($is_ftp=='on'): ?>
+                display: block;
+            <?php endif ?>">
+            <?php if ($status !== 'connected'): ?>
+                <span>FTP server is not connected from <a href="options-general.php?page=export-wp-page-to-html?tab=ftp_settings">Export WP page to static HTML</a> settings page. </span>
+            <?php endif ?>
         </div>
 
         <style>
@@ -160,23 +105,24 @@ abstract class pp_group_notif_Meta_Box {
         <script>
             (function ($) {
                 'use strict';
-
-                $(document).on("change", "#upload_to_ftp", function(){
-                    if ($(this).is(':checked')) {
+            
+                  $(document).on("change", "#upload_to_ftp", function(){
+                      if ($(this).is(':checked')) {
                         $('#ftp_upload_path').slideDown(200);
-                    } else {
+                      }
+                      else{
                         $('#ftp_upload_path').slideUp(200);
-                    }
-                });
+                      }
+                  });
             })(jQuery);
         </script>
-        <?php
+		<?php
     }
-}
 
+
+}
 add_action( 'add_meta_boxes', [ 'pp_group_notif_Meta_Box', 'add' ] );
 add_action( 'save_post', [ 'pp_group_notif_Meta_Box', 'save' ] );
-
 
 
 function rc_get_all_post_types(){
@@ -226,7 +172,7 @@ function add_cron_job_to_start_html_exporting_for_save_post($post_id = 0, $path=
             if (is_dir("$dir/$file")) rmdir_recursive2("$dir/$file");
             else unlink("$dir/$file");
         }
-        remove_dir_wp($dir);
+        rmdir($dir);
     }
 
 

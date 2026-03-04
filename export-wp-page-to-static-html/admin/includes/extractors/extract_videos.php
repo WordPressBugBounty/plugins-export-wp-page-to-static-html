@@ -33,7 +33,7 @@ class extract_videos
         if (!empty($videoLinks)) {
             $videos_path = $this->admin->getVideosPath();
             if (!file_exists($videos_path)) {
-                @wpptsh_maybe_create_dir($videos_path);
+                @mkdir($videos_path);
             }
 
             foreach ($videoLinks as $link) {
@@ -78,7 +78,7 @@ class extract_videos
         if (!empty($sourceLinks)) {
             $videos_path = $this->admin->getVideosPath();
             if (!file_exists($videos_path)) {
-                @wpptsh_maybe_create_dir($videos_path);
+                @mkdir($videos_path);
             }
 
             foreach ($sourceLinks as $link) {
@@ -192,7 +192,7 @@ class extract_videos
 
 
             if (!(strpos($basename, ".") !== false)) {
-                $basename = wp_rand(5000, 9999) . ".mp4";
+                $basename = rand(5000, 9999) . ".mp4";
                 $this->admin->update_urls_log($video_url_prev, $basename, 'new_file_name');
             }
             $basename = $this->admin->filter_filename($basename);
@@ -203,21 +203,21 @@ class extract_videos
             if(!$saveAllAssetsToSpecificDir){
 
                 if(!file_exists($exportTempDir .'/'. $middle_p)){
-                    @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
+                    @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                 }
                 $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
             }
             else{
                 if($saveAllAssetsToSpecificDir && $keepSameName && !empty($m_basename)){
                     if(!file_exists($videos_path .'/'. $m_basename)){
-                        @wpptsh_maybe_create_dir($videos_path . $m_basename);
+                        @mkdir($videos_path . $m_basename, 0777, true);
                     }
 
                     $my_file = $videos_path . $m_basename . $basename;
                 }
                 else{
                     if(!file_exists($videos_path)){
-                        @wpptsh_maybe_create_dir($videos_path);
+                        @mkdir($videos_path);
                     }
                 }
             }

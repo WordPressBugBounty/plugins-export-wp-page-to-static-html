@@ -25,11 +25,9 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
     public function get_ftp_dir_file_list(){
         //$post = $_POST['post'];
+        $path = isset($_POST['path']) ? $_POST['path'] : "";
 
         \rcCheckNonce();
-        $path = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
-        $path = sanitize_text_field( $path );
-
 
         $dirs = $this->get_ftp_path_directory($path);
         $lists = '<span><span style="font-weight: bold;">Current path: </span><span class="ftp_current_path">/' . $this->get_absolute_path($dirs['path']).'</span></span><ul class="list-group">';

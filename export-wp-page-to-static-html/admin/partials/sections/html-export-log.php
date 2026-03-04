@@ -1,3 +1,19 @@
+<!-- <div class="htmlExportLogs" style=" margin-top: 15px;margin-bottom: 15px;">
+    <h4 class="progress-title p-t-15"><?php _e('Html export log', 'export-wp-page-to-static-html'); ?></h4>
+    <span class="totalExported" style="margin-right: 10px"><?php _e('Exported:', 'export-wp-page-to-static-html'); ?> <span class="total_exported_files progress_">0</span></span>
+    <span class="totalLogs"><?php _e('Fetched files:', 'export-wp-page-to-static-html'); ?> <span class="total_fetched_files total_">0</span></span>
+    <div class="progress orange" style="margin-top: 20px">
+        <div class="progress-bar" style="width:0%; background:#fe3b3b;">
+            <div class="progress-value">0%</div>
+        </div>
+    </div>
+    <div class="export_failed error" style="display: none;"><?php _e('Error, failed to export files!', 'export-wp-page-to-static-html'); ?> </div>
+
+    <button class="flat-button pause" role="button" style="display: none;"><?php _e('Pause', 'export-wp-page-to-static-html'); ?></button>
+    <button class="flat-button resume" role="button" style="display: none;"><?php _e('Resume', 'export-wp-page-to-static-html'); ?></button>
+</div> -->
+
+
   <div class="htmlExportLogs" style="display: none;">
     <h4 class="progress-title">HTML export progress</h4>
     <div class="totals">

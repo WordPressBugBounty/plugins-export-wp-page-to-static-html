@@ -44,11 +44,7 @@
 
 
 $versionIssue = sprintf('If the plugin does not work perfectly then it\'s require a PHP version ">= 7.2.5. You are running %s.', PHP_VERSION);
-$versionIssue = sprintf(
-    /* translators: %s: version issue message */
-    __('<div class="danger" style="color: white; margin-bottom: 46px; background-color: #f21212d6; padding: 10px;">%s</div>', 'export-wp-page-to-static-html'),
-    $versionIssue
-);
+$versionIssue = __('<div class="danger" style="color: white;margin-bottom: 46px;background-color: #f21212d6;padding: 10px;">'.$versionIssue.'</div>', 'export-wp-page-to-static-html');
 
 $upload_dir = wp_upload_dir()['basedir'] . '/exported_html_files/';
 $upload_url = wp_upload_dir()['baseurl'] . '/exported_html_files/';
@@ -75,11 +71,7 @@ function rcwpth_hidden_class($filename){
     <div class="wrapper">
         <div class="card card-4">
             <div class="card-body">
-                <h2 class="title">
-                    <?php esc_html_e( 'Export WP Pages to Static HTML/CSS', 'export-wp-page-to-static-html' ); ?>
-                    <span class="badge badge-success" style="position: relative;top: -4px;font-size: 15px;margin-left: 8px;">Free</span>
-                    <span class="badge badge-dark version">v<?php echo esc_html( EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION ); ?></span>
-                </h2>
+                <h2 class="title"><?php _e('Export WP Pages to Static HTML/CSS', 'export-wp-page-to-static-html'); ?><span class="badge badge-success" style="position: relative;top: -4px;font-size: 15px;margin-left: 8px;">Free</span><span class="badge badge-dark version">v<?php echo EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION; ?></span></h2>
 
                 <!-- <div class="error-notice" style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;margin-bottom: 20px;">
                     <p><?php // echo __('Every site environment is unique, if your site failed to export to html then <a href="https://myrecorp.com/contact-us/" style="color: #721c24; font-weight: bold;">contact us.</a>. We\'ll try to help you as soon as possible.', 'export-wp-page-to-static-html'); ?></p>
@@ -88,14 +80,14 @@ function rcwpth_hidden_class($filename){
                 <?php if (!extension_loaded('zip')) {
                     ?>
                     <div class="error-notice">
-                        <p><?php esc_html_e('This plugin requires the Zip extension, which is not installed or enabled on your server. Without the Zip extension, the plugin will not function correctly. Please enable the Zip extension to export zip file of html/css.', 'export-wp-page-to-static-html'); ?></p>
+                        <p><?php _e('This plugin requires the Zip extension, which is not installed or enabled on your server. Without the Zip extension, the plugin will not function correctly. Please enable the Zip extension to export zip file of html/css.', 'export-wp-page-to-static-html'); ?></p>
                     </div>
                     <?php
                 }?>
 
                 <?php
                 if (isset($_GET['welcome'])&&!(PHP_VERSION_ID >= 70205)) {
-                    echo wp_kses_post($versionIssue);
+                    echo $versionIssue;
                 }
                 ;?>
 
@@ -104,42 +96,23 @@ function rcwpth_hidden_class($filename){
                         <div class=" export_html main_settings_page ">
                             <ul class="nav nav-tabs" role="tablist">
                                 <li class="nav-item">
-                                    <a class="nav-link active" data-id="tab1" data-toggle="tab" href="#tabs-1" role="tab">
-                                        <?php esc_html_e( 'WP Pages', 'export-wp-page-to-static-html' ); ?>
-                                    </a>
+                                    <a class="nav-link active" data-id="tab1" data-toggle="tab" href="#tabs-1" role="tab">WP Pages</a>
                                 </li>
-
                                 <li class="nav-item">
-                                    <a class="nav-link" data-id="tab2" data-toggle="tab" href="#tabs-2" role="tab">
-                                        <?php esc_html_e( 'Custom URLs', 'export-wp-page-to-static-html' ); ?>
-                                    </a>
+                                    <a class="nav-link" data-id="tab2" data-toggle="tab" href="#tabs-2" role="tab">Custom urls</a>
                                 </li>
-
                                 <li class="nav-item">
-                                    <a class="nav-link" data-id="tab3" data-toggle="tab" href="#tabs-3" role="tab">
-                                        <?php esc_html_e( 'All Exported Files', 'export-wp-page-to-static-html' ); ?>
-                                    </a>
+                                    <a class="nav-link" data-id="tab3" data-toggle="tab" href="#tabs-3" role="tab">All Exported Files</a>
                                 </li>
-
                                 <li class="nav-item">
-                                    <a class="nav-link" data-toggle="tab" href="#tabs-6" role="tab">
-                                        <?php esc_html_e( 'PDF Settings', 'export-wp-page-to-static-html' ); ?>
-                                    </a>
+                                    <a class="nav-link" data-toggle="tab" href="#tabs-6" role="tab">PDF Settings</a>
                                 </li>
-
                                 <li class="nav-item">
-                                    <a class="nav-link" data-id="tab4" data-toggle="tab" href="#tabs-4" role="tab">
-                                        <?php esc_html_e( 'FTP Settings', 'export-wp-page-to-static-html' ); ?>
-                                        <span class="tab_ftp_status <?php echo esc_attr( $ftp_status ); ?>"></span>
-                                    </a>
+                                    <a class="nav-link" data-id="tab4" data-toggle="tab" href="#tabs-4" role="tab">FTP Settings <span class="tab_ftp_status <?php echo $ftp_status; ?>"></span></a>
                                 </li>
-
                                 <li class="nav-item">
-                                    <a class="nav-link" data-id="tab5" data-toggle="tab" href="#tabs-5" role="tab">
-                                        <?php esc_html_e( 'Advanced Settings', 'export-wp-page-to-static-html' ); ?>
-                                    </a>
+                                    <a class="nav-link" data-id="tab5" data-toggle="tab" href="#tabs-5" role="tab">Advanced Settings</a>
                                 </li>
-
                             </ul><!-- Tab panes -->
                             <div class="tab-content">
                                 <?php

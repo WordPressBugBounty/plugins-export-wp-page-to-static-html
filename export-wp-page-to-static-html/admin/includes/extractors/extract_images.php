@@ -142,7 +142,7 @@ class extract_images
             $this->admin->add_urls_log($img_url, $found_on, 'image');
 
             if (strpos($basename, '.') === false) {
-                $basename = wp_rand(5000, 9999) . ".jpg";
+                $basename = rand(5000, 9999) . ".jpg";
                 $this->admin->update_urls_log($img_url, $basename, 'new_file_name');
             }
 
@@ -178,7 +178,7 @@ class extract_images
     private function ensure_dir($dir)
     {
         if (!file_exists($dir)) {
-            @wpptsh_maybe_create_dir($dir);
+            @mkdir($dir, 0777, true);
         }
     }
 }

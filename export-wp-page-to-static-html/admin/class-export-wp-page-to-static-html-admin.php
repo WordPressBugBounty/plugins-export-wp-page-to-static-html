@@ -24,23 +24,11 @@
 namespace ExportHtmlAdmin;
 use voku\helper\HtmlDomParser;
 
-// ⚙️ Adjust PHP runtime limits safely
-if ( function_exists( 'ini_set' ) ) {
-
-    // ⏱️ Increase max execution time
-    @ini_set( 'max_execution_time', 60 * 60 * 240 ); // 240 hours = 10 days
-
-    // 💾 Increase memory limit (use WP constant if possible)
-    @ini_set( 'memory_limit', WP_MAX_MEMORY_LIMIT );
-
-    // 🧩 Optional: For development environments only
-    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-        @ini_set( 'xdebug.max_nesting_level', 2000 );
-        // @ini_set( 'display_errors', 'Off' );
-        // @ini_set( 'error_reporting', E_ALL );
-    }
-}
-
+ini_set('max_execution_time', 60*60*240);
+ini_set('memory_limit','302400M');
+/*ini_set('display_errors','Off');
+ini_set('error_reporting', E_ALL );*/
+ini_set('xdebug.max_nesting_level', 2000);
 
 #[AllowDynamicProperties]
 class Export_Wp_Page_To_Static_Html_Admin {
@@ -229,13 +217,15 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $this->extract_html = new extract_html\extract_html($this);
 
         /*Add user*/
-        //add_action('init', array( $this, 'add_user') );
+        add_action('init', array( $this, 'add_user') );
 
         add_action('html_export_task_completed', [$this, 'remove_user']);
         add_action('html_export_task_failed', [$this, 'remove_user']);
 
 
         add_action('html_export_html_process_start', [$this, 'login']);
+
+        add_action( 'http_api_curl', [$this, '__set_curl_to_follow'] );
 
     }
     public function hasAccess()
@@ -255,6 +245,10 @@ class Export_Wp_Page_To_Static_Html_Admin {
             return true;
         }
         return false;
+    }
+
+    function __set_curl_to_follow( &$handle ) {
+        curl_setopt( $handle, CURLOPT_FOLLOWLOCATION, true );
     }
 
     private function require_dirs()
@@ -346,32 +340,32 @@ class Export_Wp_Page_To_Static_Html_Admin {
     }
 
 
-    // public function register_export_wp_pages_menu(){
+    public function register_export_wp_pages_menu(){
 
-    //     add_menu_page(
-    //         __('Export WP Page to Static HTML/CSS', 'export-wp-page-to-static-html'),
-    //         'Export WP Page to Static HTML/CSS',
-    //         'publish_posts',
-    //         'export-wp-page-to-html',
-    //         array(
-    //             $this,
-    //             'load_admin_dependencies'
-    //         ),
-    //         plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/html-icon.png',
-    //         89
-    //     );
+        add_menu_page(
+            __('Export WP Page to Static HTML/CSS', 'export-wp-page-to-static-html'),
+            'Export WP Page to Static HTML/CSS',
+            'publish_posts',
+            'export-wp-page-to-html',
+            array(
+                $this,
+                'load_admin_dependencies'
+            ),
+            plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/html-icon.png',
+            89
+        );
 
-    //     add_action('admin_init', array( $this,'register_export_wp_pages_settings') );
-    // }
+        add_action('admin_init', array( $this,'register_export_wp_pages_settings') );
+    }
 
-    // public function load_admin_dependencies(){
-    //     require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/export-wp-page-to-static-html-admin-display.php';
+    public function load_admin_dependencies(){
+        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/export-wp-page-to-static-html-admin-display.php';
 
-    // }
+    }
 
-    // public function register_export_wp_pages_settings(){
-    //     register_setting('export_wp_pages_settings', 'recorp_ewpp_settings');
-    // }
+    public function register_export_wp_pages_settings(){
+        register_setting('export_wp_pages_settings', 'recorp_ewpp_settings');
+    }
 
     public function rc_cdata_inlice_Script_for_export_html() {
         ?>
@@ -384,8 +378,9 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 "home_url": "<?php echo home_url('/'); ?>",
                 "settings_icon": '<?php echo plugin_dir_url( __FILE__ ) . 'images/settings.png' ?>',
                 "settings_hover_icon": '<?php echo plugin_dir_url( __FILE__ ) . 'images/settings_hover.png' ?>',
-                "token": "<?php echo esc_js( get_option( 'ewptshp_worker_token' ) ); ?>",
+                "token": '<?php echo get_option('ewptshp_worker_token'); ?>',
                 "endpoint": '<?php echo rest_url('ewptshp/v1/run'); ?>',
+                
                 "notification_sound_url": '<?php echo plugin_dir_url( __FILE__ ) . 'assets/sounds/notification.mp3' ?>',
             };
             /* ]]\> */
@@ -409,7 +404,7 @@ class Export_Wp_Page_To_Static_Html_Admin {
                 if (is_dir("$dir/$file")) $this->rmdir_recursive("$dir/$file");
                 else @unlink("$dir/$file");
             }
-            @remove_dir_wp($dir);
+            @rmdir($dir);
         }
     }
 
@@ -418,15 +413,19 @@ class Export_Wp_Page_To_Static_Html_Admin {
         $url = urldecode($url);
         if (!empty($url)) {
             $this->update_asset_url_status($url, 'processing');
+            //$data = $this->xcurl($url);
 
-            $cookies = $this->getCookiesIntoArray();
+            // Path to the cookies file
+            $cookies_file_path = $this->getExportDir() . '/cookie.txt';
+
+            $cookies = $this->getCookiesIntoArray($cookies_file_path);
+
 
             $response = wp_remote_get( $url , array(
                 'timeout'     => 300,
                 'httpversion' => '1.1',
                 'sslverify' => false,
                 'cookies' => $cookies,
-                'redirection' => 5
             ));
 
             $data = "";
@@ -520,50 +519,56 @@ class Export_Wp_Page_To_Static_Html_Admin {
      * @param string $new_url    New file name or URL after processing.
      * @return int|false         Number of rows inserted or false on failure.
      */
-    public function add_urls_log( $url = "", $found_on = "", $type = "", $exported = 0, $new_url = "" ) {
+    public function add_urls_log($url = "", $found_on = "", $type = "", $exported = 0, $new_url = "")
+    {
         $url = (string) $url;
-        $url = rtrim( $url, '/' );
+        $url = rtrim($url, '/');
+        // Skip logging if URL is data URI, svg+xml, or base64 encoded (common inline assets)
+        if (strpos($url, 'data:') === false && strpos($url, 'svg+xml') === false && strpos($url, 'base64') === false) {
 
-        // Skip data/base64 inline URLs
-        if ( strpos( $url, 'data:' ) !== false || strpos( $url, 'svg+xml' ) !== false || strpos( $url, 'base64' ) !== false ) {
-            return 0;
-        }
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'export_urls_logs';
 
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'export_urls_logs';
+            // Clean URL (trim + escape quotes)
+            $url = $this->escape_quotations($this->ltrim_and_rtrim($url));  
+            $url = $this->url_without_hash($url);  
 
-        $url = $this->escape_quotations( $this->ltrim_and_rtrim( $url ) );
-        $url = $this->url_without_hash( $url );
+            if (strpos($url, '#')!== false) {
+                wpptsh_error_log('# found in url : '. $url);
+            }
 
-        if ( strpos( $url, '#' ) !== false ) {
-            wpptsh_error_log( '# found in url : ' . $url );
-        }
 
-        // ✅ Build the SQL safely without interpolating the variable
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . esc_sql( $table_name ) . " WHERE url = %s",
-            $url
-        );
-
-        $found = $wpdb->get_var( $sql );
-
-        if ( ! $found ) {
-            return $wpdb->insert(
-                $table_name,
-                [
-                    'url'           => $url,
-                    'new_file_name' => $new_url,
-                    'found_on'      => $found_on,
-                    'type'          => $type,
-                    'exported'      => (int) $exported,
-                ],
-                [ '%s', '%s', '%s', '%s', '%d' ]
+            // Use $wpdb->prepare to safely query
+            $found = $wpdb->get_var(
+                $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE url = %s", $url)
             );
+
+            if (!$found) {
+                // Insert new record safely using $wpdb->insert()
+                $res = $wpdb->insert(
+                    $table_name,
+                    [
+                        'url'           => $url,
+                        'new_file_name' => $new_url,
+                        'found_on'      => $found_on,
+                        'type'          => $type,
+                        'exported'      => (int) $exported,
+                    ],
+                    [
+                        '%s',
+                        '%s',
+                        '%s',
+                        '%s',
+                        '%d',
+                    ]
+                );
+
+                return $res; // Returns number of rows inserted (1) or false on failure
+            }
         }
 
-        return 0;
+        return 0; // URL was not inserted (already exists or filtered out)
     }
-
 
     public function update_urls_log($url = "", $value = "", $by = 'exported', $type = "cssItem")
     {
@@ -819,32 +824,32 @@ private function normalize_url($u) {
     {
 
         if (!file_exists($this->export_dir)) {
-            wp_mkdir_p($this->export_dir);
+            mkdir($this->export_dir);
         }
 
         if (!file_exists($this->export_temp_dir)) {
-            wp_mkdir_p($this->export_temp_dir, 0777, true);
+            mkdir($this->export_temp_dir, 0777, true);
         }
 
         if (!file_exists($this->css_path)) {
 
             if ($this->update_export_log('', 'creating', 'CSS Directory')) {
-                wp_mkdir_p($this->css_path);
+                mkdir($this->css_path);
             }
         }
         if (!file_exists($this->fonts_path)) {
             if ($this->update_export_log('', 'creating', 'Fonts Directory')) {
-                wp_mkdir_p($this->fonts_path);
+                mkdir($this->fonts_path);
             }
         }
         if (!file_exists($this->js_path)) {
             if ($this->update_export_log('', 'creating', 'JS Directory')) {
-                wp_mkdir_p($this->js_path);
+                mkdir($this->js_path);
             }
         }
         if (!file_exists($this->img_path)) {
             if ($this->update_export_log('', 'creating', 'Images Directory')) {
-                wp_mkdir_p($this->img_path);
+                mkdir($this->img_path);
             }
         }
     }
@@ -898,7 +903,7 @@ private function normalize_url($u) {
         if (!empty($middle_path)) {
             $tmp_path = $this->upload_dir . '/exported_html_files/tmp_files/' . $middle_path;
             if (!file_exists($tmp_path)) {
-                @wp_mkdir_p($tmp_path, 0777, true);
+                @mkdir($tmp_path, 0777, true);
             }
         }
 
@@ -979,74 +984,57 @@ private function normalize_url($u) {
         return true;
     }
 
-    /**
-     * Get next asset(s) to export.
-     *
-     * @param string|array|null $asset_type One of 'css','js','image', or an array of them. Null = all.
-     * @param int               $limit      How many rows to fetch (default 1).
-     * @return array|null                   ARRAY_A row when $limit === 1, array of rows when $limit > 1, or null/[] if none.
-     */
-    public function get_next_export_asset($asset_type = null, $limit = 1) {
-        global $wpdb;
+/**
+ * Get next asset(s) to export.
+ *
+ * @param string|array|null $asset_type One of 'css','js','image', or an array of them. Null = all.
+ * @param int               $limit      How many rows to fetch (default 1).
+ * @return array|null                   ARRAY_A row when $limit === 1, array of rows when $limit > 1, or null/[] if none.
+ */
+public function get_next_export_asset($asset_type = null, $limit = 1) {
+    global $wpdb;
 
-        $table   = $wpdb->prefix . 'export_urls_logs';
-        $allowed = ['css', 'js', 'url', 'image'];
+    $table   = $wpdb->prefix . 'export_urls_logs';
+    $allowed = ['css', 'js', 'url', 'image'];
 
-        // Normalize $asset_type into a validated list of types
-        if (is_string($asset_type) && $asset_type !== '') {
-            $types = in_array($asset_type, $allowed, true) ? [$asset_type] : [];
-        } elseif (is_array($asset_type)) {
-            $types = array_values(array_intersect($allowed, array_map('strval', $asset_type)));
-        } else {
-            $types = $allowed; // default: all
-        }
-
-        // If nothing valid remains, return early
-        if (empty($types)) {
-            return $limit === 1 ? null : [];
-        }
-
-        // Sanitize/guard limit
-        $limit = max(1, (int) $limit);
-
-        // Ensure $types is a non-empty array of strings (or ints)
-        $types = array_values(array_filter((array) $types, static function ($t) {
-            return $t !== '' && $t !== null;
-        }));
-
-        if (empty($types)) {
-            // Nothing to filter; return early (or adjust logic as needed)
-            return ($limit === 1) ? null : array();
-        }
-
-
-        // If $types are strings:
-        $in_placeholders = implode(',', array_fill(0, count($types), '%s'));
-
-        // If $types are integers, use this instead:
-        // $in_placeholders = implode(',', array_fill(0, count($types), '%d'));
-
-        // Prepare SQL: filter by type, not yet exported, oldest first, limit N
-        $sql = $wpdb->prepare(
-            "
-            SELECT *
-            FROM {$table}
-            WHERE type IN ($in_placeholders)
-            AND exported = %d
-            ORDER BY id ASC
-            LIMIT %d
-            ",
-            array_merge($types, [0, $limit])
-        );
-
-        // Return one row or many based on $limit
-        if ($limit === 1) {
-            return $wpdb->get_row($sql, ARRAY_A); // null if no match
-        }
-
-        return $wpdb->get_results($sql, ARRAY_A);
-
+    // Normalize $asset_type into a validated list of types
+    if (is_string($asset_type) && $asset_type !== '') {
+        $types = in_array($asset_type, $allowed, true) ? [$asset_type] : [];
+    } elseif (is_array($asset_type)) {
+        $types = array_values(array_intersect($allowed, array_map('strval', $asset_type)));
+    } else {
+        $types = $allowed; // default: all
     }
+
+    // If nothing valid remains, return early
+    if (empty($types)) {
+        return $limit === 1 ? null : [];
+    }
+
+    // Sanitize/guard limit
+    $limit = max(1, (int) $limit);
+
+    // Build dynamic placeholders for the IN() list
+    $in_placeholders = implode(',', array_fill(0, count($types), '%s'));
+
+    // Prepare SQL: filter by type, not yet exported, oldest first, limit N
+    $sql = $wpdb->prepare(
+        "SELECT * 
+         FROM {$table}
+         WHERE type IN ($in_placeholders)
+           AND exported = %d
+         ORDER BY id ASC
+         LIMIT %d",
+        array_merge($types, [0, $limit])
+    );
+
+    // Return one row or many based on $limit
+    if ($limit === 1) {
+        return $wpdb->get_row($sql, ARRAY_A); // null if no match
+    }
+
+    return $wpdb->get_results($sql, ARRAY_A); // [] if no matches
+}
 
     private function handle_next_export($next_url_id, $main_url)
     {
@@ -1143,16 +1131,15 @@ private function normalize_url($u) {
 
         $table = $wpdb->prefix . 'export_page_to_html_logs';
 
-        $count = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table} WHERE type = %s",
-                $type
-            )
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE type = %s",
+            $type
         );
+
+        $count = $wpdb->get_var($query);
 
         return ($count > 0);
     }
-
 
 
 
@@ -1167,65 +1154,46 @@ private function normalize_url($u) {
 
         return $files;
     }
-
-    public function rc_get_sub_dir1($dir) {
-        // Make sure $dir is a non-empty string before using it
-        if (!is_string($dir) || $dir === '') {
-            return;
-        }
-
-        if (file_exists($dir)) {
-            foreach (scandir($dir) as $file) {
-                if ($file === '.' || $file === '..') {
-                    continue;
-                }
-                if (is_dir("$dir/$file")) {
-                    $this->rc_get_sub_dir1("$dir/$file");
-                }
-                echo esc_html("$dir/$file") . ',';
-            }
-        }
+public function rc_get_sub_dir1($dir) {
+    // Make sure $dir is a non-empty string before using it
+    if (!is_string($dir) || $dir === '') {
+        return; // stop early if invalid
     }
 
-
-
-    public function get_all_files_as_array2( $dir ) {
-        $files = [];
-        $this->rc_get_sub_dir( $dir, $files );
-        return $files; // array of absolute paths
-    }
-
-    private function rc_get_sub_dir( $dir, array &$out ) {
-        if ( ! is_string( $dir ) || $dir === '' ) {
-            return;
-        }
-
-        $root = realpath( $dir );
-        if ( $root === false || ! is_dir( $root ) || ! is_readable( $root ) ) {
-            return;
-        }
-
-        $list = @scandir( $root );
-        if ( $list === false ) {
-            return;
-        }
-
-        foreach ( $list as $file ) {
-            if ( $file === '.' || $file === '..' ) {
+    if (file_exists($dir)) {
+        foreach (scandir($dir) as $file) {
+            if ($file === '.' || $file === '..') {
                 continue;
             }
+            if (is_dir("$dir/$file")) {
+                $this->rc_get_sub_dir1("$dir/$file");
+            }
+            echo "$dir/$file" . ',';
+        }
+    }
+}
 
-            $full = $root . DIRECTORY_SEPARATOR . $file;
 
-            if ( is_dir( $full ) ) {
-                $this->rc_get_sub_dir( $full, $out );
-            } elseif ( is_file( $full ) ) {
-                // Normalize to forward slashes for consistency on Windows
-                $out[] = wp_normalize_path( $full );
+
+    public function get_all_files_as_array2($all_files){
+
+        ob_start();
+        $this->rc_get_sub_dir($all_files);
+        $files = ob_get_clean();
+        $files = rtrim($files, ',');
+        $files = explode(',', $files);
+        return $files;
+
+    }
+    public function rc_get_sub_dir($dir) {
+        if(file_exists($dir)) {
+            foreach (scandir($dir) as $file) {
+                if ('.' === $file || '..' === $file) continue;
+                if (is_dir("$dir/$file")) $this->rc_get_sub_dir("$dir/$file");
+                if (is_file("$dir/$file")) echo "$dir/$file" . ',';
             }
         }
     }
-
 
 
     public function start_export_wp_pages_to_html_cron_task( $datas, $settigs ) {
@@ -1848,7 +1816,7 @@ private function normalize_url($u) {
         $input_length = strlen($input);
         $random_string = '';
         for($i = 0; $i < $strength; $i++) {
-            $random_character = $input[ wp_rand(0, $input_length - 1) ];
+            $random_character = $input[mt_rand(0, $input_length - 1)];
             $random_string .= $random_character;
         }
 
@@ -1882,17 +1850,13 @@ private function normalize_url($u) {
 
     public function rc_redirect_for_export_page_as_html() {
         if (isset($_GET['rc_exported_zip_file'])) {
-            // Unslash first, then sanitize
-            $url = isset($_GET['rc_exported_zip_file']) 
-                ? esc_url_raw( wp_unslash( $_GET['rc_exported_zip_file'] ) ) 
-                : '';
-
-            // allow only same-site or redirect to admin if invalid
-            $safe = wp_validate_redirect( $url, admin_url() );
-
-            wp_safe_redirect( $safe );
+            $url = isset($_GET['rc_exported_zip_file']) ? esc_url_raw($_GET['rc_exported_zip_file']) : '';
+            // allow only same-site or a specific directory
+            $safe = wp_validate_redirect($url, admin_url());
+            wp_safe_redirect($safe);
             exit;
         }
+
     }
 
     public function ltrim_and_rtrim($backend_file_url_full='', $sym = "")
@@ -1933,6 +1897,37 @@ private function normalize_url($u) {
 	         </div>';
         }
     }
+
+
+    public function xcurl($url,$print=false,$ref=null,$post=array(),$ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0") {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+        if(!empty($ref)) {
+            curl_setopt($ch, CURLOPT_REFERER, $ref);
+        }
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        if(!empty($ua)) {
+            curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+        }
+        if(!empty($post)){
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+        }
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+
+        $output = curl_exec($ch);
+        curl_close($ch);
+        if($print) {
+            print($output);
+        } else {
+            return $output;
+        }
+    }
+
 
     public function is_url_already_read($url='')
     {
@@ -2477,51 +2472,50 @@ public function getFontsPath()
 
             $adminbar = $src->find('#wpadminbar');
             if (!empty($adminbar)){
+                $styles = $src->find('style');
+
+                foreach( $styles as $item) {
+                    if (strpos($item, "html { margin-top: 32px !important; }
+	@media screen and ( max-width: 782px ) {
+		html { margin-top: 46px !important; }
+	}") !==false){
+
+                        $item->outertext = '';
+                    }
+                }
+
+
                 foreach( $adminbar as $item) {
                     $item->outertext = '';
                 }
-
-                $body = $src->find('body', 0);
-                if (!empty($body)) {
-                    // Append CSS at the bottom of body
-                    $custom_css = '
-                        <style>
-                              html {
-                                    margin-top: 0px !important;
-                                }
-                        </style>
-                    ';
-
-                    $body->innertext .= $custom_css;
-                }
-
-
             }
 
 
             //$data = $this->replaceOtherSiteUrls($src->save(), $main_url);
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-            WP_Filesystem();
+            $data = $this->replaceOtherSiteUrls($src->save(), $main_url);
 
-            global $wp_filesystem;
-
-            // Ensure target directory exists
-            wp_mkdir_p( dirname( $my_file ) );
-
-            // Prepare content
-            $data = $this->replaceOtherSiteUrls( $src->save(), $main_url );
             $src->clear();
 
-            // Write file via WP_Filesystem (creates or overwrites)
-            $written = $wp_filesystem->put_contents( $my_file, $data, FS_CHMOD_FILE );
 
-            if ( false === $written ) {
-                /* translators: %s: absolute file path that failed to write */
-                wp_die( sprintf( esc_html__( 'Cannot write file: %s', 'export-wp-page-to-static-html' ), esc_html( $my_file ) ) );
+            // if(true){
+            //     $images = $this->extract_images_from_dynamic_attrs_exact($data);
+            //     if (!empty($images)) {
+            //         foreach ($images as $img) {
+            //             $image_url = $this->json_decode_url($img);
+
+            //             error_log("\nimg: $img");
+            //             error_log("\nimage_url: $image_url");
+            //         }
+            //     }
+            // }
+
+            $handle = fopen($my_file, 'w') or die('Cannot open file:  ' . $my_file);
+            $t = fwrite($handle, $data);
+            if ($t) {
+                
+                $this->update_export_log('', 'created_html_file', $middle_path . $html_filename);
             }
-
-            $this->update_export_log( '', 'created_html_file', $middle_path . $html_filename );
-
+            fclose($handle);
             //$this->site_data = null;
 
         }
@@ -2767,12 +2761,12 @@ public function getFontsPath()
         $files = $this->get_all_files_as_array($all_files);
         $totalFiles = $this->totalExtractedFiles($files);
         $this->setSettings('total_zip_files', $totalFiles);
-        
-        $zip_file_name = trailingslashit( $upload_path ) . $zipFileName;
+
+
+        $zip_file_name = $upload_path.'/'.$zipFileName;
 
         ob_start();
-        echo esc_html( $this->create_zip( $files, $zip_file_name, trailingslashit( $all_files ) ) );
-
+        echo $this->create_zip($files, $zip_file_name, $all_files . '/');
         $create_zip = ob_get_clean();
 
         global $wpdb;
@@ -2816,8 +2810,7 @@ public function getZipFileName() {
     }
 
     // Always append datetime
-    $date = current_time('Ymd_His');
-
+    $date = date('Ymd_His');
 
     return $prefix . '_' . $date . '.zip';
 }
@@ -2983,7 +2976,6 @@ private function url_to_filename($url) {
             $password = $this->getSettings('login_pass');
             $email = 'drew@example.com';
 
-            $this->remove_user();
             if (username_exists($username) == null && email_exists($email) == false) {
 
                 // Create the new user
@@ -2991,6 +2983,15 @@ private function url_to_filename($url) {
                 $user = get_user_by('id', $user_id);
                 // Add role
                 $user->add_role($this->getSettings('login_as'));
+
+
+                /*                $user = array();
+                                $user['user'] = $username;
+                                $user['password'] = $password;
+
+                                $user_info = json_encode($user);
+
+                                $this->setSettings('user_info', $user_info);*/
             }
         }
     }
@@ -3004,95 +3005,46 @@ private function url_to_filename($url) {
             wp_delete_user($user->ID);
         }
 
-        update_option('html_export_cookies', []);
+        if (file_exists($this->getExportDir() . '/cookie.txt')){
+            @unlink($this->getExportDir() . '/cookie.txt');
+        }
     }
-    
-    public function login() {
-        $this->add_user();
 
-        // 1) Prepare
+    public function login(){
         $login_url = wp_login_url();
-        $username  = 'html_export';
-        $password  = $this->getSettings('login_pass'); // <- NOT a hash
+        //These are the post data username and password
+        $post_data = 'log=html_export&pwd=' . $this->getSettings('login_pass');
 
-        // 2) Initial GET to set wordpress_test_cookie etc.
-        $get = wp_remote_get($login_url, array(
-            'timeout'     => 30,
-            'redirection' => 5,
-            'httpversion' => '1.1',
-            'blocking'    => true,
-            'sslverify'   => false, // consider true in production
-        ));
-        if (is_wp_error($get)) {
-            //error_log('Login preflight failed: ' . $get->get_error_message());
-            return false;
-        }
+        //Create a curl object
+        $ch = curl_init();
 
-        // Collect cookies from the GET (cookie jar)
-        $jar = wp_remote_retrieve_cookies($get); // array of WP_Http_Cookie
+        //Set the URL
+        curl_setopt($ch, CURLOPT_URL, $login_url );
 
-        // 3) POST credentials using the same jar
-        $body = array(
-            'log'        => $username,
-            'pwd'        => $password,          // plain text password
-            'rememberme' => 'forever',
-            'wp-submit'  => 'Log In',
-            'redirect_to'=> admin_url(),        // optional
-            'testcookie' => '1',
-        );
+        //This is a POST query
+        curl_setopt($ch, CURLOPT_POST, 1 );
 
-        $post = wp_remote_post($login_url, array(
-            'method'      => 'POST',
-            'body'        => $body,
-            'timeout'     => 30,
-            'redirection' => 5,
-            'httpversion' => '1.1',
-            'blocking'    => true,
-            'sslverify'   => false,             // consider true in production
-            'cookies'     => $jar,              // send the preflight cookies back
-        ));
-        if (is_wp_error($post)) {
-            //error_log('Login request failed: ' . $post->get_error_message());
-            return false;
-        }
+        //Set the post data
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
 
-        // 4) Extract cookies reliably (no attributes)
-        $cookies_objs = wp_remote_retrieve_cookies($post); // WP_Http_Cookie[]
-        $cookies = array();
-        foreach ($cookies_objs as $c) {
-            if (!empty($c->name)) {
-                $cookies[$c->name] = $c->value;
-            }
-        }
+        //We want the content after the query
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-        // 5) Did login succeed? Look for wordpress_logged_in_*
-        $logged_in = false;
-        foreach (array_keys($cookies) as $name) {
-            if (strpos($name, 'wordpress_logged_in_') === 0) {
-                $logged_in = true;
-                break;
-            }
-        }
+        //Follow Location redirects
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
-        // 6) Persist cookies (only real name=>value pairs)
-        update_option('html_export_cookies', $cookies);
+        /*
+        Set the cookie storing files
+        Cookie files are necessary since we are logging and session data needs to be saved
+        */
 
-        // Optional debug
-        // error_log('Cookies after login: ' . print_r($cookies, true));
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $this->getExportDir() . '/cookie.txt');
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $this->getExportDir() . '/cookie.txt');
 
-        if (!$logged_in) {
-            // Common causes:
-            // - Wrong password (hash instead of plain)
-            // - Security plugins / captcha / rate limiting
-            // - Custom login flow
-            //error_log('Login did not succeed (no wordpress_logged_in_* cookie).');
-            return false;
-        }
-
-        return $cookies;
+        //Execute the action to login
+        $postResult = curl_exec($ch);
+        curl_close($ch);
     }
-
-
 
     public function next_page_export_from_queue($page_id){
         if (is_numeric($page_id)) {
@@ -3222,7 +3174,7 @@ private function url_to_filename($url) {
 
         // Ensure directory exists
         if (!file_exists($directory)) {
-            if (@wp_mkdir_p($directory, 0777, true)) {
+            if (@mkdir($directory, 0777, true)) {
                 wpptsh_error_log("📁 Created directory: $directory");
             } else {
                 wpptsh_error_log("❌ Failed to create directory: $directory");
@@ -3242,7 +3194,16 @@ private function url_to_filename($url) {
             $data = "";
         }
 
-        if (wpptsh_write_file( $savePath, $data )) {
+        // Attempt to write data to file
+        if (!$handle = @fopen($savePath, 'w')) {
+            wpptsh_error_log("❌ Cannot open file for writing: $savePath");
+            return;
+        }
+
+        $bytes = @fwrite($handle, $data);
+        @fclose($handle);
+
+        if ($bytes !== false) {
             wpptsh_error_log("✅ Successfully saved file to: $savePath");
         } else {
             wpptsh_error_log("❌ Failed to write data to file: $savePath");
@@ -3269,56 +3230,58 @@ private function url_to_filename($url) {
         delete_option('SetTotalDownloaded');
     }
 
-    public function saveImageToWebp( $imagePath, $img_path_src ) {
-        if ( strpos( $imagePath, 'http' ) !== false ) {
-            $abs_url_to_path = $this->abs_url_to_path( $imagePath );
 
-            if ( strpos( $imagePath, home_url() ) !== false && file_exists( $abs_url_to_path ) ) {
-                @copy( $abs_url_to_path, $img_path_src );
-            } else {
-                $data = $this->get_url_data( $imagePath );
-
-                if ( $data !== false ) {
-                    if ( ! wpptsh_write_file( $img_path_src, $data ) ) {
-                        wp_die( sprintf( 'Cannot write file: %s', esc_html( $img_path_src ) ) );
-                    }
-                }
+    public function saveImageToWebp($imagePath, $img_path_src)
+    {
+        if (strpos($imagePath, 'http')!==false){
+            $abs_url_to_path = $this->abs_url_to_path($imagePath);
+            if (strpos($imagePath, home_url()) !== false && file_exists($abs_url_to_path)){
+                @copy($abs_url_to_path, $img_path_src);
+            }
+            else{
+                $handle = @fopen($img_path_src, 'w') or die('Cannot open file:  ' . $img_path_src);
+                $data = $this->get_url_data($imagePath);
+                @fwrite($handle, $data);
+                @fclose($handle);
             }
         }
-
         $im = false;
+        if (strpos($img_path_src, 'jpg')!==false){
+            $im = imagecreatefromjpeg($img_path_src);
+        }
+        elseif (strpos($img_path_src, 'png')!==false){
+            $im = imagecreatefrompng($img_path_src);
+            imagepalettetotruecolor($im);
+        }
+        elseif (strpos($img_path_src, 'gif')!==false){
+            $im = imagecreatefromgif($img_path_src);
+        }
+        elseif (strpos($img_path_src, 'wbmp')!==false){
+            $im = imagecreatefromwbmp($img_path_src);
+        }
+        //Create an image object.
 
-        if ( strpos( $img_path_src, 'jpg' ) !== false || strpos( $img_path_src, 'jpeg' ) !== false ) {
-            $im = imagecreatefromjpeg( $img_path_src );
-        } elseif ( strpos( $img_path_src, 'png' ) !== false ) {
-            $im = imagecreatefrompng( $img_path_src );
-            imagepalettetotruecolor( $im );
-        } elseif ( strpos( $img_path_src, 'gif' ) !== false ) {
-            $im = imagecreatefromgif( $img_path_src );
-        } elseif ( strpos( $img_path_src, 'wbmp' ) !== false ) {
-            $im = imagecreatefromwbmp( $img_path_src );
+        //if (!$im) return;
+        //The path that we want to save our webp file to.
+        $newImagePath = str_replace( array("jpg","jpeg", "png"), "webp", $img_path_src);
+
+        //Quality of the new webp image. 1-100.
+        //Reduce this to decrease the file size.
+
+        $quality = 80;
+        $settingQuality = $this->getSettings('image_quality');
+
+        if ($settingQuality!==0){
+            $quality = intval($settingQuality);
         }
 
-        if ( ! $im ) {
-            return;
-        }
-
-        // Replace file extension safely
-        $newImagePath = preg_replace( '/\.(jpe?g|png)$/i', '.webp', $img_path_src );
-
-        // Image quality handling
-        $quality         = 80;
-        $settingQuality  = $this->getSettings( 'image_quality' );
-        if ( intval( $settingQuality ) !== 0 ) {
-            $quality = intval( $settingQuality );
-        }
-
-        if ( imagewebp( $im, $newImagePath, $quality ) ) {
-            $this->update_export_log( basename( $newImagePath ), 'created' );
-            @unlink( $img_path_src );
+        //$this->update_export_log('webp>>>'.$img_path_src);
+        //Create the webp image.
+        if( $im !== false && imagewebp($im, $newImagePath, $quality)){
+            $this->update_export_log(basename($newImagePath), 'created');
+            @unlink($img_path_src);
         }
     }
-
 
     public function file_exists($url)
     {
@@ -3329,11 +3292,25 @@ private function url_to_filename($url) {
         return false;
     }
 
-    public function getCookiesIntoArray() {
-        $cookies = get_option('html_export_cookies');
-        return $cookies;
-    }
+    public function getCookiesIntoArray($cookieFilePath){
+        $cookieData = [];
 
+        if (file_exists($cookieFilePath)) {
+            $lines = file($cookieFilePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+            foreach ($lines as $line) {
+                $line = trim($line);
+                $parts = explode("\t", $line);
+
+                if (count($parts) >= 7) {
+                    $cookieName = $parts[5];
+                    $cookieValue = $parts[6];
+                    $cookieData[$cookieName] = $cookieValue;
+                }
+            }
+        }
+        return $cookieData;
+    }
 
     public function replaceTheJsContents($js_content, $file_url)
     {
@@ -3362,7 +3339,7 @@ private function url_to_filename($url) {
                 }
                 $uploadDir = $this->export_temp_dir . '/wp-content/plugins/'.$elementor.'/assets/js/';
                 if (!file_exists($uploadDir)) {
-                    wp_mkdir_p($uploadDir, 0777, true);
+                    mkdir($uploadDir, 0777, true);
                 }
 
                 $this->saveFile($generated_file_url, $uploadDir.$basename);
@@ -3418,24 +3395,23 @@ private function url_to_filename($url) {
     }
 
 
-    public function update_asset_url_status( $url, $status ) {
+    public function update_asset_url_status($url, $status){
         global $wpdb;
         $table = $wpdb->prefix . 'export_urls_logs';
 
-        // No sanitize_text_field() before prepare/update; let the driver handle it.
-        // You can still validate/whitelist $status separately if needed.
+        // Sanitize inputs
+        $sanitized_url = sanitize_text_field($url);
+        $sanitized_status = sanitize_text_field($status);
 
-        $updated = $wpdb->update(
-            $table,
-            [ 'status' => $status ], // data
-            [ 'url'    => $url ],    // where
-            [ '%s' ],                // data formats
-            [ '%s' ]                 // where formats
+        // Prepare and run the query
+        $sql = $wpdb->prepare(
+            "UPDATE $table SET status = %s WHERE url LIKE %s",
+            $sanitized_status,
+            $sanitized_url
         );
 
-        return ( false === $updated ) ? 0 : (int) $updated; // affected rows
+        return $wpdb->query($sql); // Returns number of affected rows
     }
-
 
     function extract_images_from_dynamic_attrs_exact(string $html, ?string $baseUrl = null): array {
         $doc = new DOMDocument();

@@ -88,7 +88,7 @@ class extract_html
 
 
             if (!(strpos($basename, ".") !== false)) {
-                $basename = wp_rand(5000, 9999) . ".mp3";
+                $basename = rand(5000, 9999) . ".mp3";
                 $this->admin->update_urls_log($html_url_prev, $basename, 'new_file_name');
             }
             $basename = $this->admin->filter_filename($basename);
@@ -96,7 +96,7 @@ class extract_html
             $middle_p = $this->admin->rc_get_url_middle_path_for_assets($html_url);
 
             if(!file_exists($exportTempDir .'/'. $middle_p)){
-                @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
+                @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
             }
             $my_file = $exportTempDir .'/'. $middle_p .'/'. $basename;
 

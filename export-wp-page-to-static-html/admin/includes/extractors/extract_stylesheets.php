@@ -159,7 +159,7 @@ class extract_stylesheets
                             wpptsh_error_log("Font detected: $item_url | Extension: $urlExt");
 
                             if (!file_exists($pathname_fonts)) {
-                                @wpptsh_maybe_create_dir($pathname_fonts);
+                                @mkdir($pathname_fonts, 0777, true);
                                 wpptsh_error_log("Font directory created: $pathname_fonts");
                             }
 
@@ -169,7 +169,7 @@ class extract_stylesheets
                             wpptsh_error_log("Image detected: $item_url");
 
                             if (!file_exists($pathname_images)) {
-                                @wpptsh_maybe_create_dir($pathname_images);
+                                @mkdir($pathname_images, 0777, true);
                             }
 
                             $my_file = $pathname_images . $url_basename;
@@ -244,7 +244,11 @@ class extract_stylesheets
             wpptsh_error_log("Before saving new asset file: $my_file");
             if (!file_exists($my_file)) {
                 wpptsh_error_log("Saving new asset file: $my_file");
-                wpptsh_write_file($my_file, $data);
+
+                $handle = @fopen($my_file, 'w') or die('Cannot open file:  ' . $my_file);
+                @fwrite($handle, $data);
+                fclose($handle);
+                
                 wpptsh_error_log("File written: $my_file");
                 $this->admin->update_urls_log($stylesheet_url, 1);
             }

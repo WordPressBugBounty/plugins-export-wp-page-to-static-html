@@ -1,17 +1,17 @@
-=== Export WP Pages to HTML & PDF – Simply Create a Static Website ===
+=== Export WP Page to Static HTML & PDF ===
 Contributors: recorp  
-Tags: HTML, html, pdf, static, site
+Tags: HTML, wp to html, pdf, static website generator, pdf generator, export, page to html, static, css, wp page, page, wp, save as html
 Requires at least: 4.1  
 Tested up to: 6.8 
-Stable tag: 5.0.1
+Stable tag: 4.3.2
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html  
 
-Simply turn your WordPress site into a secure, SEO-friendly static website. Export pages to optimized HTML/CSS and professional PDFs in one click.
+Export WordPress pages to fast, secure, and responsive static HTML/CSS and print-ready PDF â€” all in just one click.
 
 == Description ==
-**Export WP Page to HTML & PDF – Simply Create a Static Website** is a powerful site and page exporter plugin for WordPress. It helps you convert any post or page into **static HTML/CSS** files or **print-ready PDF documents**. You can host your exported content from a static hosting provider, CDN, or your own server â€” boosting speed and reducing server-side risks.
-It significantly improves your website's performance and security by removing the need for database connections when serving exported content.
+**Export WP Page to Static HTML & PDF** is a powerful site and page exporter plugin for WordPress. It helps you convert any post or page into **static HTML/CSS** files or **print-ready PDF documents**. You can host your exported content from a static hosting provider, CDN, or your own server â€” boosting speed and reducing server-side risks.
+It significantly improves your websiteâ€™s performance and security by removing the need for database connections when serving exported content.
 🎥 [Watch Demo](https://www.youtube.com/watch?v=VEDG-5saLzY)
 
 == Features ==
@@ -90,23 +90,6 @@ Admin or Users see a friendly popup informing them they have reached their expor
 Absolutely. Exports capture the fully rendered front-end outputâ€”page builder layouts included.  
 
 == Changelog ==
-
-= 5.0.1 - 2 February 2026 =
-* FIXED - A minor issue.
-
-= 5.0.0 - 1 November 2025 =
-* FIXED - A critical issue has been fixed.
-
-= 4.3.4 - 20 October 2025 =
-* ADDED: Email notification system when export completed.
-
-= 4.3.3 - 8 September 2025 =
-* FIXED: Skip assets not working issue.
-* FIXED: Some other issues.
-* ADDED: Increase 3 pages limitation to 6 pages.
-
-= 4.3.2 - 8 September 2025 =
-* UPDATED: little thing.
 
 = 4.3.1 - 8 September 2025 =
 * UPDATED: little thing.

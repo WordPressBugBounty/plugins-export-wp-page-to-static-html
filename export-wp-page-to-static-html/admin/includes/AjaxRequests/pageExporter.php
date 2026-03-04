@@ -26,6 +26,21 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
         \rcCheckNonce();
         
+        // global $wpdb;
+        // $totalPages = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}exportable_urls");
+
+        // if (!empty($this->getSettings('nextExportPageId'))){
+        //     if (intval($this->getSettings('lastAjaxExportPageId')) == $totalPages) {
+        //         echo json_encode(array('success' => 'true', 'status' => 'all_pages_exported'));
+
+        //         die();
+        //     }
+        //     if (intval($this->getSettings('nextExportPageId')) > intval($this->getSettings('lastAjaxExportPageId'))){
+        //         $this->setSettings('lastAjaxExportPageId', $this->getSettings('nextExportPageId'));
+        //         do_action('next_page_export_from_queue', $this->getSettings('nextExportPageId'));
+        //     }
+        // }
+
         $endpoint = rest_url('ewptshp/v1/run');
         $token    = get_option('ewptshp_worker_token');
 
@@ -40,7 +55,7 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
             ],
         ]);
 
-        //error_log('[URL DOne] onPageExporter'. $url);
+        error_log('[URL DOne] onPageExporter'. $url);
 
         echo json_encode(array('success' => 'true', 'status' => 'success'));
 

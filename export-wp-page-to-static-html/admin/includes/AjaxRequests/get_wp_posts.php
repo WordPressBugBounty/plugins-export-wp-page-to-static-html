@@ -24,14 +24,16 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
 
     public function get_wp_posts(){
 
-        $nonce = isset($_REQUEST['rc_nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['rc_nonce'])) : '';
+        $nonce = isset($_REQUEST['rc_nonce']) ? sanitize_text_field($_REQUEST['rc_nonce']) : '';
         if (!wp_verify_nonce( $nonce, "rc-nonce" )) {
             wp_send_json_error();
         }
 
+        //check_ajax_referer('ajax_post_nonce', 'security');
+
         $paged = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $search = isset($_GET['q']) ? sanitize_text_field(wp_unslash($_GET['q'])) : '';
-        $post_status = isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '';
+        $search = isset($_GET['q']) ? sanitize_text_field($_GET['q']) : '';
+        $post_status = isset($_GET['post_status']) ? sanitize_text_field($_GET['post_status']) : '';
 
         $args = array(
             'post_type' => 'post',

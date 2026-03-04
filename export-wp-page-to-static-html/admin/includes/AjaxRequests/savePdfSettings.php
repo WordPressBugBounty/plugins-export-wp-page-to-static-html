@@ -20,7 +20,7 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
      * @return json
      */
     public function savePdfSettings(){
-        $user_roles = isset($_POST['userRolesArray']) && is_array(wp_unslash($_POST['userRolesArray'])) ? array_map('sanitize_text_field', $_POST['userRolesArray']) : array();
+        $user_roles = isset($_POST['userRolesArray']) && is_array($_POST['userRolesArray']) ? array_map('sanitize_text_field', $_POST['userRolesArray']) : array();
 
         if (!$this->ajax->nonceCheck()){
             echo wp_json_encode(array('success' => false, 'status' => 'nonce_verify_error', 'response' => ''));

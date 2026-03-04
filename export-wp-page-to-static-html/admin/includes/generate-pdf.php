@@ -21,7 +21,7 @@ class Generate_PDF_Button {
         //add_shortcode('generate_pdf_button', 'ewpsh_generate_pdf_shortcode');
 
         add_action('wp_footer', function() {
-            if (!isset($_GET['generate-pdf']) || sanitize_text_field($_GET['generate-pdf']) !== 'true') {
+            if (!isset($_GET['generate-pdf']) || $_GET['generate-pdf'] !== 'true') {
                 return;
             }
         
@@ -170,7 +170,7 @@ class Generate_PDF_Button {
 
     public function ewpptsh_can_generate_pdf_today() {
         $key = 'ewpptsh_global_pdf_limit';
-        $today = current_time('Y-m-d');
+        $today = date('Y-m-d');
     
         $data = get_transient($key);
     
@@ -226,12 +226,7 @@ class Generate_PDF_Button {
      */
     public function enqueue_scripts() {
         if (!is_admin_bar_showing()) return; // Only load for logged-in users with the admin bar
-            if ( isset( $_GET['generate-pdf'] ) ) {
-                $generate_pdf = sanitize_text_field( wp_unslash( $_GET['generate-pdf'] ) );
-            } else {
-                $generate_pdf = '';
-            }
-
+        $generate_pdf = isset($_GET['generate-pdf']) ? sanitize_text_field($_GET['generate-pdf']) : '';
 
         
             
@@ -307,19 +302,13 @@ class Generate_PDF_Button {
         }
     
         // If there's no slug (e.g., archive/category pages), get the last part of the URL
-        if ( ! $page_slug ) {
-            $request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-
-            if ( $request_uri ) {
-                $page_slug = trim( parse_url( $request_uri, PHP_URL_PATH ), '/' );
-                $page_slug = preg_replace( '/[^a-zA-Z0-9-]/', '-', $page_slug ); // Replace special characters
-            }
-
-            if ( empty( $page_slug ) ) {
+        if (!$page_slug) {
+            $page_slug = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+            $page_slug = preg_replace('/[^a-zA-Z0-9-]/', '-', $page_slug); // Replace special characters
+            if (!$page_slug) {
                 $page_slug = 'homepage'; // Final fallback
             }
         }
-
     
         // Return formatted name like "example.com-pagename"
         return $site_url . '-' . $page_slug;
@@ -334,7 +323,7 @@ class Generate_PDF_Button {
         }
     
         $user_id = get_current_user_id();
-        $today = current_time('Y-m-d');
+        $today = date('Y-m-d');
     
         $log = get_user_meta($user_id, 'pdf_export_log', true);
         if (!$log || !is_array($log)) {

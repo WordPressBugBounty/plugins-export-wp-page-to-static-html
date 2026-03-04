@@ -83,7 +83,7 @@ class inline_css
                                 if(!$saveAllAssetsToSpecificDir){
                                     $middle_p = $this->admin->rc_get_url_middle_path_for_assets($item_url);
                                     if(!file_exists($exportTempDir .'/'. $middle_p)){
-                                        @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
+                                        @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                                     }
                                     $img_path_src = $exportTempDir .'/'. $middle_p .'/'. $url_basename;
                                 }
@@ -204,7 +204,7 @@ class inline_css
                                     if(!$saveAllAssetsToSpecificDir){
                                         $middle_p = $this->admin->rc_get_url_middle_path_for_assets($item_url);
                                         if(!file_exists($exportTempDir .'/'. $middle_p)){
-                                            @wpptsh_maybe_create_dir($exportTempDir .'/'. $middle_p);
+                                            @mkdir($exportTempDir .'/'. $middle_p, 0777, true);
                                         }
                                         $img_path_src = $exportTempDir .'/'. $middle_p .'/'. $url_basename;
                                     }

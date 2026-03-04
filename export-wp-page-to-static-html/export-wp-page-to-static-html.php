@@ -1,218 +1,356 @@
 <?php
-
 /**
- * @link              https://www.upwork.com/fl/rayhan1
- * @since             1.0.0
- * @package           Export_Wp_Page_To_Static_Html
- *
- * @wordpress-plugin
- * Plugin Name: Export WP Pages to HTML & PDF – Simply Create a Static Website
+ * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
- * Description:       Seamlessly export any WordPress page or post into lightweight, fully responsive static HTML/CSS and print-ready PDF with a single click. Boost your site’s performance and security by serving pre-rendered pages, create offline-friendly backups. Perfect for developers, content creators, and businesses needing fast, reliable exports of WordPress content.
- * Version:           5.0.1
+ * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
+ * Version:           6.0.0
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Text Domain:       export-wp-page-to-static-html
+ * Text Domain:       wp-to-html
  * Domain Path:       /languages
  */
+if (!defined('ABSPATH')) exit;
 
-// If this file is called directly, abort.
-if ( ! defined( 'WPINC' ) ) {
-	die;
+/**
+ * Load plugin text domain for translations.
+ */
+add_action('init', function () {
+    load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
+});
+define('WP_TO_HTML_VERSION', '6.0.0');
+define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
+define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
+define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
+define('WP_TO_HTML_DEBUG', false);
+
+// Advanced debugger (super debugger)
+// Enable in wp-config.php: define('WP_TO_HTML_ADVANCED_DEBUG', true);
+if (!defined('WP_TO_HTML_ADVANCED_DEBUG')) {
+    define('WP_TO_HTML_ADVANCED_DEBUG', false);
 }
 
-// if (version_compare(PHP_VERSION, '8.1.13') > 0) {
-//     add_action('admin_notices', function (){
-//         $content = __("To use the \"<strong>Export WP Pages to HTML & PDF – Simply Create a Static Website</strong>\" plugin, you require PHP version <strong>8.1.13 or lower</strong>. Your current PHP version is: <strong>" . PHP_VERSION . '</strong>', 'export-wp-page-to-static-html') ;
-//         $html =  '<div class="notice notice-error wpptsh wpptsh-php-not-compatible" wpptsh_notice_key="" style="padding: 19px;font-size: 16px;">
-//                 '.$content.'
-//             </div>';
+/**
+ * Pro bridge helpers
+ *
+ * The Free plugin exposes these helpers so a separate Pro plugin can enable
+ * premium scopes (All Pages / All Posts / Full Site) without modifying core logic.
+ */
+if (!function_exists('wp_to_html_is_pro_active')) {
+    function wp_to_html_is_pro_active(): bool {
+        // Fast path: Pro plugin can define this constant.
+        if (defined('WP_TO_HTML_PRO_ACTIVE') && WP_TO_HTML_PRO_ACTIVE) {
+            return true;
+        }
 
-//         echo $html;
-//     });
-//     echo ' '  . "\n";
-// }
-// else{
+        // Alternative: Pro can load a class.
+        if (class_exists('WpToHtml_Pro\\Plugin')) {
+            return true;
+        }
 
+        // Extensible hook for other licensing/loader mechanisms.
+        return (bool) apply_filters('wp_to_html/pro_active', false);
+    }
+}
+
+if (!function_exists('wp_to_html_allowed_scopes')) {
     /**
-     * The code that runs during plugin activation
-     *
-     * This action is documented in includes/class-export-wp-page-to-static-html-activator.php
+     * Allowed export scopes for the current installation.
+     * Free: selected (aka custom) + all_pages
+     * Pro: selected + all_pages + all_posts + full_site
      */
-    function activate_export_wp_page_to_static_html() {
-        require_once plugin_dir_path( __FILE__ ) . 'includes/class-export-wp-page-to-static-html-activator.php';
-        Export_Wp_Page_To_Static_Html_Activator::activate();
+    function wp_to_html_allowed_scopes(): array {
+        $scopes = ['selected', 'all_pages'];
+        if (wp_to_html_is_pro_active()) {
+            $scopes = ['selected', 'all_posts', 'all_pages', 'full_site'];
+        }
+
+        return (array) apply_filters('wp_to_html/allowed_scopes', $scopes);
+    }
+}
+
+/**
+ * DB schema upgrades (runs on every load, but only applies changes when needed).
+ */
+
+add_action('plugins_loaded', function () {
+    global $wpdb;
+
+    $status = $wpdb->prefix . 'wp_to_html_status';
+    // If the table doesn't exist yet, activation will create it.
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $status));
+    if (!$exists) return;
+
+    // Ensure required columns exist (handles upgrades from older schemas).
+    $required_cols = [
+        'state'            => "ALTER TABLE {$status} ADD COLUMN state VARCHAR(20) DEFAULT 'idle'",
+        'is_running'       => "ALTER TABLE {$status} ADD COLUMN is_running TINYINT(1) NOT NULL DEFAULT 0 AFTER state",
+        'total_urls'       => "ALTER TABLE {$status} ADD COLUMN total_urls INT DEFAULT 0",
+        'processed_urls'   => "ALTER TABLE {$status} ADD COLUMN processed_urls INT DEFAULT 0",
+        'total_assets'     => "ALTER TABLE {$status} ADD COLUMN total_assets INT DEFAULT 0",
+        'processed_assets' => "ALTER TABLE {$status} ADD COLUMN processed_assets INT DEFAULT 0",
+        'last_progress_at'            => "ALTER TABLE {$status} ADD COLUMN last_progress_at DATETIME NULL",
+        'last_progress_stage'            => "ALTER TABLE {$status} ADD COLUMN last_progress_stage VARCHAR(30) NULL",
+        'last_progress_done'            => "ALTER TABLE {$status} ADD COLUMN last_progress_done INT DEFAULT 0",
+        'watchdog_runs'            => "ALTER TABLE {$status} ADD COLUMN watchdog_runs INT DEFAULT 0",
+        'watchdog_repairs'            => "ALTER TABLE {$status} ADD COLUMN watchdog_repairs INT DEFAULT 0",
+        'failed_assets'            => "ALTER TABLE {$status} ADD COLUMN failed_assets INT DEFAULT 0",
+    ];
+
+    foreach ($required_cols as $name => $sql) {
+        $col = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$status} LIKE %s", $name));
+        if (!$col) {
+            $wpdb->query($sql);
+        }
     }
 
+    // Ensure row id=1 exists WITHOUT overwriting live state (REPLACE would reset columns to defaults).
+    // Only insert defaults if the row is missing.
+    $row_exists = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$status} WHERE id=%d", 1));
+    if (!$row_exists) {
+        $wpdb->insert($status, [
+            'id'               => 1,
+            'state'            => 'idle',
+            'is_running'       => 0,
+            'total_urls'       => 0,
+            'processed_urls'   => 0,
+            'total_assets'     => 0,
+            'processed_assets' => 0,
+            'failed_assets' => 0,
+        ]);
+    }
+});
 
-    register_activation_hook( __FILE__, 'activate_export_wp_page_to_static_html' );
+require_once WP_TO_HTML_PATH . 'includes/class-core.php';
+require_once WP_TO_HTML_PATH . 'includes/class-admin.php';
+require_once WP_TO_HTML_PATH . 'includes/class-rest.php';
+require_once WP_TO_HTML_PATH . 'includes/class-exporter.php';
+require_once WP_TO_HTML_PATH . 'includes/class-diagnostic.php';
+require_once WP_TO_HTML_PATH . 'includes/class-advanced-debugger.php';
+require_once WP_TO_HTML_PATH . 'includes/class-asset-manager.php';
+require_once WP_TO_HTML_PATH . 'includes/class-asset-extractor.php';
+require_once WP_TO_HTML_PATH . 'includes/class-bulk-asset-collector.php';
+require_once WP_TO_HTML_PATH . 'includes/class-ftp-uploader.php';
 
-    if (!function_exists('run_export_wp_page_to_static_html_pro')){
+// Robust RFC3986 URL absolutizer (ported from the older exporter).
+require_once WP_TO_HTML_PATH . 'includes/url/url_to_absolute.php';
 
-        /**
-         * Currently plugin version.
-         * Start at version 1.0.0 and use SemVer - https://semver.org
-         * Rename this for your plugin and update it as you release new versions.
-         */
-        define( 'EXPORT_WP_PAGE_TO_STATIC_HTML_VERSION', '5.0.1' );
-        define( 'EWPPTSH_PLUGIN_DIR_URL', plugin_dir_url(__FILE__) );
-        define( 'EWPPTSH_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__) );
-        define( 'EWPPTSH_DEVELOPER_MODE', false );
-        define( 'WPPTSH_DB_VERSION', '1.2');
+add_action('plugins_loaded', function () {
+    \WpToHtml\Core::get_instance();
+});
 
-        /**
-         * The code that runs during plugin deactivation.
-         * This action is documented in includes/class-export-wp-page-to-static-html-deactivator.php
-         */
-        function deactivate_export_wp_page_to_static_html() {
-            require_once plugin_dir_path( __FILE__ ) . 'includes/class-export-wp-page-to-static-html-deactivator.php';
-            Export_Wp_Page_To_Static_Html_Deactivator::deactivate();
-        }
-        register_deactivation_hook( __FILE__, 'deactivate_export_wp_page_to_static_html' );
+register_activation_hook(__FILE__, function() {
+    // Buffer output to prevent PHP warnings/notices from dbDelta()
+    // from being counted as "unexpected output" during activation
+    // (especially when WP_DEBUG_DISPLAY is enabled).
+    ob_start();
+    wp_to_html_ensure_tables();
+    ob_end_clean();
 
-        register_activation_hook(__FILE__, 'export_wp_page_to_html_save_redirect_option');
-        add_action('admin_init', 'export_wp_page_to_html_redirect_to_menu');
+    // Store version on activation so first-install doesn't trigger the "What's New" page.
+    update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
+});
 
+/**
+ * Redirect to "What's New" page after plugin update (not on first activation).
+ */
+add_action('admin_init', function () {
+    // Only run for admins.
+    if (!current_user_can('manage_options')) return;
 
-        /*Activating daily task*/
-        register_activation_hook( __FILE__, 'rc_static_html_task_events_activate' );
-        register_deactivation_hook( __FILE__, 'rc_static_html_task_events_deactivate' );
+    // Skip during AJAX, cron, bulk activate, or CLI.
+    if (wp_doing_ajax() || wp_doing_cron()) return;
+    if (isset($_GET['activate-multi'])) return;
+    if (defined('WP_CLI') && WP_CLI) return;
 
+    $stored = get_option('wp_to_html_version', '');
 
-        /*Redirect to plugin's settings page when plugin will active*/
-        function export_wp_page_to_html_save_redirect_option() {
-            add_option('export_wp_page_to_html_activation_check', true);
-        }
-
-
-        function export_wp_page_to_html_redirect_to_menu() {
-            if (get_option('export_wp_page_to_html_activation_check', false)) {
-                delete_option('export_wp_page_to_html_activation_check');
-                wp_redirect( esc_url_raw( admin_url( 'admin.php?page=export-wp-page-to-html&welcome=true' ) ) );
-                exit;
-            }
-        }
-
-
-        /**
-         * The core plugin class that is used to define internationalization,
-         * admin-specific hooks, and public-facing site hooks.
-         */
-        require plugin_dir_path( __FILE__ ) . 'includes/class-export-wp-page-to-static-html.php';
-
-        /**
-         * Begins execution of the plugin.
-         *
-         * Since everything within the plugin is registered via hooks,
-         * then kicking off the plugin from this point in the file does
-         * not affect the page life cycle.
-         *
-         * @since    1.0.0
-         */
-        function run_export_wp_page_to_static_html() {
-
-            $plugin = new Export_Wp_Page_To_Static_Html();
-            $plugin->run();
-
-        }
-        run_export_wp_page_to_static_html();
-        
-
-        function wpptsh_error_log($log){
-            if (EWPPTSH_DEVELOPER_MODE) {
-                error_log($log);
-            }
-        }
-        // On plugin activation (once), create/store a token
-        register_activation_hook(__FILE__, function(){
-            if (!get_option('ewptshp_worker_token')) {
-                add_option('ewptshp_worker_token', wp_generate_password(32, false, false));
-            }
-        });
-
-        // Runs on every load, no __FILE__ here
-        function wpptsh_update_db_check() {
-            global $wpdb;
-
-            $installed_ver = get_option('wpptsh_db_version', '0');
-            $table_name    = $wpdb->prefix . 'export_urls_logs';
-            $column_name   = 'type';
-
-            // Early bail if version is current
-            if ((string) $installed_ver === (string) WPPTSH_DB_VERSION) {
-                return;
-            }
-
-            // Ensure we have upgrade helpers for dbDelta
-            if ( ! function_exists('dbDelta')) {
-                require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-            }
-
-            // --- 1) Try to add the column via dbDelta (preferred) ---
-            // dbDelta needs a full CREATE TABLE statement. If you know the table schema,
-            // define it here. If not, skip to the fallback below.
-            // NOTE: Replace the columns below with your real schema (keep 'type' in it).
-            $charset_collate = $wpdb->get_charset_collate();
-
-            $known_schema = "
-                CREATE TABLE {$table_name} (
-                    id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-                    url TEXT NOT NULL,
-                    `{$column_name}` TINYTEXT NOT NULL,
-                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (id)
-                ) {$charset_collate};
-            ";
-
-            // If you KNOW the table structure above is accurate, uncomment the next line:
-            // dbDelta($known_schema);
-
-            // --- 2) Cache the existence check to satisfy NoCaching sniff ---
-            $cache_group = 'wpptsh_schema';
-            $cache_key   = 'has_col_' . md5($table_name . '|' . $column_name);
-
-            $column_exists = wp_cache_get($cache_key, $cache_group);
-
-            if (false === $column_exists) {
-                // PHPCS flags any $wpdb call as "direct", but this is a read-only, prepared query.
-                // We cache the result to address the NoCaching rule.
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-                $column_exists = (bool) $wpdb->get_var(
-                    $wpdb->prepare(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                        WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
-                        DB_NAME,
-                        $table_name,
-                        $column_name
-                    )
-                );
-                wp_cache_set($cache_key, $column_exists, $cache_group, 12 * HOUR_IN_SECONDS);
-            }
-
-            // --- 3) Fallback: add column via ALTER if still missing ---
-            if ( ! $column_exists ) {
-                // If you cannot reliably use dbDelta with the full CREATE TABLE statement,
-                // do a minimal ALTER TABLE. Document and ignore the PHPCS warnings:
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.DirectQuery
-                $wpdb->query("ALTER TABLE `{$table_name}` ADD COLUMN `{$column_name}` TINYTEXT NOT NULL");
-
-                // Invalidate cache after schema change
-                wp_cache_delete($cache_key, $cache_group);
-            }
-
-            // --- 4) Update DB version ---
-            update_option('wpptsh_db_version', WPPTSH_DB_VERSION);
-
-            // --- 5) Ensure worker token exists ---
-            if ( ! get_option('ewptshp_worker_token')) {
-                add_option('ewptshp_worker_token', wp_generate_password(32, false, false));
-            }
-        }
-
-
-        add_action('plugins_loaded', 'wpptsh_update_db_check');
+    if ($stored === '') {
+        // First install — store version, no redirect.
+        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
+        return;
     }
 
-//}
+    if (version_compare($stored, WP_TO_HTML_VERSION, '<')) {
+        // Plugin was updated — set transient and bump stored version.
+        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
+        set_transient('wp_to_html_show_whats_new', 1, 60);
+    }
+}, 1);
+
+add_action('admin_init', function () {
+    if (!get_transient('wp_to_html_show_whats_new')) return;
+    delete_transient('wp_to_html_show_whats_new');
+
+    // Don't redirect if already on the page.
+    if (isset($_GET['page']) && $_GET['page'] === 'wp-to-html-whats-new') return;
+
+    wp_safe_redirect(admin_url('admin.php?page=wp-to-html-whats-new'));
+    exit;
+}, 99);
+
+register_deactivation_hook(__FILE__, function() {
+    wp_clear_scheduled_hook('wp_to_html_process_event');
+
+    global $wpdb;
+
+    $tables = [
+        $wpdb->prefix . 'wp_to_html_status',
+        $wpdb->prefix . 'wp_to_html_queue',
+        $wpdb->prefix . 'wp_to_html_assets',
+    ];
+
+    foreach ($tables as $table) {
+        $wpdb->query("DROP TABLE IF EXISTS {$table}");
+    }
+
+});
+
+function wp_to_html_ensure_tables() {
+
+    global $wpdb;
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $queue_table  = $wpdb->prefix . 'wp_to_html_queue';
+    $assets_table = $wpdb->prefix . 'wp_to_html_assets';
+    $status_table = $wpdb->prefix . 'wp_to_html_status';
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Queue Table
+    |--------------------------------------------------------------------------
+    */
+    // Queue now supports retries/backoff + failed-only reruns.
+    $sql_queue = "CREATE TABLE $queue_table (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        url TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        retry_count INT NOT NULL DEFAULT 0,
+        last_error LONGTEXT NULL,
+        last_attempt_at DATETIME NULL,
+        next_attempt_at DATETIME NULL,
+        started_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY status (status),
+        KEY next_attempt_at (next_attempt_at)
+    ) $charset_collate;";
+
+    dbDelta($sql_queue);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Assets Table
+    |--------------------------------------------------------------------------
+    */
+
+    $sql_assets = "CREATE TABLE $assets_table (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        url TEXT NOT NULL,
+        found_on TEXT NULL,
+        asset_type VARCHAR(30) NOT NULL DEFAULT 'asset',
+        local_path TEXT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        retry_count INT NOT NULL DEFAULT 0,
+        last_error LONGTEXT NULL,
+        last_attempt_at DATETIME NULL,
+        next_attempt_at DATETIME NULL,
+        started_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+
+        UNIQUE KEY unique_url (url(191)),
+        KEY status (status),
+        KEY asset_type (asset_type),
+        KEY next_attempt_at (next_attempt_at),
+        KEY started_at (started_at)
+    ) $charset_collate;";
+
+    dbDelta($sql_assets);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Status Table
+    |--------------------------------------------------------------------------
+    */
+    $sql_status = "CREATE TABLE $status_table (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        state VARCHAR(20) DEFAULT 'idle',
+        is_running TINYINT(1) DEFAULT 0,
+        pipeline_stage VARCHAR(30) NOT NULL DEFAULT 'idle',
+        stage_total INT DEFAULT 0,
+        stage_done INT DEFAULT 0,
+        failed_urls INT DEFAULT 0,
+        failed_assets INT DEFAULT 0,
+        total_urls INT DEFAULT 0,
+        processed_urls INT DEFAULT 0,
+        total_assets INT DEFAULT 0,
+        processed_assets INT DEFAULT 0,
+        last_progress_at DATETIME NULL,
+        last_progress_stage VARCHAR(30) NULL,
+        last_progress_done INT DEFAULT 0,
+        watchdog_runs INT DEFAULT 0,
+        watchdog_repairs INT DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    dbDelta($sql_status);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Ensure Single Status Row Exists
+    |--------------------------------------------------------------------------
+    */
+    $exists = $wpdb->get_var("SELECT COUNT(*) FROM $status_table");
+
+    if (!$exists) {
+        $wpdb->insert($status_table, [
+            'state'            => 'idle',
+            'is_running'       => 0,
+            'total_urls'       => 0,
+            'processed_urls'   => 0,
+            'total_assets'     => 0,
+            'processed_assets' => 0,
+            'failed_assets'    => 0,
+        ]);
+    }
+
+}
+
+function wp_to_html_plugin_update() {
+    global $wpdb;
+
+    $installed_version = get_option('wp_to_html_version'); // previous plugin version
+    $current_version   = '6.0.0';
+    $tables_removed    = get_option('wp_to_html_old_tables_removed', false);
+
+    // Run only if plugin version has changed
+    if ( $installed_version !== $current_version ) {
+
+        // Remove old tables only once
+        if ( ! $tables_removed ) {
+            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}exportable_urls" );
+            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}export_page_to_html_logs" );
+            $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}export_urls_logs" );
+
+            // Mark old tables as removed
+            update_option( 'wp_to_html_old_tables_removed', true );
+
+            // Create new tables
+            wp_to_html_ensure_tables();
+        }
+
+
+        // Update plugin version
+        update_option( 'wp_to_html_version', $current_version );
+    }
+}
+add_action( 'plugins_loaded', 'wp_to_html_plugin_update' );

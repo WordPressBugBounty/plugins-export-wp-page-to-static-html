@@ -22,9 +22,9 @@ class initAjax extends \ExportHtmlAdmin\Export_Wp_Page_To_Static_Html_Admin
      */
 
     public function delete_exported_zip_file() {
-        \rcCheckNonce(); 
+        \rcCheckNonce(); // nonce + role check (your helper already enforces capability)
 
-        $file_name = isset($_POST['file_name']) ? sanitize_file_name(wp_unslash($_POST['file_name'])) : '';
+        $file_name = isset($_POST['file_name']) ? sanitize_file_name($_POST['file_name']) : '';
         if ($file_name === '') {
             wp_send_json_error(['message' => 'Invalid file name']);
         }
