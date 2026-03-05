@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.5.2
+ * Version:           6.0.5.4
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.5.2');
+define('WP_TO_HTML_VERSION', '6.0.5.4');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
@@ -140,16 +140,29 @@ add_action('plugins_loaded', function () {
     \WpToHtml\Core::get_instance();
 });
 
+
 register_activation_hook(__FILE__, function() {
+    $installed_version = get_option('wp_to_html_version', '');
+
+    // If stored version is HIGHER than the version being activated, the plugin
+    // was deleted and reinstalled with an older version. Reset stored version
+    // to the reinstalled version so the update routine correctly detects the
+    // upcoming upgrade and shows "What's New" if upgrading past 6.0.0.
+    if ($installed_version !== '' && version_compare($installed_version, WP_TO_HTML_VERSION, '>')) {
+        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
+        update_option('wp_to_html_old_tables_removed', false);
+    } else {
+        // Fresh install — store current version so "What's New" is never shown
+        // on a clean install.
+        update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
+    }
+
     // Buffer output to prevent PHP warnings/notices from dbDelta()
     // from being counted as "unexpected output" during activation
     // (especially when WP_DEBUG_DISPLAY is enabled).
     ob_start();
     wp_to_html_ensure_tables();
     ob_end_clean();
-
-    // Store version on activation so first-install doesn't trigger the "What's New" page.
-    update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
 });
 
 /**
@@ -312,9 +325,10 @@ function wp_to_html_ensure_tables() {
 
 }
 
+
 function wp_to_html_plugin_update() {
     global $wpdb;
-    $installed_version = get_option('wp_to_html_version', ''); // previous stored version
+    $installed_version = get_option('wp_to_html_version', '');
     $current_version   = WP_TO_HTML_VERSION;
     $tables_removed    = get_option('wp_to_html_old_tables_removed', false);
 
@@ -335,10 +349,8 @@ function wp_to_html_plugin_update() {
     // Bump stored version FIRST so this block won't re-run on the next load.
     update_option('wp_to_html_version', $current_version, false);
 
-    // Show "What's New" page only when upgrading FROM a version below 6.0.0.
-    // - Empty string = fresh install → no redirect.
-    // - Pre-6.0.0 install upgrading to any version → redirect once.
-    // - 6.0.0 or higher upgrading to a newer 6.x+ → no redirect.
+    // Show "What's New" only when upgrading FROM a version below 6.0.0.
+    // Fresh installs (empty string) and 6.0.0+ upgrades are excluded.
     if ($installed_version !== '' && version_compare($installed_version, '6.0.0', '<')) {
         set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
     }

@@ -198,26 +198,27 @@ CSS
         $pro_active = (function_exists('wp_to_html_is_pro_active') && wp_to_html_is_pro_active());
         ?>
 
+        <h1 style="display:none!important;"></h1>
         <div class="wrap" id="wp-to-html-app">
 
             <!-- ══════ TOP BAR ══════ -->
             <header class="eh-topbar">
                 <div class="eh-topbar-brand">
                     <div class="eh-topbar-icon"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-                    <h1><?php esc_html_e('Export WP Pages to Static HTML', 'wp-to-html'); ?></h1>
+                    <span class="eh-topbar-title"><?php esc_html_e('Export WP Pages to Static HTML', 'wp-to-html'); ?></span>
                     <small>v<?php echo esc_html(defined('WP_TO_HTML_VERSION') ? WP_TO_HTML_VERSION : '1.0.0'); ?></small>
                 </div>
                 <div class="eh-topbar-actions">
-                    <a href="https://myrecorp.com/documentation/export-wp-page-to-static-html-documentation.html" target="_blank" rel="noopener noreferrer" class="eh-topbar-utility-btn">
+                    <a href="https://myrecorp.com/documentation/export-wp-page-to-static-html-documentation" target="_blank" rel="noopener noreferrer" class="eh-topbar-utility-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                         <?php esc_html_e('Documentation', 'wp-to-html'); ?>
                     </a>
-                    <a href="https://myrecorp.com/wp/contact-us/" target="_blank" rel="noopener noreferrer" class="eh-topbar-utility-btn">
+                    <a href="https://myrecorp.com/contact-us/" target="_blank" rel="noopener noreferrer" class="eh-topbar-utility-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <?php esc_html_e('Support', 'wp-to-html'); ?>
                     </a>
                     <?php if (!$pro_active): ?>
-                    <a href="https://myrecorp.com/export-wp-page-to-static-html-pro.html" target="_blank" rel="noopener noreferrer" class="eh-topbar-upgrade-btn">
+                    <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" class="eh-topbar-upgrade-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                         <?php esc_html_e('Upgrade to Pro', 'wp-to-html'); ?>
                     </a>
@@ -766,7 +767,7 @@ CSS
                 </div>
                 <div class="eh-pro-modal-foot">
                     <button type="button" class="eh-pro-modal-dismiss" id="eh-pro-modal-dismiss"><?php esc_html_e('Maybe later', 'wp-to-html'); ?></button>
-                    <a href="https://myrecorp.com/export-wp-page-to-static-html-pro.html" target="_blank" rel="noopener noreferrer" class="eh-pro-modal-cta">
+                    <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" class="eh-pro-modal-cta">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                         <?php esc_html_e('Upgrade to Pro', 'wp-to-html'); ?>
                     </a>
