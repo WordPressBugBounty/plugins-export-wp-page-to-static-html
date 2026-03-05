@@ -2,9 +2,9 @@
 Contributors:       recorp
 Tags:               static html export, static site generator, html export, export posts, export pages
 Requires at least:  5.8
-Tested up to:       6.7
+Tested up to:       6.9
 Requires PHP:       7.4
-Stable tag:         6.0.5.4
+Stable tag:         6.0.5.5
 License:            GPLv2 or later
 License URI:        https://www.gnu.org/licenses/gpl-2.0.html
 
