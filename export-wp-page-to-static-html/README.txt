@@ -4,7 +4,7 @@ Tags:               static html export, static site generator, html export, expo
 Requires at least:  5.8
 Tested up to:       6.7
 Requires PHP:       7.4
-Stable tag:         6.0.5.1
+Stable tag:         6.0.5.2
 License:            GPLv2 or later
 License URI:        https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,9 @@ Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/e
 
 
 == Changelog ==
+
+= 6.0.5.2 =
+* Fixed: Tables creating error on plugin update.
 
 = 6.0.0 =
 * Refactored the core export engine for improved stability and performance.
