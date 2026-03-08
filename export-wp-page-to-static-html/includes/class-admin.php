@@ -48,8 +48,7 @@ class Admin {
             $hook !== 'wp-to-html_page_wp-to-html-system-status'
         ) {
             return;
-        }
-        // Cache-bust admin assets automatically on update.
+        }        // Cache-bust admin assets automatically on update.
         // Using filemtime avoids situations where the browser keeps an old admin.js/admin.css.
         $js_ver  = @filemtime(WP_TO_HTML_PATH . 'assets/admin.js') ?: WP_TO_HTML_VERSION;
         $css_ver = @filemtime(WP_TO_HTML_PATH . 'assets/admin.css') ?: WP_TO_HTML_VERSION;
@@ -103,9 +102,21 @@ class Admin {
             'rerun_failed_url'      => rest_url('wp_to_html/v1/rerun-failed'),
             'nonce'      => wp_create_nonce('wp_rest'),
             'pro_active' => (function_exists('wp_to_html_is_pro_active') && wp_to_html_is_pro_active()) ? 1 : 0,
+            'remote_json_url' => 'https://api.myrecorp.com/wp-to-html-plugins-data.php',
+            'fallback_json_url' => WP_TO_HTML_URL . 'wp-to-html-plugins-data.php',
+            // External site export (Pro).
+            'ext_export_start_url'      => rest_url('wp_to_html/v1/ext-export/start'),
+            'ext_export_status_url'     => rest_url('wp_to_html/v1/ext-export/status'),
+            'ext_export_batch_url'      => rest_url('wp_to_html/v1/ext-export/batch'),
+            'ext_export_stop_url'       => rest_url('wp_to_html/v1/ext-export/stop'),
+            'ext_export_download_url'   => rest_url('wp_to_html/v1/ext-export/download'),
+            'ext_export_list_files_url' => rest_url('wp_to_html/v1/ext-export/list-files'),
+            'site_url'                  => home_url('/'),
             'post_types' => $this->get_public_post_types_for_picker(),
             // For All Posts scope: include core "post" + public CPTs that have at least one non-private item.
             'all_posts_post_types' => $this->get_post_types_for_all_posts_scope(),
+            // Developer debug flag — mirrors the PHP WP_TO_HTML_DEBUG constant.
+            'debug' => defined('WP_TO_HTML_DEBUG') && WP_TO_HTML_DEBUG ? 1 : 0,
         ]);
 
 
@@ -221,9 +232,14 @@ CSS
                     <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" class="eh-topbar-upgrade-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                         <?php esc_html_e('Upgrade to Pro', 'wp-to-html'); ?>
+                        <span class="eh-upgrade-price-tag" style="display: none;">
+                            <span class="eh-upgrade-old"></span>
+                            <span class="eh-upgrade-new"></span>
+                            <span class="eh-upgrade-save"></span>
+                        </span>
                     </a>
                     <?php endif; ?>
-                    <button type="button" class="eh-topbar-review-btn" id="eh-review-btn">
+                    <button type="button" class="eh-topbar-review-btn" id="eh-review-btn"<?php echo $pro_active ? ' style="display:none!important;"' : ''; ?>>
                         <span class="eh-review-stars-static">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
                         <?php esc_html_e('Rate us', 'wp-to-html'); ?>
                     </button>
@@ -231,6 +247,18 @@ CSS
                 <nav class="eh-topbar-nav" role="tablist">
                     <button type="button" id="eh-tab-export" role="tab" aria-pressed="true"><?php esc_html_e('Export', 'wp-to-html'); ?></button>
                     <button type="button" id="eh-tab-settings" role="tab" aria-pressed="false"><?php esc_html_e('Settings', 'wp-to-html'); ?></button>
+                    <?php if ($pro_active): ?>
+                    <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false" class="eh-tab-ext-export-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
+                    </button>
+                    <?php else: ?>
+                    <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false" class="eh-tab-ext-export-btn" data-pro="1">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
+                        <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;margin-left:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </button>
+                    <?php endif; ?>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-to-html-system-status' ) ); ?>" class="eh-tab-link"><?php esc_html_e('System Status', 'wp-to-html'); ?></a>
                 </nav>
             </header>
@@ -248,14 +276,15 @@ CSS
                         <span class="eh-scope-label"><?php esc_html_e('Export Scope', 'wp-to-html'); ?></span>
                         <div class="eh-seg" role="tablist" aria-label="<?php esc_attr_e('Export scope', 'wp-to-html'); ?>">
                             <button type="button" id="eh-scope-custom" role="tab" aria-pressed="true"><?php esc_html_e('Custom', 'wp-to-html'); ?></button>
-                            <button type="button" id="eh-scope-all-pages" role="tab" aria-pressed="false"><?php esc_html_e('All pages', 'wp-to-html'); ?></button>
                             <?php if ($pro_active): ?>
+                            <button type="button" id="eh-scope-all-pages" role="tab" aria-pressed="false"><?php esc_html_e('All pages', 'wp-to-html'); ?></button>
                             <button type="button" id="eh-scope-all-posts" role="tab" aria-pressed="false"><?php esc_html_e('All posts', 'wp-to-html'); ?></button>
                             <button type="button" id="eh-scope-full" role="tab" aria-pressed="false"><?php esc_html_e('Full site', 'wp-to-html'); ?></button>
                             <?php endif; ?>
                         </div>
                         <?php if (!$pro_active): ?>
                         <div class="eh-seg-pro" role="tablist" aria-label="<?php esc_attr_e('Pro export scopes', 'wp-to-html'); ?>">
+                            <button type="button" id="eh-scope-all-pages" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('All pages', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
                             <button type="button" id="eh-scope-all-posts" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('All posts', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
                             <button type="button" id="eh-scope-full" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('Full site', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
                         </div>
@@ -392,12 +421,16 @@ CSS
                 <main class="eh-center">
                     <div class="eh-center-inner">
                         <div class="eh-ring-wrap">
+                            
                             <svg class="eh-ring-svg" viewBox="0 0 160 160">
                                 <circle class="eh-ring-bg" cx="80" cy="80" r="70"/>
                                 <circle class="eh-ring-fg" id="eh-ring-fg" cx="80" cy="80" r="70"/>
                                 <text x="80" y="73" class="eh-ring-pct" id="eh-ring-pct" text-anchor="middle" dominant-baseline="central">0%</text>
                                 <text x="80" y="97" class="eh-ring-sub" text-anchor="middle" dominant-baseline="central"><?php esc_html_e('progress', 'wp-to-html'); ?></text>
                             </svg>
+                        </div>
+                        <div id="eh-ring-loader" class="eh-ring-loader" style="display:none;">
+                            <span></span><span></span><span></span>
                         </div>
                         <button id="wp-to-html-start" type="button">
                             <span class="eh-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5z"/></svg></span>
@@ -659,6 +692,248 @@ CSS
                 </div>
             </div><!-- /#eh-panel-settings -->
 
+        <!-- ══════ EXTERNAL SITE EXPORT PANEL ══════ -->
+        <div id="eh-panel-ext-export" class="eh-ext-export-page" style="display:none;">
+
+            <?php if ( ! $pro_active ) : ?>
+            <!-- ── PRO LOCK OVERLAY ── -->
+            <div class="eh-ext-lock-overlay">
+                <div class="eh-ext-lock-card">
+                    <div class="eh-ext-lock-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h2><?php esc_html_e('External Site Export is a Pro Feature', 'wp-to-html'); ?></h2>
+                    <p><?php esc_html_e('Crawl, archive and export any external website — or any set of URLs — into a clean, self-contained static HTML package.', 'wp-to-html'); ?></p>
+                    <ul class="eh-ext-lock-features">
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <?php esc_html_e('Crawl any external or internal URL', 'wp-to-html'); ?></li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <?php esc_html_e('Full-site mode: auto-discover & export all pages', 'wp-to-html'); ?></li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <?php esc_html_e('Download as a ready-to-host ZIP archive', 'wp-to-html'); ?></li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <?php esc_html_e('Assets (images, CSS, JS) included automatically', 'wp-to-html'); ?></li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <?php esc_html_e('Real-time progress with live log', 'wp-to-html'); ?></li>
+                    </ul>
+                    <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" class="eh-ext-lock-cta">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <?php esc_html_e('Get Pro — Only $15/yr', 'wp-to-html'); ?>
+                        <span class="eh-upgrade-save" style="margin-left:8px;">62% OFF</span>
+                    </a>
+                </div>
+            </div>
+            <?php else : ?>
+
+            <!-- ── PRO: FULL UI ── -->
+            <div class="eh-ext-hero">
+                <div class="eh-ext-hero-inner">
+                    <div class="eh-ext-hero-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </div>
+                    <div>
+                        <h2><?php esc_html_e('External Site Export', 'wp-to-html'); ?></h2>
+                        <p><?php esc_html_e('Crawl any external or internal website and export it as a static HTML archive — ready to host anywhere.', 'wp-to-html'); ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="eh-ext-body">
+                <div class="eh-ext-grid">
+
+                    <!-- ── Left: Config ── -->
+                    <div class="eh-ext-config-col">
+
+                        <!-- Mode toggle -->
+                        <div class="eh-ext-card">
+                            <div class="eh-ext-card-head">
+                                <div class="eh-ext-card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                </div>
+                                <div>
+                                    <h3><?php esc_html_e('Export Mode', 'wp-to-html'); ?></h3>
+                                    <p><?php esc_html_e('Choose between exporting specific pages or the entire site.', 'wp-to-html'); ?></p>
+                                </div>
+                            </div>
+                            <div class="eh-ext-card-body">
+                                <div class="eh-ext-mode-tabs" role="tablist">
+                                    <button type="button" class="eh-ext-mode-tab is-active" id="eh-ext-mode-pages" role="tab" aria-pressed="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <?php esc_html_e('Specific Pages', 'wp-to-html'); ?>
+                                        <span class="eh-ext-mode-desc"><?php esc_html_e('Enter individual URLs to export', 'wp-to-html'); ?></span>
+                                    </button>
+                                    <button type="button" class="eh-ext-mode-tab" id="eh-ext-mode-fullsite" role="tab" aria-pressed="false">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                        <?php esc_html_e('Full Site', 'wp-to-html'); ?>
+                                        <span class="eh-ext-mode-desc"><?php esc_html_e('Crawl & export all discovered pages', 'wp-to-html'); ?></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- URL input -->
+                        <div class="eh-ext-card">
+                            <div class="eh-ext-card-head">
+                                <div class="eh-ext-card-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </div>
+                                <div>
+                                    <h3 id="eh-ext-url-label"><?php esc_html_e('Page URLs', 'wp-to-html'); ?></h3>
+                                    <p id="eh-ext-url-hint"><?php esc_html_e('Enter one URL per line. Supports both internal and external URLs.', 'wp-to-html'); ?></p>
+                                </div>
+                            </div>
+                            <div class="eh-ext-card-body">
+                                <textarea id="eh-ext-urls" rows="6" placeholder="https://example.com/page-1&#10;https://example.com/about&#10;https://another-site.com/article" spellcheck="false"></textarea>
+                                <div class="eh-ext-url-actions">
+                                    <button type="button" class="eh-btn-s" id="eh-ext-add-current"><?php esc_html_e('+ Add current site home', 'wp-to-html'); ?></button>
+                                    <button type="button" class="eh-btn-s" id="eh-ext-clear-urls"><?php esc_html_e('Clear', 'wp-to-html'); ?></button>
+                                    <span id="eh-ext-url-count" class="eh-badge">0 URLs</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Crawl depth (full site mode only) -->
+                        <div class="eh-ext-card" id="eh-ext-depth-card" style="display:none;">
+                            <div class="eh-ext-card-head">
+                                <div class="eh-ext-card-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                </div>
+                                <div>
+                                    <h3><?php esc_html_e('Crawl Options', 'wp-to-html'); ?></h3>
+                                    <p><?php esc_html_e('Control how deep the crawler follows links.', 'wp-to-html'); ?></p>
+                                </div>
+                            </div>
+                            <div class="eh-ext-card-body">
+                                <div class="eh-fs-field">
+                                    <label class="eh-fs-label"><?php esc_html_e('Crawl depth', 'wp-to-html'); ?></label>
+                                    <div class="eh-ext-depth-row">
+                                        <input type="range" id="eh-ext-depth" min="1" max="10" value="3" class="eh-ext-depth-slider">
+                                        <span class="eh-ext-depth-val" id="eh-ext-depth-val">3</span>
+                                        <span class="eh-hint"><?php esc_html_e('levels deep', 'wp-to-html'); ?></span>
+                                    </div>
+                                </div>
+                                <p class="eh-hint"><?php esc_html_e('Higher depth exports more pages but takes longer. Max 2,000 pages per run.', 'wp-to-html'); ?></p>
+                            </div>
+                        </div>
+
+                        <!-- Group Assets toggle -->
+                        <div class="eh-ext-card">
+                            <div class="eh-ext-card-head">
+                                <div class="eh-ext-card-icon" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="12" width="6" height="6" rx="1"/><rect x="9" y="12" width="6" height="6" rx="1"/><rect x="16" y="12" width="6" height="6" rx="1"/></svg>
+                                </div>
+                                <div>
+                                    <h3><?php esc_html_e('Asset Output', 'wp-to-html'); ?></h3>
+                                    <p><?php esc_html_e('Choose how downloaded assets are organised in the ZIP.', 'wp-to-html'); ?></p>
+                                </div>
+                            </div>
+                            <div class="eh-ext-card-body">
+                                <label class="eh-toggle-row" for="eh-ext-group-assets">
+                                    <span class="eh-toggle-wrap">
+                                        <input type="checkbox" id="eh-ext-group-assets" checked>
+                                        <span class="eh-toggle-slider"></span>
+                                    </span>
+                                    <span class="eh-toggle-text">
+                                        <strong><?php esc_html_e('Group assets', 'wp-to-html'); ?></strong>
+                                        <span class="eh-hint"><?php esc_html_e('Auto-sorted into /images, /css, /js — clean, developer-ready output for instant handoff.', 'wp-to-html'); ?></span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Launch button -->
+                        <div class="eh-ext-launch-wrap">
+                            <button type="button" id="eh-ext-start" class="eh-ext-start-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                <?php esc_html_e('Start External Export', 'wp-to-html'); ?>
+                            </button>
+                            <button type="button" id="eh-ext-stop" class="eh-fs-btn eh-fs-btn-ghost" style="display:none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                                <?php esc_html_e('Stop', 'wp-to-html'); ?>
+                            </button>
+                            <span class="spinner eh-inline-spinner" id="eh-ext-spinner"></span>
+                        </div>
+
+                    </div><!-- /.eh-ext-config-col -->
+
+                </div><!-- /#wp-to-html-app -->
+
+                    <!-- ── Right: Progress + Log ── -->
+                    <div class="eh-ext-progress-col">
+
+                        <!-- Progress ring card -->
+                        <div class="eh-ext-card eh-ext-progress-card">
+                            <div class="eh-ext-card-body" style="text-align:center;padding:32px 20px;">
+                                <div class="eh-ring-wrap" style="margin-bottom:16px;">
+                                    <svg class="eh-ring-svg" viewBox="0 0 160 160">
+                                        <circle class="eh-ring-bg" cx="80" cy="80" r="70"/>
+                                        <circle class="eh-ring-fg" id="eh-ext-ring-fg" cx="80" cy="80" r="70"/>
+                                        <text x="80" y="73" class="eh-ring-pct" id="eh-ext-ring-pct" text-anchor="middle" dominant-baseline="central">0%</text>
+                                        <text x="80" y="97" class="eh-ring-sub" text-anchor="middle" dominant-baseline="central"><?php esc_html_e('progress', 'wp-to-html'); ?></text>
+                                    </svg>
+                                </div>
+                                
+                                <div id="eh-ring-progress-label" class="eh-ring-progress-label"></div>
+                                <div class="eh-big" id="eh-ext-result" style="margin:8px 0 4px;"><?php esc_html_e('Idle', 'wp-to-html'); ?></div>
+                                <div class="eh-ext-stat-row">
+                                    <div class="eh-ext-stat">
+                                        <span class="eh-ext-stat-val" id="eh-ext-pages-done">0</span>
+                                        <span class="eh-ext-stat-label"><?php esc_html_e('Pages done', 'wp-to-html'); ?></span>
+                                    </div>
+                                    <div class="eh-ext-stat">
+                                        <span class="eh-ext-stat-val" id="eh-ext-pages-total">—</span>
+                                        <span class="eh-ext-stat-label"><?php esc_html_e('Total found', 'wp-to-html'); ?></span>
+                                    </div>
+                                </div>
+                                <div class="eh-big" id="eh-ext-status-label" style="margin:12px 0 8px;"><?php esc_html_e('Idle', 'wp-to-html'); ?></div>
+                                <div id="eh-ext-action-btns" style="display:none;flex-direction:column;gap:8px;align-items:center;width:100%;">
+                                    <a id="eh-ext-download" href="#" class="button button-primary eh-has-icon" style="width:100%;justify-content:center;" download>
+                                        <span class="eh-icon"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M5 19h14"/></svg></span>
+                                        <?php esc_html_e('Download ZIP', 'wp-to-html'); ?>
+                                    </a>
+                                    <button type="button" id="eh-ext-preview" class="button eh-has-icon" style="width:100%;justify-content:center;">
+                                        <span class="eh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                                        <?php esc_html_e('Preview Files', 'wp-to-html'); ?>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live log -->
+                        <div class="eh-ext-card" style="flex:1;min-height:220px;display:flex;flex-direction:column;">
+                            <div class="eh-logpanel-head" style="padding:12px 16px;">
+                                <span class="eh-logpanel-title"><?php esc_html_e('Crawl Log', 'wp-to-html'); ?></span>
+                                <button type="button" class="eh-btn-s" id="eh-ext-copy-log"><?php esc_html_e('Copy', 'wp-to-html'); ?></button>
+                            </div>
+                            <pre id="eh-ext-log" style="flex:1;margin:0;border-radius:0 0 12px 12px;"></pre>
+                        </div>
+
+                    </div><!-- /.eh-ext-progress-col -->
+
+                </div><!-- /.eh-ext-grid -->
+            </div><!-- /.eh-ext-body -->
+
+            <?php endif; // pro_active ?>
+
+        </div><!-- /#eh-panel-ext-export -->
+
+            <!-- ══════ MORE PLUGINS SECTION ══════ -->
+            <div id="eh-more-plugins-section">
+                <div class="eh-moreplugins-wrap">
+                    <div class="eh-moreplugins-header">
+                        <div class="eh-moreplugins-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        </div>
+                        <div>
+                            <h2><?php esc_html_e('More Plugins by ReCorp', 'wp-to-html'); ?></h2>
+                            <p><?php esc_html_e('Discover our other tools to supercharge your WordPress site.', 'wp-to-html'); ?></p>
+                        </div>
+                    </div>
+                    <div class="eh-moreplugins-grid" id="eh-moreplugins-grid">
+                        <!-- Populated by JS from remote data -->
+                        <div class="eh-moreplugins-loading">
+                            <span class="spinner is-active"></span>
+                            <?php esc_html_e('Loading plugins…', 'wp-to-html'); ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- /#wp-to-html-app -->
 
         <!-- Preview Modal -->
@@ -750,26 +1025,38 @@ CSS
             <div class="eh-pro-modal-card">
                 <div class="eh-pro-modal-head">
                     <div class="eh-pro-modal-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </div>
                     <div class="eh-pro-modal-title"><?php esc_html_e('Unlock Pro Features', 'wp-to-html'); ?></div>
                     <button type="button" class="eh-pro-modal-x" id="eh-pro-modal-close-btn" aria-label="<?php esc_attr_e('Close', 'wp-to-html'); ?>">&#x2715;</button>
                 </div>
+                <div class="eh-pro-modal-price-block">
+                    <div class="eh-modal-price-left">
+                        <span class="eh-modal-price-label"><?php esc_html_e('1-Year License', 'wp-to-html'); ?></span>
+                        <div class="eh-modal-price-row">
+                            <span class="eh-modal-price-old">$39.99</span>
+                            <span class="eh-modal-price-new">$15</span>
+                            <span class="eh-modal-price-period"><?php esc_html_e('/ year', 'wp-to-html'); ?></span>
+                        </div>
+                        <span class="eh-modal-price-save"><?php esc_html_e('You save $24.99 — 62% off', 'wp-to-html'); ?></span>
+                    </div>
+                    <div class="eh-modal-price-badge">62%<br><span>OFF</span></div>
+                </div>
                 <div class="eh-pro-modal-body">
-                    <p class="eh-pro-modal-lead"><?php esc_html_e('Export your entire WordPress site in bulk — upgrade to Pro.', 'wp-to-html'); ?></p>
+                    <p class="eh-pro-modal-lead"><?php esc_html_e('Remove all limits and unlock every export scope:', 'wp-to-html'); ?></p>
                     <ul class="eh-pro-feat-list">
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><div><strong><?php esc_html_e('All Posts', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('export every post type in one click', 'wp-to-html'); ?></div></li>
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><div><strong><?php esc_html_e('Full Site', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('complete static html of your entire site', 'wp-to-html'); ?></div></li>
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><div><strong><?php esc_html_e('AWS S3 Upload', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('push exports directly to your S3 bucket', 'wp-to-html'); ?></div></li>
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><div><strong><?php esc_html_e('FTP / SFTP Upload', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('deploy to any server automatically', 'wp-to-html'); ?></div></li>
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><div><strong><?php esc_html_e('Grouped Assets', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('organize exports into /images, /css, /js folders', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><strong><?php esc_html_e('Unlimited Custom Scope', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('select any number of posts, pages or CPTs', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><div><strong><?php esc_html_e('All Pages &amp; All Posts', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('bulk export entire archives in one click', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><div><strong><?php esc_html_e('Full Site Export', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('complete static HTML of your entire site', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><div><strong><?php esc_html_e('AWS S3 Deployment', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('push exports directly to your S3 bucket', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><div><strong><?php esc_html_e('Grouped Assets', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('auto-organized into /images, /css, /js', 'wp-to-html'); ?></div></li>
                     </ul>
                 </div>
                 <div class="eh-pro-modal-foot">
                     <button type="button" class="eh-pro-modal-dismiss" id="eh-pro-modal-dismiss"><?php esc_html_e('Maybe later', 'wp-to-html'); ?></button>
                     <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" class="eh-pro-modal-cta">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                        <?php esc_html_e('Upgrade to Pro', 'wp-to-html'); ?>
+                        <?php esc_html_e('Get Pro — Only $15/yr', 'wp-to-html'); ?>
                     </a>
                 </div>
             </div>

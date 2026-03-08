@@ -4,11 +4,11 @@ Tags:               static html export, static site generator, html export, expo
 Requires at least:  5.8
 Tested up to:       6.9
 Requires PHP:       7.4
-Stable tag:         6.0.5.5
+Stable tag:         6.0.5.7
 License:            GPLv2 or later
 License URI:        https://www.gnu.org/licenses/gpl-2.0.html
 
-Export any WordPress post, page, or custom post type to clean static HTML — one at a time or in bulk. Grouped assets, role-based export, FTP upload & more.
+Export any WordPress post, page, or custom post type to clean static HTML — one at a time or in bulk. Free up to 5 posts/pages per export. Grouped assets, role-based export, FTP upload & more.
 
 == Description ==
 
@@ -16,7 +16,7 @@ Export any WordPress post, page, or custom post type to clean static HTML — on
 
 Whether you're archiving a campaign landing page, delivering client work as a self-contained HTML package, or building a lightning-fast static copy of your content, Export WP Pages to Static HTML makes it effortless.
 
-> 🔒 **[Export WP Pages to Static HTML Pro Available](https://myrecorp.com/export-wp-page-to-static-html-pro/)** — Unlock All Posts, Full Site exports, AWS S3 deployment & more!
+> 🔒 **[Export WP Pages to Static HTML Pro Available](https://myrecorp.com/export-wp-page-to-static-html-pro/)** — Unlock All Pages & All Posts exports (free is limited to 5), Full Site exports, External Site Export, AWS S3 deployment & more!
 
 ---
 
@@ -39,9 +39,17 @@ Most static site plugins convert your *entire* WordPress site in one go. Export 
 
 ### ⚡ Core Features (Free)
 
-**All Pages Export**
+**Export Scope — Free & Pro**
 
-Export all your WordPress pages in one click — no need to select them one by one. Perfect for exporting your entire page-based site (landing pages, portfolios, business sites) as clean static HTML.
+Free users can export up to **5 posts or pages** per run using the Custom export scope — hand-pick exactly what you need from any post type. Need more? Upgrade to Pro to unlock unlimited Custom exports, All Pages, All Posts, and Full Site scopes.
+
+**All Pages Export** 🔒 Pro
+
+Export all your WordPress pages in one click — no need to select them one by one. Perfect for exporting your entire page-based site (landing pages, portfolios, business sites) as clean static HTML. Available in Export WP Pages to Static HTML Pro.
+
+**Quick Export from Post & Page Listings**
+
+Export any single item instantly without leaving your WordPress admin lists. Every post, page, and custom post type item gets a dedicated **Export to HTML** action button directly in the listing row — click it and that item is exported immediately, no export panel required.
 
 **Granular Export Control**
 
@@ -107,8 +115,10 @@ Export WP Pages to Static HTML is fully internationalized and ready for translat
 
 ### 🚀 Export WP Pages to Static HTML Pro Features
 
+* **All Pages export** — export every page in one run (free is limited to 5 per export)
 * **All Posts export** — export every post (or selected custom post types) in one run
 * **Full Site export** — complete WordPress-to-static-HTML conversion with URL discovery
+* **External Site Export** — fetch, mirror, and export any external website as clean static HTML
 * **AWS S3 deployment** — push exports directly to an S3 bucket
 * Email support and priority bug fixes
 
@@ -165,7 +175,7 @@ Export WP Pages to Static HTML is fully internationalized and ready for translat
 = Your First Export =
 
 1. Go to **Tools → Export WP Pages to Static HTML**
-2. Choose your **Export Scope** (Custom, All Pages, or Pro: All Posts / Full Site)
+2. Choose your **Export Scope** (Custom up to 5 items free, or Pro: All Pages / All Posts / Full Site / External Site)
 3. Select the posts or pages you want to export
 4. (Optional) Choose a **Post Status**, **Login Role**, and **Asset Options**
 5. Click **Start Export**
@@ -175,7 +185,7 @@ Export WP Pages to Static HTML is fully internationalized and ready for translat
 
 = Is Export WP Pages to Static HTML free? =
 
-Yes! The core plugin is completely free and includes Custom and All Pages export scopes. Export WP Pages to Static HTML Pro is an optional add-on that unlocks All Posts, Full Site exports, and AWS S3 deployment.
+Yes! The core plugin is free and lets you export up to **5 posts or pages per run** using the Custom export scope. Export WP Pages to Static HTML Pro is an optional add-on that removes this limit and unlocks All Pages, All Posts, Full Site, External Site Export, and AWS S3 deployment.
 
 = How is Export WP Pages to Static HTML different from Simply Static or other full-site generators? =
 
@@ -229,6 +239,10 @@ Yes. All public, registered custom post types are automatically detected and app
 
 The free plugin works on individual sites in a multisite network.
 
+= What is External Site Export? =
+
+External Site Export is a Pro feature that lets you point Export WP Pages to Static HTML at **any URL** — not just your own WordPress content. The plugin fetches, crawls, and mirrors the target site, downloading its HTML, CSS, JavaScript, and images into a clean, self-contained static package you can host anywhere. Ideal for archiving third-party pages, creating offline mirrors, or incorporating external content into a static delivery.
+
 = What are the asset collection modes? =
 
 Strict exports only assets directly referenced by the exported pages. Hybrid (the recommended default) adds your media library on top of referenced assets. Full includes everything — theme and plugin asset directories included.
@@ -245,7 +259,14 @@ Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/e
 1. **Export Panel** — Select posts, pages, or CPT items, choose scope, and start your export
 
 
-== Changelog ==
+= 6.0.5.7 =
+* Changed: All Pages export scope is now a Pro feature.
+* Changed: Free version is now limited to exporting a maximum of 5 posts or pages per run.
+* Added: External Site Export — fetch and mirror any external URL as static HTML (Pro only).
+* Added: Quick Export button on posts, pages, and custom post type listing rows — export any single item instantly from the admin list.
+
+= 6.0.5.5 =
+* Minor fixes and stability improvements.
 
 = 6.0.5.2 =
 * Fixed: Tables creating error on plugin update.

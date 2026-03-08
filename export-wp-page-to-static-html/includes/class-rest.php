@@ -879,6 +879,14 @@ register_rest_route('wp_to_html/v1', '/status', [
             'statuses'     => $statuses,
         ];
 
+        // Free plan: cap custom scope to 5 selected items.
+        if ($scope === 'selected' && !(function_exists('wp_to_html_is_pro_active') && wp_to_html_is_pro_active())) {
+            $free_limit = 5;
+            if (count($args['selected']) > $free_limit) {
+                $args['selected'] = array_slice($args['selected'], 0, $free_limit);
+            }
+        }
+
         // Optional: restrict All Posts scope to a subset of post types.
         // UI provides only public post types; server still sanitizes and applies guardrails.
         if ($scope === 'all_posts') {

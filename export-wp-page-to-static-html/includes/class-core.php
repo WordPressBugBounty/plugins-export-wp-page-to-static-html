@@ -32,6 +32,7 @@ class Core {
         add_action('wp_to_html_build_queue_event', [$this, 'build_queue_background']);
         new Admin();
         new REST();
+        new Quick_Export();
 
         // Advanced debugger: capture fatal errors + last progress marker.
         if (Advanced_Debugger::enabled()) {

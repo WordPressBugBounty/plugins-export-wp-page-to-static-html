@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.5.5
+ * Version:           6.0.5.7
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.5.5');
+define('WP_TO_HTML_VERSION', '6.0.5.7');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
@@ -39,29 +39,23 @@ if (!defined('WP_TO_HTML_ADVANCED_DEBUG')) {
  */
 if (!function_exists('wp_to_html_is_pro_active')) {
     function wp_to_html_is_pro_active(): bool {
-        // Fast path: Pro plugin can define this constant.
-        if (defined('WP_TO_HTML_PRO_ACTIVE') && WP_TO_HTML_PRO_ACTIVE) {
-            return true;
+        if (!function_exists('ewptshp_fs')) {
+            return false;
         }
 
-        // Alternative: Pro can load a class.
-        if (class_exists('WpToHtml_Pro\\Plugin')) {
-            return true;
-        }
-
-        // Extensible hook for other licensing/loader mechanisms.
-        return (bool) apply_filters('wp_to_html/pro_active', false);
+        $fs = ewptshp_fs();
+        return $fs->can_use_premium_code() && $fs->is_plan('pro', true);
     }
 }
 
 if (!function_exists('wp_to_html_allowed_scopes')) {
     /**
      * Allowed export scopes for the current installation.
-     * Free: selected (aka custom) + all_pages
-     * Pro: selected + all_pages + all_posts + full_site
+     * Free: selected (aka custom, max 5 items)
+     * Pro: selected (unlimited) + all_pages + all_posts + full_site
      */
     function wp_to_html_allowed_scopes(): array {
-        $scopes = ['selected', 'all_pages'];
+        $scopes = ['selected'];
         if (wp_to_html_is_pro_active()) {
             $scopes = ['selected', 'all_posts', 'all_pages', 'full_site'];
         }
@@ -147,6 +141,7 @@ require_once WP_TO_HTML_PATH . 'includes/class-asset-manager.php';
 require_once WP_TO_HTML_PATH . 'includes/class-asset-extractor.php';
 require_once WP_TO_HTML_PATH . 'includes/class-bulk-asset-collector.php';
 require_once WP_TO_HTML_PATH . 'includes/class-ftp-uploader.php';
+require_once WP_TO_HTML_PATH . 'includes/class-quick-export.php';
 
 // Robust RFC3986 URL absolutizer (ported from the older exporter).
 require_once WP_TO_HTML_PATH . 'includes/url/url_to_absolute.php';
@@ -177,21 +172,44 @@ register_activation_hook(__FILE__, function() {
 
     } elseif (version_compare($installed_version, WP_TO_HTML_VERSION, '<')) {
         // Upgrade: create/restore tables (deactivation dropped them),
-        // flag the "What's New" redirect, then bump the stored version.
+        // then bump the stored version.
         wp_to_html_ensure_tables();
         set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
         update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
     }
     // Same version re-activation: nothing to do.
 
+    // Redirect to plugin main page after activation (all cases).
+    set_transient('wp_to_html_redirect_after_activation', 1, 60);
+
     ob_end_clean();
 });
 
 /**
- * Redirect to "What's New" page after plugin update (not on first activation).
- *
- * Uses a dedicated transient set by wp_to_html_plugin_update() so that the
- * version bump and the redirect trigger are fully decoupled.
+ * "What's New" redirect after plugin update — Pro only.
+ * Only fires when the Pro add-on is active (WP_TO_HTML_PRO_ACTIVE defined).
+ */
+add_action('admin_init', function () {
+    // Only redirect when Pro is active.
+    if (!defined('WP_TO_HTML_PRO_ACTIVE') || !WP_TO_HTML_PRO_ACTIVE) return;
+
+    if (!current_user_can('manage_options')) return;
+    if (wp_doing_ajax() || wp_doing_cron()) return;
+    if (isset($_GET['activate-multi'])) return;
+    if (defined('WP_CLI') && WP_CLI) return;
+
+    if (!get_transient('wp_to_html_redirect_to_whats_new')) return;
+
+    delete_transient('wp_to_html_redirect_to_whats_new');
+
+    if (isset($_GET['page']) && $_GET['page'] === 'wp-to-html-whats-new') return;
+
+    wp_safe_redirect(admin_url('admin.php?page=wp-to-html-whats-new'));
+    exit;
+});
+
+/**
+ * Redirect to the plugin main page after activation.
  */
 add_action('admin_init', function () {
     if (!current_user_can('manage_options')) return;
@@ -199,16 +217,15 @@ add_action('admin_init', function () {
     if (isset($_GET['activate-multi'])) return;
     if (defined('WP_CLI') && WP_CLI) return;
 
-    // Only redirect if the update routine flagged it.
-    if (!get_transient('wp_to_html_redirect_to_whats_new')) return;
+    if (!get_transient('wp_to_html_redirect_after_activation')) return;
 
     // Clear immediately so it only fires once.
-    delete_transient('wp_to_html_redirect_to_whats_new');
+    delete_transient('wp_to_html_redirect_after_activation');
 
-    // Don't redirect if already on the page.
-    if (isset($_GET['page']) && $_GET['page'] === 'wp-to-html-whats-new') return;
+    // Don't redirect if already on the plugin page.
+    if (isset($_GET['page']) && $_GET['page'] === 'wp-to-html') return;
 
-    wp_safe_redirect(admin_url('admin.php?page=wp-to-html-whats-new'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-to-html'));
     exit;
 });
 
@@ -371,10 +388,91 @@ function wp_to_html_plugin_update() {
     // Bump stored version FIRST so this block won't re-run on the next load.
     update_option('wp_to_html_version', $current_version, false);
 
-    // Show "What's New" on any version upgrade (covers FTP/manual updates where
-    // the activation hook never fires). Fresh installs (empty string) excluded.
+    // Set What's New redirect transient — only shown when Pro is active (see admin_init hook).
     if ($installed_version !== '' && version_compare($installed_version, $current_version, '<')) {
         set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
     }
 }
 add_action('plugins_loaded', 'wp_to_html_plugin_update');
+
+// ─── Dynamic Pricing & Plugin Info via WP Cron ────────────────────────────────
+
+/**
+ * Schedule daily cron to fetch pricing + plugin data from the remote API.
+ */
+add_action('wp', function () {
+    if (!wp_next_scheduled('wp_to_html_fetch_remote_data')) {
+        wp_schedule_event(time(), 'daily', 'wp_to_html_fetch_remote_data');
+    }
+});
+
+register_deactivation_hook(__FILE__, function () {
+    wp_clear_scheduled_hook('wp_to_html_fetch_remote_data');
+});
+
+// ─── Deactivation Feedback Popup: enqueue admin.js on plugins.php ─────────────
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook !== 'plugins.php') return;
+
+    $js_ver = defined('WP_TO_HTML_VERSION') ? WP_TO_HTML_VERSION : '1.0.0';
+
+    // jQuery is always available on plugins.php; just enqueue our admin JS.
+    wp_enqueue_script(
+        'wp-to-html-admin-deactivate',
+        WP_TO_HTML_URL . 'assets/admin.js',
+        ['jquery'],
+        $js_ver,
+        true
+    );
+
+    // Pass the minimal data the deactivation popup needs.
+    wp_localize_script('wp-to-html-admin-deactivate', 'wpToHtmlData', [
+        'site_url'       => home_url('/'),
+        'plugin_version' => defined('WP_TO_HTML_VERSION') ? WP_TO_HTML_VERSION : '',
+        'wp_version'     => get_bloginfo('version'),
+    ]);
+});
+
+/**
+ * Fetch remote JSON and cache it as a WP option.
+ * JSON endpoint: https://api.myrecorp.com/wp-to-html-plugins-data.php
+ */
+add_action('wp_to_html_fetch_remote_data', 'wp_to_html_do_fetch_remote_data');
+function wp_to_html_do_fetch_remote_data(): void {
+    $response = wp_remote_get('https://api.myrecorp.com/wp-to-html-plugins-data.php', [
+        'timeout'    => 15,
+        'user-agent' => 'WpToHtml/' . WP_TO_HTML_VERSION . '; ' . home_url('/'),
+    ]);
+
+    if (is_wp_error($response)) return;
+
+    $body = wp_remote_retrieve_body($response);
+    if (empty($body)) return;
+
+    $data = json_decode($body, true);
+    if (!is_array($data)) return;
+
+    update_option('wp_to_html_remote_data', $data, false);
+    update_option('wp_to_html_remote_data_updated', time(), false);
+}
+
+/**
+ * Get cached remote data. Falls back to defaults if not yet fetched.
+ */
+function wp_to_html_get_remote_data(): array {
+    $data = get_option('wp_to_html_remote_data', null);
+    if (!is_array($data)) {
+        return [
+            'pricing' => ['old' => 39.99, 'new' => 15],
+            'plugins' => [],
+        ];
+    }
+    return $data;
+}
+
+/**
+ * Remote data (pricing + plugins) is now fetched live by the browser JS
+ * on every settings page load via fetch('https://api.myrecorp.com/wp-to-html-plugins-data.php').
+ * The WP cron below still runs daily as a server-side backup/cache, but
+ * wp_localize_script is no longer used for this data.
+ */

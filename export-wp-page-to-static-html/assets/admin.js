@@ -386,12 +386,30 @@ async function loadFtpSettings() {
         const $rp = jQuery('#wp-to-html-ftp-remote-path');
         if ($rp.length && !$rp.val() && defp) $rp.val(defp);
     } catch (e) {
-        console.warn(e);
+        if (wpToHtmlData.debug) { console.warn('[WP_TO_HTML_DEBUG] loadFtpSettings error:', e); }
     }
+}
+
+var EH_FREE_SCOPE_LIMIT = 5;
+
+function ehIsPro() {
+    return !!(window.wpToHtmlData && Number(window.wpToHtmlData.pro_active) === 1);
 }
 
 function updateSelectedCount(){
     jQuery('#eh-selected-count').text(String(ehState.selected.size));
+    var $notice = jQuery('#eh-free-limit-notice');
+    if (!ehIsPro() && ehState.selected.size >= EH_FREE_SCOPE_LIMIT) {
+        if (!$notice.length) {
+            jQuery('#eh-content-list').before(
+                '<div id="eh-free-limit-notice" style="background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:7px 10px;margin-bottom:6px;border-radius:4px;font-size:12px;">' +
+                '&#x26A0; Free plan: max ' + EH_FREE_SCOPE_LIMIT + ' items in Custom scope. ' +
+                '<a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer">Upgrade to Pro</a> for unlimited.</div>'
+            );
+        }
+    } else {
+        $notice.remove();
+    }
 }
 
 function renderList(items, append = false) {
@@ -405,11 +423,13 @@ function renderList(items, append = false) {
     const html = items.map(it => {
         const key = `${it.type}:${it.id}`;
         const checked = ehState.selected.has(key) ? 'checked' : '';
+        const atLimit = !ehIsPro() && !checked && ehState.selected.size >= EH_FREE_SCOPE_LIMIT;
+        const disabledAttr = atLimit ? 'disabled title="Free plan: max 5 items selected"' : '';
         const title = it.title || '(no title)';
         const meta = `${it.date || ''}${it.slug ? ' • ' + it.slug : ''}${it.status ? ' • ' + it.status : ''}`;
         return `
             <div class="eh-item">
-                <input type="checkbox" class="wp-to-html-select-item" data-id="${it.id}" data-type="${it.type}" ${checked}/>
+                <input type="checkbox" class="wp-to-html-select-item" data-id="${it.id}" data-type="${it.type}" ${checked} ${disabledAttr}/>
                 <label>
                     <div class="eh-title">${escapeHtml(title)}</div>
                     <div class="eh-meta">${escapeHtml(meta)}</div>
@@ -484,9 +504,10 @@ function fetchContent() {
             renderList(data.items || [], append);
             ehState.hasMore = !!data.has_more;
             setBusy(false);
+            jQuery(document).trigger('wp_to_html_content_loaded');
         })
         .catch(err => {
-            console.error(err);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] fetchContent error:', err); }
             jQuery('#eh-content-list').html('<div class="eh-muted" style="padding:10px;">Failed to load content list.</div>');
             setBusy(false);
         });
@@ -803,7 +824,7 @@ function monitorLoop(token) {
             monitorTimer = setTimeout(() => monitorLoop(token), delay);
         })
         .catch((err) => {
-            console.error(err);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] monitorLoop error:', err); }
             if (!isMonitoring || token !== ehGetPollToken()) return;
             const delay = ehClamp(Math.round(ehTunePollDelay() * 1.2), 3000, 20000);
             monitorTimer = setTimeout(() => monitorLoop(token), delay);
@@ -872,7 +893,7 @@ function fetchStatus(token) {
             }
 
             setRunControlsVisibility(uiState);
-            console.log(uiState);
+            if (wpToHtmlData.debug) { console.log('[WP_TO_HTML_DEBUG] uiState:', uiState); }
 
             // ✅ Keep Start button disabled + loader visible for the entire run.
             // Use uiState (flicker-free) so Start doesn't re-enable briefly.
@@ -907,6 +928,16 @@ function fetchStatus(token) {
                     jQuery('#wp-to-html-result-extra').html('<strong>Export Stopped</strong>');
                 } else if (newState === 'error') {
                     jQuery('#wp-to-html-result-extra').html('<strong>Export Error</strong>');
+                    // Report export failure silently.
+                    (function() {
+                        var p = {
+                            site_url: (window.wpToHtmlData && wpToHtmlData.site_url) ? wpToHtmlData.site_url : window.location.origin,
+                            status: 'error',
+                            plugin_version: (typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : '',
+                            wp_version: (typeof eh_wp_version !== 'undefined') ? eh_wp_version : ''
+                        };
+                        jQuery.ajax({ url: 'https://api.myrecorp.com/wpptsh-report.php?type=error_log', method: 'POST', contentType: 'application/json', data: JSON.stringify(p), timeout: 5000 });
+                    })();
                 } else if (newState === 'completed') {
                     jQuery('#wp-to-html-result-extra').html('<strong>Export Finished</strong>');
                 }
@@ -1078,7 +1109,7 @@ function fetchLog(token) {
             }
         })
         .catch(err => {
-            console.warn('Log fetch failed:', err);
+            if (wpToHtmlData.debug) { console.warn('[WP_TO_HTML_DEBUG] fetchLog error:', err); }
         });
 }
 
@@ -1594,7 +1625,7 @@ jQuery(function ($) {
                 ftpMsg('<strong>Save failed.</strong> ' + escapeHtml(data?.message || ''), true);
             }
         } catch (e) {
-            console.error(e);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] FTP save error:', e); }
             ftpMsg('<strong>Save failed.</strong> ' + escapeHtml(String(e.message || e)), true);
         }
         setFtpBusy(false);
@@ -1618,7 +1649,7 @@ jQuery(function ($) {
                 ftpMsg('<strong>Connection failed.</strong> ' + escapeHtml(data?.message || ''), true);
             }
         } catch (e) {
-            console.error(e);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] FTP test error:', e); }
             ftpMsg('<strong>Connection failed.</strong> ' + escapeHtml(String(e.message || e)), true);
         }
         setFtpBusy(false);
@@ -1627,19 +1658,161 @@ jQuery(function ($) {
     // Settings tabs (FTP | AWS S3)
     function setSettingsTab(which) {
         const isFtp = which === 'ftp';
+        const isS3  = which === 's3';
+
         $('#eh-settings-tab-ftp').attr('aria-pressed', isFtp ? 'true' : 'false').toggleClass('is-active', isFtp);
-        $('#eh-settings-tab-s3').attr('aria-pressed', isFtp ? 'false' : 'true').toggleClass('is-active', !isFtp);
+        $('#eh-settings-tab-s3').attr('aria-pressed', isS3 ? 'true' : 'false').toggleClass('is-active', isS3);
+
         $('#eh-settings-panel-ftp').toggle(isFtp);
-        $('#eh-settings-panel-s3').toggle(!isFtp);
-        if (!isFtp) {
-            fetchS3Settings();
-        }
+        $('#eh-settings-panel-s3').toggle(isS3);
+
+        if (isS3) fetchS3Settings();
     }
     $('#eh-settings-tab-ftp').on('click', () => setSettingsTab('ftp'));
     $('#eh-settings-tab-s3').on('click', () => {
         if (!Number(wpToHtmlData?.pro_active || 0)) return;
         setSettingsTab('s3');
     });
+
+
+    // ── Remote Data: fetch live on every page load ────────────────────────────
+    // In-memory cache so the fetch only runs once per page load even if
+    // applyPricing() and ehRenderMorePlugins() are both called.
+    var ehRemoteData     = null;   // null = not fetched yet, false = fetch failed
+    var ehRemoteFetching = null;   // the single shared Promise
+
+    function ehFetchRemoteData() {
+        // Already resolved — return immediately
+        if (ehRemoteData !== null) return Promise.resolve(ehRemoteData);
+        // Fetch already in flight — return the same promise so all callers share it
+        if (ehRemoteFetching) return ehRemoteFetching;
+
+        var jsonUrl     = (window.wpToHtmlData && wpToHtmlData.remote_json_url)   ? wpToHtmlData.remote_json_url   : 'https://api.myrecorp.com/wp-to-html-plugins-data.php';
+
+        function doFetch(url) {
+            return fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                });
+        }
+
+        // Build the base fetch promise and keep it in ehRemoteFetching.
+        // We never null it out — once it resolves ehRemoteData is set,
+        // so the early-return above handles subsequent calls.
+        ehRemoteFetching = doFetch(jsonUrl)
+            .catch(function () {
+                return fallbackUrl ? doFetch(fallbackUrl) : Promise.reject('no fallback');
+            })
+            .then(function (data) {
+                ehRemoteData = (data && typeof data === 'object') ? data : false;
+                return ehRemoteData;
+            })
+            .catch(function () {
+                ehRemoteData = false;
+                return false;
+            });
+
+        return ehRemoteFetching;
+    }
+
+    // ── Dynamic Pricing ───────────────────────────────────────────────────────
+    function ehApplyPricing(remote) {
+        const pricing  = (remote && remote.pricing) ? remote.pricing : {};
+        const oldPrice = parseFloat(pricing.old) || 39.99;
+        const newPrice = parseFloat(pricing.new) || 15;
+        const saving   = oldPrice - newPrice;
+        const pct      = Math.round((saving / oldPrice) * 100);
+
+        const fmt = function (n) { return '$' + n.toFixed(2).replace(/\.00$/, ''); };
+        // ✅ Also fine if it's a single element
+        document.querySelector('.eh-upgrade-price-tag').style.display = 'block';
+
+        document.querySelectorAll('.eh-upgrade-old').forEach(function (el) { el.textContent = fmt(oldPrice); });
+        document.querySelectorAll('.eh-upgrade-new').forEach(function (el) { el.textContent = fmt(newPrice); });
+        document.querySelectorAll('.eh-upgrade-save').forEach(function (el) { el.textContent = pct + '% OFF'; });
+
+        document.querySelectorAll('.eh-modal-price-old').forEach(function (el) { el.textContent = fmt(oldPrice); });
+        document.querySelectorAll('.eh-modal-price-new').forEach(function (el) { el.textContent = fmt(newPrice); });
+        document.querySelectorAll('.eh-modal-price-save').forEach(function (el) {
+            el.textContent = 'You save ' + fmt(saving) + ' \u2014 ' + pct + '% off';
+        });
+        document.querySelectorAll('.eh-modal-price-badge').forEach(function (el) {
+            el.innerHTML = pct + '%<br><span>OFF</span>';
+        });
+        document.querySelectorAll('.eh-ext-lock-cta').forEach(function (el) {
+            el.innerHTML = el.innerHTML.replace(/\$[\d.]+\/yr/, fmt(newPrice) + '/yr');
+        });
+    }
+
+    // Fetch and apply pricing immediately on page load
+    ehFetchRemoteData().then(function (remote) {
+        if (remote) ehApplyPricing(remote);
+        
+        // Render more plugins immediately on page load — always visible
+        if (remote) ehRenderMorePlugins(remote);
+    });
+
+    // ── More Plugins ──────────────────────────────────────────────────────────
+    function ehRenderMorePlugins(remote) {
+        
+        var $grid = $('#eh-moreplugins-grid');
+        if (!$grid.length) return;
+
+        $grid.html('<div class="eh-moreplugins-loading"><span class="spinner is-active"></span> Loading plugins\u2026</div>');
+
+        // Debug: log what we actually got
+        if (window.wpToHtmlData && wpToHtmlData.debug) {
+            console.log('[WP_TO_HTML] remote data:', remote);
+        }
+
+        if (!remote || typeof remote !== 'object') {
+            $grid.html('<div class="eh-moreplugins-empty"><p>Could not load plugin data.</p></div>');
+            return;
+        }
+
+        var plugins = remote.plugins;
+        if (!Array.isArray(plugins) || !plugins.length) {
+            $grid.html('<div class="eh-moreplugins-empty"><p>No plugins found in feed.</p></div>');
+            return;
+        }
+
+        var cards = '';
+        for (var i = 0; i < plugins.length; i++) {
+            var p = plugins[i];
+            var badge    = p.badge    ? '<span class="eh-mp-badge">'    + escapeHtml(p.badge)   + '</span>' : '';
+            var tagline  = p.tagline  ? '<p class="eh-mp-tagline">'     + escapeHtml(p.tagline) + '</p>'    : '';
+            var stars    = p.rating   ? '<div class="eh-mp-stars">'     + '\u2605'.repeat(Math.round(p.rating)) + '</div>' : '';
+            var installs = p.installs ? '<span class="eh-mp-installs">' + escapeHtml(p.installs) + '+ installs</span>' : '';
+            var proBadge = p.is_pro   ? '<span class="eh-mp-pro-badge">PRO</span>' : '';
+            var iconHtml = p.icon_url
+                ? '<img src="' + escapeHtml(p.icon_url) + '" alt="' + escapeHtml(p.name || '') + '" class="eh-mp-icon-img">'
+                : '<div class="eh-mp-icon-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>';
+            var actionUrl  = escapeHtml(p.url || '#');
+            var actionText = p.is_installed ? 'Installed' : (p.is_pro ? 'Get Pro' : 'Install Free');
+            var actionCls  = p.is_installed ? 'eh-mp-btn is-installed' : (p.is_pro ? 'eh-mp-btn is-pro' : 'eh-mp-btn');
+
+            cards += '<div class="eh-mp-card">' +
+                '<div class="eh-mp-card-top">' +
+                    '<div class="eh-mp-icon">' + iconHtml + '</div>' +
+                    '<div class="eh-mp-meta">' +
+                        '<div class="eh-mp-name-row">' +
+                            '<span class="eh-mp-name">' + escapeHtml(p.name || 'Plugin') + '</span>' +
+                            proBadge + badge +
+                        '</div>' +
+                        '<div class="eh-mp-sub">' + stars + installs + '</div>' +
+                    '</div>' +
+                '</div>' +
+                tagline +
+                '<p class="eh-mp-desc">' + escapeHtml(p.description || '') + '</p>' +
+                '<div class="eh-mp-footer">' +
+                    '<a href="' + actionUrl + '" target="_blank" rel="noopener noreferrer" class="' + actionCls + '">' + actionText + '</a>' +
+                '</div>' +
+            '</div>';
+        }
+
+        $grid.html(cards);
+    }
 
     // S3 save/test (Pro)
     $('#wp-to-html-s3-save').on('click', async function () {
@@ -1662,7 +1835,7 @@ jQuery(function ($) {
                 s3Msg('<strong>Save failed.</strong> ' + escapeHtml(data?.message || ''), true);
             }
         } catch (e) {
-            console.error(e);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] S3 save error:', e); }
             s3Msg('<strong>Save failed.</strong> ' + escapeHtml(String(e.message || e)), true);
         }
         setS3Busy(false);
@@ -1686,7 +1859,7 @@ jQuery(function ($) {
                 s3Msg('<strong>Connection failed.</strong> ' + escapeHtml(data?.message || ''), true);
             }
         } catch (e) {
-            console.error(e);
+            if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] S3 test error:', e); }
             s3Msg('<strong>Connection failed.</strong> ' + escapeHtml(String(e.message || e)), true);
         }
         setS3Busy(false);
@@ -1738,7 +1911,7 @@ jQuery(function ($) {
     });
 
     $('#eh-scope-all-posts').on('click', (e) => { if (proGuard(e)) setScope('all_posts'); });
-    $('#eh-scope-all-pages').on('click', () => setScope('all_pages'));
+    $('#eh-scope-all-pages').on('click', (e) => { if (proGuard(e)) setScope('all_pages'); });
     $('#eh-scope-full').on('click', (e) => { if (proGuard(e)) setScope('full_site'); });
 
     // Pro guard for "Group assets by type" checkbox
@@ -1857,6 +2030,12 @@ jQuery(function ($) {
         const key = `${type}:${id}`;
 
         if (this.checked) {
+            // Free plan: cap custom scope at EH_FREE_SCOPE_LIMIT
+            if (!ehIsPro() && ehState.selected.size >= EH_FREE_SCOPE_LIMIT) {
+                this.checked = false;
+                jQuery('#eh-pro-modal').show();
+                return;
+            }
             // best-effort title lookup from adjacent DOM
             const title = $(this).closest('.eh-item').find('.eh-title').text();
             ehState.selected.set(key, { id, type, title });
@@ -1869,9 +2048,19 @@ jQuery(function ($) {
     });
 
     $('#eh-select-all').on('click', function () {
+        var limit = (!ehIsPro()) ? EH_FREE_SCOPE_LIMIT : Infinity;
+        var added = 0;
         $('#eh-content-list .wp-to-html-select-item').each(function () {
-            if (!this.checked) $(this).prop('checked', true).trigger('change');
+            if (!this.checked) {
+                if (ehState.selected.size < limit) {
+                    $(this).prop('checked', true).trigger('change');
+                    added++;
+                }
+            }
         });
+        if (!ehIsPro() && ehState.selected.size >= limit) {
+            $('#eh-pro-modal').show();
+        }
     });
 
     $('#eh-clear').on('click', function () {
@@ -1902,8 +2091,7 @@ jQuery(function ($) {
             $('#wp-to-html-result-extra').html('<strong>Copied log to clipboard.</strong>');
             setTimeout(() => $('#wp-to-html-result-extra').html(''), 1400);
         } catch (e) {
-            console.warn(e);
-            $('#wp-to-html-result-extra').html('<strong>Copy failed. Select and copy manually.</strong>');
+            if (wpToHtmlData.debug) { console.warn('[WP_TO_HTML_DEBUG] clipboard copy error:', e); }
         }
     });
 
@@ -2077,7 +2265,7 @@ jQuery(function ($) {
             .catch(err => {
                 setStartBusy(false);
                 stopMonitoring('Start failed');
-                console.error(err);
+                if (wpToHtmlData.debug) { console.error('[WP_TO_HTML_DEBUG] start export error:', err); }
             });
             });
 
@@ -2116,12 +2304,14 @@ jQuery(function ($) {
                 method: 'POST',
                 headers: { 'X-WP-Nonce': wpToHtmlData.nonce }
             })
-                .then(() => {
-                    stopMonitoring('Export Stopped');
-                })
-                .catch(() => {
-                    stopMonitoring('Export Stopped');
-                });
+            .then(() => {
+                appendClientLog('<span style="color:#ef4444;font-weight:600;">Export has been canceled by the user.</span>', true);
+                stopMonitoring('Export stopped');
+            })
+            .catch(() => {
+                appendClientLog('<span style="color:#ef4444;font-weight:600;">Export has been canceled by the user.</span>', true);
+                stopMonitoring('Export stopped');
+            });
         });
 
         // ── Review modal ────────────────────────────────────────────
@@ -2161,6 +2351,22 @@ jQuery(function ($) {
                 $(this).toggleClass('is-selected', parseInt($(this).data('star'), 10) <= star);
             });
             if (star >= 4) {
+                // Silently report high rating to our server before redirecting
+                var payload = {
+                    site_url:       (window.wpToHtmlData && wpToHtmlData.site_url)       ? wpToHtmlData.site_url       : window.location.origin,
+                    plugin_slug:    'wp-page-to-static-html-css',
+                    rating:         star,
+                    feedback:       '',
+                    plugin_version: (window.wpToHtmlData && wpToHtmlData.plugin_version) ? wpToHtmlData.plugin_version : ((typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : ''),
+                    wp_version:     (window.wpToHtmlData && wpToHtmlData.wp_version)     ? wpToHtmlData.wp_version     : ((typeof eh_wp_version     !== 'undefined') ? eh_wp_version     : '')
+                };
+                $.ajax({
+                    url: 'https://api.myrecorp.com/wpptsh-report.php?type=review',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    timeout: 5000
+                }); // fire-and-forget — no callback needed
                 window.open(REVIEW_URL, '_blank', 'noopener,noreferrer');
                 $('#eh-review-modal').hide();
             } else {
@@ -2201,17 +2407,17 @@ jQuery(function ($) {
 
         // Collect extra useful data
         var payload = {
-            site_url: window.location.origin,
-            plugin_slug: 'wp-page-to-static-html-css',
-            rating: rating,
-            feedback: feedback,
-            plugin_version: (typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : '',
-            wp_version: (typeof eh_wp_version !== 'undefined') ? eh_wp_version : ''
+            site_url:       (window.wpToHtmlData && wpToHtmlData.site_url)       ? wpToHtmlData.site_url       : window.location.origin,
+            plugin_slug:    'wp-page-to-static-html-css',
+            rating:         rating,
+            feedback:       feedback,
+            plugin_version: (window.wpToHtmlData && wpToHtmlData.plugin_version) ? wpToHtmlData.plugin_version : ((typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : ''),
+            wp_version:     (window.wpToHtmlData && wpToHtmlData.wp_version)     ? wpToHtmlData.wp_version     : ((typeof eh_wp_version     !== 'undefined') ? eh_wp_version     : '')
         };
 
         // Silent AJAX
         $.ajax({
-            url: 'https://api.myrecorp.com/wpptsh-insert-review.php',
+            url: 'https://api.myrecorp.com/wpptsh-report.php?type=review',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(payload),
@@ -2242,15 +2448,709 @@ jQuery(function ($) {
     var C = 2 * Math.PI * 70;
     ring.style.strokeDasharray = C;
     ring.style.strokeDashoffset = C;
+
+    // ── Reference existing progress label from HTML ──────────────────────────
+    var ringWrap = document.querySelector('.eh-ring-wrap');
+    var progressLabel = document.getElementById('eh-ring-progress-label');
+
+    // ── Inject loader below .eh-ring-wrap ───────────────────────────────────
+    var ringLoader = null;
+    if (ringWrap) {
+        ringLoader = document.createElement('div');
+        ringLoader.id = 'eh-ring-loader';
+        ringLoader.style.cssText = 'display:none;justify-content:center;align-items:center;gap:5px;margin-top:10px;';
+        ringLoader.innerHTML =
+            '<span style="width:7px;height:7px;border-radius:50%;background:var(--green,#22c55e);display:inline-block;animation:ehRingDot 1.2s ease-in-out infinite;animation-delay:0s;"></span>' +
+            '<span style="width:7px;height:7px;border-radius:50%;background:var(--green,#22c55e);display:inline-block;animation:ehRingDot 1.2s ease-in-out infinite;animation-delay:.2s;"></span>' +
+            '<span style="width:7px;height:7px;border-radius:50%;background:var(--green,#22c55e);display:inline-block;animation:ehRingDot 1.2s ease-in-out infinite;animation-delay:.4s;"></span>';
+        // Inject keyframes once
+        if (!document.getElementById('eh-ring-dot-style')) {
+            var ks = document.createElement('style');
+            ks.id = 'eh-ring-dot-style';
+            ks.textContent = '@keyframes ehRingDot{0%,80%,100%{transform:scale(.5);opacity:.4}40%{transform:scale(1);opacity:1}}';
+            document.head.appendChild(ks);
+        }
+        //ringWrap.parentNode.insertBefore(ringLoader, ringWrap.nextSibling);
+    }
+
     function upd(p){
         ring.style.strokeDashoffset = C - (p / 100) * C;
         if (pctText) pctText.textContent = Math.round(p) + '%';
     }
+
+    function syncRingExtras(t){
+        // Update progress label text from the result element
+        if (progressLabel) {
+            progressLabel.textContent = t ? t.trim() : '';
+        }
+        // Show/hide loader dots based on running state
+        if (ringLoader) {
+            var isActive = /running|starting|exporting|building/i.test(t) || (isMonitoring && !/completed|stopped|error|idle/i.test(t));
+            ringLoader.style.display = isActive ? 'flex' : 'none';
+        }
+    }
+
     var obs = new MutationObserver(function(){
         var t = resultEl.textContent || '';
         var m = t.match(/(\d+(?:\.\d+)?)%/);
         if (m) upd(parseFloat(m[1]));
         else if (/idle|starting/i.test(t)) upd(0);
+        syncRingExtras(t);
     });
     obs.observe(resultEl, {childList:true, characterData:true, subtree:true});
 })();
+
+/* ── Quick Export: auto-select post(s) from URL params ──────── */
+(function($){
+    /**
+     * When the plugin page is opened via the "Export HTML" row action,
+     * metabox button, admin-bar node, or bulk action, URL params tell us
+     * which post(s) to pre-select and (optionally) auto-start the export.
+     *
+     *  ?quick_export_id=123&quick_export_type=post
+     *  ?bulk_export_ids[]=1&bulk_export_ids[]=2&quick_export_type=page
+     */
+    var params = new URLSearchParams(window.location.search);
+    var singleId  = params.get('quick_export_id');
+    var bulkIds   = params.getAll('bulk_export_ids[]');
+    var postType  = params.get('quick_export_type') || 'post';
+
+    var ids = [];
+    if (singleId) ids.push(singleId);
+    if (bulkIds.length) ids = ids.concat(bulkIds);
+
+    if (!ids.length) return;               // nothing to do
+    if (typeof ehState === 'undefined') return; // plugin UI not loaded
+
+    $(document).ready(function(){
+        /* Give the plugin UI ~600 ms to initialise its state and DOM */
+        setTimeout(function(){
+
+            // 1. Switch to Custom scope
+            if (typeof setScope === 'function') setScope('custom');
+
+            // 2. Pre-select each requested item in state and DOM
+            function selectItems() {
+                ids.forEach(function(id){
+                    id = String(id);
+                    var key = postType + ':' + id;
+                    if (!ehIsPro() && ehState.selected.size >= EH_FREE_SCOPE_LIMIT) return;
+                    ehState.selected.set(key, { id: parseInt(id, 10), type: postType, title: 'Item #' + id });
+                    // tick DOM checkbox if already rendered
+                    var $cb = $('#eh-content-list .wp-to-html-select-item[data-id="' + id + '"][data-type="' + postType + '"]');
+                    if ($cb.length) $cb.prop('checked', true);
+                });
+                if (typeof updateSelectedCount === 'function') updateSelectedCount();
+                if (typeof updateScopeUI       === 'function') updateScopeUI();
+            }
+
+            selectItems();
+
+            // Also re-tick checkboxes after the content list loads
+            $(document).one('wp_to_html_content_loaded', selectItems);
+
+            // 3. Show a friendly banner
+            if ($('#wp-to-html-quick-banner').length) return;
+            var count = ids.length;
+            var label = count === 1
+                ? 'Ready to export <strong>1 item</strong>'
+                : 'Ready to export <strong>' + count + ' items</strong>';
+            var $banner = $(
+                '<div id="wp-to-html-quick-banner" style="'
+                + 'background:#eef1fe;border:1px solid #c7d2fd;color:#3730a3;'
+                + 'padding:10px 14px;border-radius:8px;margin-bottom:12px;'
+                + 'font-size:13px;display:flex;align-items:center;gap:10px;'
+                + '">'
+                + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+                + '<span>' + label + ' in Custom scope. '
+                + 'Press <strong>Start Export</strong> when ready.</span>'
+                + '<button type="button" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#6366f1;font-size:18px;line-height:1;" id="wp-to-html-quick-banner-close">&#x2715;</button>'
+                + '</div>'
+            );
+            $('#eh-content-list').before($banner);
+            $('#wp-to-html-quick-banner-close').on('click', function(){ $banner.remove(); });
+
+        }, 650);
+    });
+
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// External Site Export — Pro Feature UI Logic
+// ══════════════════════════════════════════════════════════════════════════════
+(function ($) {
+
+    var EXT_CIRC = 2 * Math.PI * 70;   // SVG ring circumference (r=70)
+    var extBatchTimer = null;           // setTimeout handle for batch loop
+    var extStopped    = false;          // user clicked Stop
+
+    // ── Init on DOM ready ─────────────────────────────────────────────────────
+    $(function () {
+
+        // Tab click.
+        $('#eh-tab-ext-export').on('click', function () {
+            if ($(this).data('pro') && !wpToHtmlData.pro_active) {
+                $('#eh-pro-modal').show();
+                return;
+            }
+            showExtPanel();
+        });
+
+        // Hide ext panel when other tabs are clicked.
+        $('#eh-tab-export, #eh-tab-settings').on('click', function () {
+            $('#eh-panel-ext-export').hide();
+            $('#eh-tab-ext-export').attr('aria-pressed', 'false');
+        });
+
+        // Mode tabs.
+        $('#eh-ext-mode-pages').on('click',    function () { setExtMode('pages'); });
+        $('#eh-ext-mode-fullsite').on('click', function () { setExtMode('fullsite'); });
+
+        // Depth slider.
+        $('#eh-ext-depth').on('input', function () {
+            $('#eh-ext-depth-val').text($(this).val());
+        });
+
+        // URL textarea helpers.
+        $('#eh-ext-urls').on('input', updateUrlCount);
+
+        $('#eh-ext-add-current').on('click', function () {
+            var cur     = $('#eh-ext-urls').val().trim();
+            var siteUrl = ((wpToHtmlData.site_url || '').replace(/\/$/, ''));
+            if (siteUrl && cur.indexOf(siteUrl) === -1) {
+                $('#eh-ext-urls').val(cur ? cur + '\n' + siteUrl : siteUrl);
+                updateUrlCount();
+            }
+        });
+
+        $('#eh-ext-clear-urls').on('click', function () {
+            $('#eh-ext-urls').val('');
+            updateUrlCount();
+        });
+
+        // Start / Stop.
+        $('#eh-ext-start').on('click', startExtExport);
+        $('#eh-ext-stop').on('click',  stopExtExport);
+
+        // Copy log.
+        $('#eh-ext-copy-log').on('click', function () {
+            var text = $('#eh-ext-log').text();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+        });
+
+        updateUrlCount();
+    });
+
+    // ── Panel switch ──────────────────────────────────────────────────────────
+
+    function showExtPanel() {
+        $('.eh-grid').hide();
+        $('#eh-panel-settings').hide();
+        $('#eh-panel-ext-export').show();
+
+        $('#eh-tab-export').attr('aria-pressed', 'false');
+        $('#eh-tab-settings').attr('aria-pressed', 'false');
+        $('#eh-tab-ext-export').attr('aria-pressed', 'true');
+
+        // Restore any running/completed job state.
+        extReq(wpToHtmlData.ext_export_status_url, 'GET').done(function (data) {
+            if (data && data.status && data.status !== 'idle') {
+                applyExtStatus(data);
+                if (data.status === 'running') {
+                    extStopped = false;
+                    runNextBatch();
+                }
+            }
+        });
+    }
+
+    // ── Mode toggle ───────────────────────────────────────────────────────────
+
+    function setExtMode(mode) {
+        var full = (mode === 'fullsite');
+        $('#eh-ext-mode-pages').toggleClass('is-active', !full).attr('aria-pressed', full ? 'false' : 'true');
+        $('#eh-ext-mode-fullsite').toggleClass('is-active', full).attr('aria-pressed', full ? 'true' : 'false');
+        $('#eh-ext-depth-card').toggle(full);
+
+        if (full) {
+            $('#eh-ext-url-label').text('Seed URLs');
+            $('#eh-ext-url-hint').text('Enter the root URL(s) to crawl from. All discoverable pages on the same domain will be exported.');
+            $('#eh-ext-urls').attr('placeholder', 'https://example.com');
+        } else {
+            $('#eh-ext-url-label').text('Page URLs');
+            $('#eh-ext-url-hint').text('Enter one URL per line — internal or external.');
+            $('#eh-ext-urls').attr('placeholder', 'https://example.com/page-1\nhttps://example.com/about\nhttps://another-site.com/blog');
+        }
+    }
+
+    function updateUrlCount() {
+        var val = $('#eh-ext-urls').val();
+        if (val === undefined) return; // element not found
+        var n = val.split('\n').filter(function(l) {
+            return l.trim() !== '';
+        }).length;
+        $('#eh-ext-url-count').text(n + (n === 1 ? ' URL' : ' URLs'));
+    }
+
+    // ── Ring helper ───────────────────────────────────────────────────────────
+
+    function setExtRing(pct) {
+        pct = Math.max(0, Math.min(100, pct));
+        var fg = document.getElementById('eh-ext-ring-fg');
+        if (fg) {
+            fg.style.strokeDasharray  = EXT_CIRC;
+            fg.style.strokeDashoffset = EXT_CIRC * (1 - pct / 100);
+        }
+        var el = document.getElementById('eh-ext-ring-pct');
+        if (el) el.textContent = pct + '%';
+    }
+
+    // ── REST helper ───────────────────────────────────────────────────────────
+
+    function extReq(url, method, data) {
+        var opts = {
+            url:         url,
+            method:      method || 'GET',
+            headers:     { 'X-WP-Nonce': wpToHtmlData.nonce },
+            contentType: 'application/json',
+        };
+        if (data !== undefined) opts.data = JSON.stringify(data);
+        return $.ajax(opts);
+    }
+
+    // ── Start ─────────────────────────────────────────────────────────────────
+
+    function startExtExport() {
+        var rawUrls = $('#eh-ext-urls').val()
+            .split('\n')
+            .map(function (l) { return l.trim(); })
+            .filter(function (l) { return l !== ''; });
+
+        if (rawUrls.length === 0) {
+            alert('Please enter at least one URL (starting with http:// or https://).');
+            return;
+        }
+
+        var isFullSite  = $('#eh-ext-mode-fullsite').hasClass('is-active');
+        var depth       = parseInt($('#eh-ext-depth').val(), 10) || 3;
+        var groupAssets = $('#eh-ext-group-assets').is(':checked');
+
+        extStopped = false;
+        $('#eh-ext-start').hide();
+        $('#eh-ext-stop').show();
+        $('#eh-ext-spinner').addClass('is-active');
+        $('#eh-ext-action-btns').hide();
+        $('#eh-ext-log').text('');
+        setExtRing(0);
+        setExtStatus('Starting...');
+        $('#eh-ext-pages-done').text('0');
+        $('#eh-ext-pages-total').text('—');
+
+        extReq(wpToHtmlData.ext_export_start_url, 'POST', {
+            urls:         rawUrls,
+            full_site:    isFullSite,
+            depth:        depth,
+            group_assets: groupAssets,
+        }).done(function (data) {
+            if (data && data.error) {
+                setExtStatus('Error: ' + data.error);
+                resetExtControls();
+                return;
+            }
+            setExtStatus('Running...');
+            appendExtLog('Export started. Processing ' + rawUrls.length + ' URL(s)...');
+            runNextBatch();
+        }).fail(function (xhr) {
+            var msg = 'Request failed (HTTP ' + xhr.status + ').';
+            try {
+                var j = JSON.parse(xhr.responseText);
+                if (j && j.message) msg = j.message;
+                else if (j && j.error) msg = j.error;
+            } catch (e) {}
+            setExtStatus('Error: ' + msg);
+            appendExtLog('ERROR: ' + msg);
+            resetExtControls();
+        });
+    }
+
+    // ── Batch loop (replaces cron) ────────────────────────────────────────────
+
+    function runNextBatch() {
+        if (extStopped) return;
+
+        extReq(wpToHtmlData.ext_export_batch_url, 'POST', {})
+            .done(function (data) {
+                if (!data) return;
+                applyExtStatus(data);
+
+                if (data.status === 'running' && data.needs_more && !extStopped) {
+                    // Small delay to keep the server breathing.
+                    extBatchTimer = setTimeout(runNextBatch, 300);
+                }
+            })
+            .fail(function (xhr) {
+                var msg = 'Batch request failed (HTTP ' + xhr.status + ').';
+                try {
+                    var j = JSON.parse(xhr.responseText);
+                    if (j && j.message) msg = j.message;
+                } catch (e) {}
+                setExtStatus('Error: ' + msg);
+                appendExtLog('ERROR: ' + msg);
+                resetExtControls();
+            });
+    }
+
+    // ── Stop ─────────────────────────────────────────────────────────────────
+
+    function stopExtExport() {
+        extStopped = true;
+        clearTimeout(extBatchTimer);
+
+        extReq(wpToHtmlData.ext_export_stop_url, 'POST', {})
+            .always(function () {
+                $('#eh-ext-result').text('Stopped.');
+                setExtStatus('Stopped.');
+                appendExtLog('Export stopped by user.');
+                resetExtControls();
+            });
+    }
+
+    // ── Apply status to UI ────────────────────────────────────────────────────
+
+    function setExtResult(pct, pagesDone, pagesTotal, assetsDone, assetsTotal, state) {
+        var urlPart    = 'URLs ' + (pagesDone || 0) + '/' + (pagesTotal > 0 ? pagesTotal : '?');
+        var assetPart  = 'Assets ' + (assetsDone || 0) + '/' + (assetsTotal > 0 ? assetsTotal : '?');
+        var txt        = 'Progress: ' + pct + '% (' + urlPart + ', ' + assetPart + ')';
+        if (state) txt += ' \u2014 State: ' + state;
+        $('#eh-ext-result').text(txt);
+    }
+
+    function applyExtStatus(data) {
+        if (!data || !data.status) return;
+
+        var pct         = data.pct || 0;
+        var pagesDone   = data.pages_done   || 0;
+        var pagesTotal  = data.pages_total  || 0;
+        var assetsDone  = data.assets_done  || 0;
+        var assetsTotal = data.assets_total || 0;
+        setExtRing(pct);
+        setExtResult(pct, pagesDone, pagesTotal, assetsDone, assetsTotal, data.status);
+
+        $('#eh-ext-pages-done').text(pagesDone);
+        $('#eh-ext-pages-total').text(pagesTotal > 0 ? pagesTotal : '\u2014');
+
+        if (data.log && data.log.length) {
+            $('#eh-ext-log').text(data.log.join('\n'));
+            var el = document.getElementById('eh-ext-log');
+            if (el) el.scrollTop = el.scrollHeight;
+        }
+
+        if (data.status === 'done') {
+            setExtRing(100);
+            setExtResult(100, pagesDone, pagesTotal, assetsDone, assetsTotal, 'completed');
+            setExtStatus('Export complete! ' + pagesDone + ' page(s) exported.');
+            resetExtControls();
+
+            // Fetch download URL then reveal both Download + Preview buttons
+            extReq(wpToHtmlData.ext_export_download_url, 'GET')
+                .done(function (dl) {
+                    if (dl && dl.download_url) {
+                        $('#eh-ext-download')
+                            .attr('href', dl.download_url)
+                            .attr('download', dl.filename || 'export.zip');
+                    }
+                    $('#eh-ext-action-btns').css('display', 'flex');
+                });
+
+        } else if (data.status === 'error') {
+            setExtResult(pct, pagesDone, pagesTotal, assetsDone, assetsTotal, 'error');
+            setExtStatus('Error: ' + (data.error || 'Unknown error.'));
+            resetExtControls();
+
+        } else if (data.status === 'stopped') {
+            setExtResult(pct, pagesDone, pagesTotal, assetsDone, assetsTotal, 'stopped');
+            setExtStatus('Stopped.');
+            resetExtControls();
+
+        } else if (data.status === 'running') {
+            var queue = pagesTotal - pagesDone;
+            setExtStatus('Exporting... ' + pct + '% \u2014 ' + pagesDone + ' page(s) done' + (queue > 0 ? ', ~' + queue + ' queued' : '') + '.');
+        }
+    }
+
+    // ── Preview button: opens shared preview modal using the same infra as internal export ──
+    $('#eh-ext-preview').on('click', function () {
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Loading…');
+
+        extReq(wpToHtmlData.ext_export_list_files_url, 'GET')
+            .done(function (res) {
+                $btn.prop('disabled', false).html(
+                    '<span class="eh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Preview Files'
+                );
+
+                var files      = (res && Array.isArray(res.files)) ? res.files : [];
+                var publicBase = (res && res.public_base_url) ? String(res.public_base_url) : '';
+                var restBase   = (res && res.preview_base)    ? String(res.preview_base)    : '';
+
+                if (!files.length) {
+                    alert('No exported files found. Run the export first.');
+                    return;
+                }
+
+                // Build previewConfig identical to the internal system
+                var previewConfig = {
+                    mode: publicBase ? 'public' : 'rest',
+                    base: publicBase || restBase
+                };
+
+                // Group files using the same groupExportFiles() used by internal preview
+                var groups    = groupExportFiles(files);
+                var groupKeys = Object.keys(groups);
+
+                if (!groupKeys.length) {
+                    alert('No previewable files found.');
+                    return;
+                }
+
+                var $modal   = $('#eh-preview-modal');
+                var $tabs    = $('#eh-preview-tabs');
+                var $groupDl = $('#eh-preview-download-group');
+
+                // Build tabs (same markup as internal system)
+                var tabHtml = groupKeys.map(function (k) {
+                    var label = groups[k].label;
+                    var count = groups[k].files.length;
+                    return '<div class="eh-tab" data-key="' + escapeHtml(k) + '">'
+                        + escapeHtml(label) + ' <span class="eh-count">' + count + '</span></div>';
+                }).join('');
+                $tabs.html(tabHtml);
+
+                // Wire tab clicks to the shared setActivePreviewGroup
+                $tabs.off('click.ehTabs').on('click.ehTabs', '.eh-tab', function () {
+                    var key = String($(this).data('key') || '');
+                    setActivePreviewGroup(key, groups, previewConfig, $groupDl);
+                });
+
+                // Render default group — uses shared renderPreviewPage (with pagination)
+                var defaultKey = groupKeys[0];
+                setActivePreviewGroup(defaultKey, groups, previewConfig, $groupDl);
+
+                $modal.show();
+            })
+            .fail(function (xhr) {
+                $btn.prop('disabled', false).html(
+                    '<span class="eh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Preview Files'
+                );
+                alert('Could not load file list (HTTP ' + xhr.status + '). Please try again.');
+            });
+    });
+
+        function setExtStatus(msg) {
+        $('#eh-ext-status-label').text(msg);
+    }
+
+    function appendExtLog(line) {
+        var el = document.getElementById('eh-ext-log');
+        if (!el) return;
+        el.textContent += (el.textContent ? '\n' : '') + line;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function resetExtControls() {
+        $('#eh-ext-start').show();
+        $('#eh-ext-stop').hide();
+        $('#eh-ext-spinner').removeClass('is-active');
+    }
+
+})(jQuery);
+
+/* ── Deactivation Feedback Popup ─────────────────────────────────────────── */
+(function ($) {
+    'use strict';
+
+    var DEACTIVATION_REASONS = [
+        { key: 'not_working',       label: 'It\'s not working' },
+        { key: 'found_better',      label: 'I found a better plugin' },
+        { key: 'only_needed_once',  label: 'I only needed it for a short time' },
+        { key: 'too_complex',       label: 'It\'s too complex to use' },
+        { key: 'missing_feature',   label: 'It\'s missing a feature I need' },
+        { key: 'other',             label: 'Other' }
+    ];
+
+    var PLUGIN_SLUG_FULL = 'export-wp-page-to-static-html/export-wp-page-to-static-html.php';
+
+    function buildModal() {
+        var reasons = DEACTIVATION_REASONS.map(function (r) {
+            return '<label class="wpptsh-df-reason">' +
+                '<input type="radio" name="wpptsh_reason" value="' + r.key + '"> ' +
+                '<span>' + r.label + '</span>' +
+                '</label>';
+        }).join('');
+
+        var html = [
+            '<div id="wpptsh-deactivate-overlay">',
+            '  <div id="wpptsh-deactivate-modal">',
+            '    <div class="wpptsh-df-header">',
+            '      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+            '      <h2>Quick question before you go</h2>',
+            '      <p>Help us improve — what\'s the main reason for deactivating?</p>',
+            '    </div>',
+            '    <div class="wpptsh-df-body">',
+            '      <div class="wpptsh-df-reasons">' + reasons + '</div>',
+            '      <div id="wpptsh-df-extra" style="display:none">',
+            '        <textarea id="wpptsh-df-feedback" placeholder="Tell us a little more (optional)…" rows="3"></textarea>',
+            '      </div>',
+            '    </div>',
+            '    <div class="wpptsh-df-footer">',
+            '      <button id="wpptsh-df-skip"  class="wpptsh-df-btn wpptsh-df-btn--ghost">Skip &amp; Deactivate</button>',
+            '      <button id="wpptsh-df-submit" class="wpptsh-df-btn wpptsh-df-btn--primary" disabled>Submit &amp; Deactivate</button>',
+            '    </div>',
+            '    <div id="wpptsh-df-msg"></div>',
+            '  </div>',
+            '</div>',
+
+            /* ── Inline styles ── */
+            '<style>',
+            '#wpptsh-deactivate-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;animation:wpptsh-fadein .18s ease}',
+            '@keyframes wpptsh-fadein{from{opacity:0}to{opacity:1}}',
+            '#wpptsh-deactivate-modal{background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.22);width:480px;max-width:calc(100vw - 32px);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;animation:wpptsh-slidein .22s cubic-bezier(.34,1.56,.64,1)}',
+            '@keyframes wpptsh-slidein{from{transform:translateY(20px) scale(.97);opacity:0}to{transform:none;opacity:1}}',
+            '.wpptsh-df-header{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:28px 28px 22px;color:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:6px}',
+            '.wpptsh-df-header svg{opacity:.9}',
+            '.wpptsh-df-header h2{margin:0;font-size:18px;font-weight:700;line-height:1.3;color:#fff}',
+            '.wpptsh-df-header p{margin:0;font-size:13.5px;opacity:.88;color:#fff}',
+            '.wpptsh-df-body{padding:22px 28px 0}',
+            '.wpptsh-df-reasons{display:flex;flex-direction:column;gap:10px}',
+            '.wpptsh-df-reason{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:14px;color:#374151}',
+            '.wpptsh-df-reason:hover{border-color:#6366f1;background:#f5f3ff}',
+            '.wpptsh-df-reason input[type=radio]{accent-color:#6366f1;width:16px;height:16px;flex-shrink:0}',
+            '.wpptsh-df-reason.is-selected{border-color:#6366f1;background:#f5f3ff}',
+            '#wpptsh-df-extra{margin-top:14px}',
+            '#wpptsh-df-feedback{width:100%;box-sizing:border-box;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13.5px;resize:vertical;font-family:inherit;color:#374151;transition:border-color .15s}',
+            '#wpptsh-df-feedback:focus{outline:none;border-color:#6366f1}',
+            '.wpptsh-df-footer{padding:20px 28px 24px;display:flex;justify-content:flex-end;gap:10px}',
+            '.wpptsh-df-btn{padding:9px 20px;border-radius:9px;border:none;font-size:13.5px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}',
+            '.wpptsh-df-btn:active{transform:scale(.97)}',
+            '.wpptsh-df-btn--ghost{background:#f3f4f6;color:#6b7280}',
+            '.wpptsh-df-btn--ghost:hover{background:#e5e7eb}',
+            '.wpptsh-df-btn--primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}',
+            '.wpptsh-df-btn--primary:hover:not(:disabled){opacity:.9}',
+            '.wpptsh-df-btn--primary:disabled{opacity:.45;cursor:not-allowed}',
+            '#wpptsh-df-msg{padding:0 28px 18px;font-size:13px;color:#6366f1;min-height:22px}',
+            '</style>'
+        ].join('');
+
+        return html;
+    }
+
+    function doDeactivate(deactivateHref) {
+        window.location.href = deactivateHref;
+    }
+
+    function sendAndDeactivate(deactivateHref) {
+        var reasonKey = $('input[name="wpptsh_reason"]:checked').val() || '';
+        var feedback  = $('#wpptsh-df-feedback').val().trim();
+
+        if (!reasonKey) {
+            doDeactivate(deactivateHref);
+            return;
+        }
+
+        $('#wpptsh-df-submit').prop('disabled', true).text('Sending…');
+        $('#wpptsh-df-msg').text('');
+
+        var payload = {
+            site_url:       (window.wpToHtmlData && wpToHtmlData.site_url) ? wpToHtmlData.site_url : window.location.origin,
+            plugin_slug:    'wpptsh',
+            reason_key:     reasonKey,
+            feedback:       feedback,
+            plugin_version: (window.wpToHtmlData && wpToHtmlData.plugin_version) ? wpToHtmlData.plugin_version : ((typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : ''),
+            wp_version:     (window.wpToHtmlData && wpToHtmlData.wp_version)     ? wpToHtmlData.wp_version     : ((typeof eh_wp_version     !== 'undefined') ? eh_wp_version     : '')
+        };
+
+        $.ajax({
+            url: 'https://api.myrecorp.com/wpptsh-report.php?type=deactivation',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            timeout: 6000
+        }).always(function () {
+            doDeactivate(deactivateHref);
+        });
+    }
+
+    $(document).on('click', '#the-list [data-slug="export-wp-page-to-static-html"] .deactivate a, ' +
+                            '#the-list tr[data-slug="export-wp-page-to-static-html"] .deactivate a', function (e) {
+        e.preventDefault();
+        var deactivateHref = $(this).attr('href');
+
+        $('body').append(buildModal());
+
+        // Highlight selected reason
+        $(document).on('change.wpptsh', 'input[name="wpptsh_reason"]', function () {
+            $('.wpptsh-df-reason').removeClass('is-selected');
+            $(this).closest('.wpptsh-df-reason').addClass('is-selected');
+            $('#wpptsh-df-submit').prop('disabled', false);
+            var key = $(this).val();
+            if (key === 'not_working' || key === 'missing_feature' || key === 'other') {
+                $('#wpptsh-df-extra').slideDown(150);
+            } else {
+                $('#wpptsh-df-extra').slideUp(150);
+            }
+        });
+
+        // Skip button
+        $(document).one('click.wpptsh', '#wpptsh-df-skip', function () {
+            doDeactivate(deactivateHref);
+        });
+
+        // Submit button
+        $(document).one('click.wpptsh', '#wpptsh-df-submit', function () {
+            sendAndDeactivate(deactivateHref);
+        });
+
+        // Click outside to skip
+        $(document).one('click.wpptsh', '#wpptsh-deactivate-overlay', function (ev) {
+            if ($(ev.target).is('#wpptsh-deactivate-overlay')) {
+                doDeactivate(deactivateHref);
+            }
+        });
+    });
+
+})(jQuery);
+
+/* ── Go Pro button click tracking ───────────────────────────────────────── */
+(function ($) {
+    'use strict';
+
+    $(document).on('click', '.eh-topbar-upgrade-btn, .eh-pro-modal-cta, .eh-ext-lock-cta, #eh-free-limit-notice a', function () {
+        var isPopup      = $(this).hasClass('eh-pro-modal-cta');
+        var isExtLock    = $(this).hasClass('eh-ext-lock-cta');
+        var isLimitNotice = $(this).closest('#eh-free-limit-notice').length > 0;
+        
+        var payload = {
+            site_url:       (window.wpToHtmlData && wpToHtmlData.site_url) ? wpToHtmlData.site_url : window.location.origin,
+            button:         isPopup ? 'in_popup' : isExtLock ? 'External_Site' : isLimitNotice ? '5_exceeded' : 'top_bar',
+            plugin_version: (window.wpToHtmlData && wpToHtmlData.plugin_version) ? wpToHtmlData.plugin_version : ((typeof eh_plugin_version !== 'undefined') ? eh_plugin_version : ''),
+            wp_version:     (window.wpToHtmlData && wpToHtmlData.wp_version)     ? wpToHtmlData.wp_version     : ((typeof eh_wp_version     !== 'undefined') ? eh_wp_version     : '')
+        };
+
+        $.ajax({
+            url:         'https://api.myrecorp.com/wpptsh-report.php?type=go_pro',
+            method:      'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify(payload),
+            timeout:     5000
+        });
+        // Let the link navigate normally — no preventDefault.
+    });
+
+})(jQuery);
