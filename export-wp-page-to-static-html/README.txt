@@ -4,7 +4,7 @@ Tags:               static html export, static site generator, html export, expo
 Requires at least:  5.8
 Tested up to:       6.9
 Requires PHP:       7.4
-Stable tag:         6.0.5.7
+Stable tag:         6.0.5.8
 License:            GPLv2 or later
 License URI:        https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -260,8 +260,6 @@ Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/e
 
 
 = 6.0.5.7 =
-* Changed: All Pages export scope is now a Pro feature.
-* Changed: Free version is now limited to exporting a maximum of 5 posts or pages per run.
 * Added: External Site Export — fetch and mirror any external URL as static HTML (Pro only).
 * Added: Quick Export button on posts, pages, and custom post type listing rows — export any single item instantly from the admin list.
 
@@ -436,5 +434,5 @@ Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/e
 
 == Upgrade Notice ==
 
-= 6.1.0 =
+= 6.0.5.7 =
 This release improves export reliability with enhanced retry logic, watchdog repair, and better background processing. Recommended update for all users.

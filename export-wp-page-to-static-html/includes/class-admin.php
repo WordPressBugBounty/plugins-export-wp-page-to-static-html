@@ -102,8 +102,8 @@ class Admin {
             'rerun_failed_url'      => rest_url('wp_to_html/v1/rerun-failed'),
             'nonce'      => wp_create_nonce('wp_rest'),
             'pro_active' => (function_exists('wp_to_html_is_pro_active') && wp_to_html_is_pro_active()) ? 1 : 0,
-            'remote_json_url' => 'https://api.myrecorp.com/wp-to-html-plugins-data.php',
-            'fallback_json_url' => WP_TO_HTML_URL . 'wp-to-html-plugins-data.php',
+            'remote_json_url' => 'https://api.myrecorp.com/wp-to-html-plugins-data.php?plugin=' . (defined('WP_TO_HTML_PRO_ACTIVE') ? 'pro' : 'free'),
+            
             // External site export (Pro).
             'ext_export_start_url'      => rest_url('wp_to_html/v1/ext-export/start'),
             'ext_export_status_url'     => rest_url('wp_to_html/v1/ext-export/status'),
