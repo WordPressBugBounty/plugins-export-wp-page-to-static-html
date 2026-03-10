@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.5.8
+ * Version:           6.0.6.1
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.5.8');
+define('WP_TO_HTML_VERSION', '6.0.6.1');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
@@ -133,6 +133,7 @@ add_action('plugins_loaded', function () {
 
 require_once WP_TO_HTML_PATH . 'includes/class-core.php';
 require_once WP_TO_HTML_PATH . 'includes/class-admin.php';
+require_once WP_TO_HTML_PATH . 'includes/class-whats-new.php';
 require_once WP_TO_HTML_PATH . 'includes/class-rest.php';
 require_once WP_TO_HTML_PATH . 'includes/class-exporter.php';
 require_once WP_TO_HTML_PATH . 'includes/class-diagnostic.php';
@@ -146,8 +147,16 @@ require_once WP_TO_HTML_PATH . 'includes/class-quick-export.php';
 // Robust RFC3986 URL absolutizer (ported from the older exporter).
 require_once WP_TO_HTML_PATH . 'includes/url/url_to_absolute.php';
 
+// PDF Generator — free (2/day) + Pro (unlimited).
+require_once WP_TO_HTML_PATH . 'includes/class-pdf-generator.php';
+
+// Export HTML Button shortcode — free (3/day) + Pro (unlimited).
+require_once WP_TO_HTML_PATH . 'includes/class-export-html-button.php';
+
 add_action('plugins_loaded', function () {
     \WpToHtml\Core::get_instance();
+    new \WpToHtml\PdfGenerator();
+    new \WpToHtml\ExportHtmlButton();
 });
 
 

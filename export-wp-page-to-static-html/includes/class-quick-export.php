@@ -1,6 +1,6 @@
 <?php
 namespace WpToHtml;
-
+ 
 /**
  * Quick Export — adds "Export to Static HTML" buttons throughout WP admin:
  *  1. Post/Page/CPT list table  → row action link + bulk action

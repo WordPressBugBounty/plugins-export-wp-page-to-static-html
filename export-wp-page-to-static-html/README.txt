@@ -1,263 +1,124 @@
-=== Export WP Pages to Static HTML – Simply Create a Static Website ===
-Contributors:       recorp
-Tags:               static html export, static site generator, html export, export posts, export pages
-Requires at least:  5.8
-Tested up to:       6.9
-Requires PHP:       7.4
-Stable tag:         6.0.5.8
-License:            GPLv2 or later
-License URI:        https://www.gnu.org/licenses/gpl-2.0.html
+=== Export WordPress Pages to Static HTML & PDF — Static Site Export ===
+Contributors: recorp
+Tags: static html, static site generator, export wordpress, wordpress static html, html export, wordpress to pdf
+Requires at least: 5.8
+Tested up to: 6.9
+Requires PHP: 7.4
+Stable tag: 6.0.6.1
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Export any WordPress post, page, or custom post type to clean static HTML — one at a time or in bulk. Free up to 5 posts/pages per export. Grouped assets, role-based export, FTP upload & more.
+Export WordPress pages, posts, and custom post types to clean static HTML or PDF files in one click. Create fast, secure static versions of your WordPress site.
 
 == Description ==
 
-**Export WP Pages to Static HTML** is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
+**Export WordPress Pages to Static HTML & PDF** lets you convert WordPress pages, posts, and custom post types into clean static HTML files you can host anywhere. Generate portable static versions of your WordPress content for faster performance, improved security, and easy sharing.
 
-Whether you're archiving a campaign landing page, delivering client work as a self-contained HTML package, or building a lightning-fast static copy of your content, Export WP Pages to Static HTML makes it effortless.
+Choose exactly what you want to export — a single post, selected pages, or specific custom post types. Each export produces a standalone HTML package with organized assets, making it easy for developers, clients, or teams to use the files without a WordPress installation.
 
-> 🔒 **[Export WP Pages to Static HTML Pro Available](https://myrecorp.com/export-wp-page-to-static-html-pro/)** — Unlock All Pages & All Posts exports (free is limited to 5), Full Site exports, External Site Export, AWS S3 deployment & more!
+Perfect for creating static versions of WordPress pages, archiving content, delivering client-ready HTML pages, or generating portable website packages.
 
----
+**Common use cases**
 
-### 🎯 Why Export WP Pages to Static HTML Is Different
+* Deliver client-ready static HTML pages without giving WordPress access
+* Archive marketing or campaign landing pages
+* Create lightweight static versions of WordPress pages
+* Generate offline backups of important content
+* Share portable HTML packages with developers or teams
+* Export content for static hosting platforms
 
-Most static site plugins convert your *entire* WordPress site in one go. Export WP Pages to Static HTML lets you target exactly what you need:
+The plugin focuses on **precision exporting**, allowing you to control exactly which content is exported, how assets are collected, and how the final static package is structured.
 
-✅ Export a **single post** or **hand-pick multiple posts, pages, or CPT items** in one run
-✅ Export **across all post statuses** — Published, Draft, Private, Pending, Scheduled
-✅ Export content exactly as it appears to a **specific user role** (subscriber, editor, etc.)
-✅ **Group assets cleanly** into `/images`, `/css`, `/js` — developer-ready output
-✅ Save parent posts as **clean root-level `.html` files** — no nested folders
-✅ **Preview** exported files right inside WordPress before downloading
-✅ **Download assets as ZIP** — all images, CSS, JS packaged in one click
-✅ **FTP / SFTP upload** directly from the export panel
-✅ **Email notification** when your export completes
-✅ Built-in **System Status** diagnostics page
+PDF export support is also planned, allowing you to generate print-ready documents directly from WordPress content.
 
----
+== Features ==
 
-### ⚡ Core Features (Free)
+* **Export WordPress pages to static HTML** — Export individual pages, posts, or custom post types as clean standalone HTML files.
+* **Selective content export** — Export a single item or hand-pick exactly which pages, posts, or custom post types you want to include.
+* **Free export limit** — Free version allows exporting up to 5 posts or pages per run (upgrade to Pro for unlimited exports).
+* **All WordPress post statuses** — Export Published, Draft, Private, Pending, or Scheduled content.
+* **Role-based page rendering** — Export pages as viewed by a specific WordPress user role (useful for membership or gated content previews).
+* **Developer-friendly asset structure** — Exported packages organize assets into `/images`, `/css`, and `/js` directories.
+* **Flatten parent URLs** — Option to export parent posts directly as `postname.html` at the root of the export package.
+* **Preview and download exports** — Browse generated static HTML files inside WordPress before downloading them as a ZIP archive.
+* **Direct FTP / SFTP deployment** — Upload exported static files directly to a remote server from the export panel.
+* **Reliable background exports** — Export jobs run in the background with pause, resume, cancel, and retry controls.
+* **Smart asset collection modes** — Choose Strict, Hybrid (recommended), or Full asset discovery for exporting site resources.
+* **System Status diagnostics** — Built-in environment checks (PHP version, permissions, REST API) help detect issues before exporting.
+* **Export buttons via shortcodes** — Add export buttons to posts or pages using simple shortcodes.
+* **Translation ready** — Fully internationalized and ready for localization.
+* **PDF export (returning soon)** — Optional PDF generation with customizable templates (headers, footers, fonts) planned for a future release.
 
-**Export Scope — Free & Pro**
-
-Free users can export up to **5 posts or pages** per run using the Custom export scope — hand-pick exactly what you need from any post type. Need more? Upgrade to Pro to unlock unlimited Custom exports, All Pages, All Posts, and Full Site scopes.
-
-**All Pages Export** 🔒 Pro
-
-Export all your WordPress pages in one click — no need to select them one by one. Perfect for exporting your entire page-based site (landing pages, portfolios, business sites) as clean static HTML. Available in Export WP Pages to Static HTML Pro.
-
-**Quick Export from Post & Page Listings**
-
-Export any single item instantly without leaving your WordPress admin lists. Every post, page, and custom post type item gets a dedicated **Export to HTML** action button directly in the listing row — click it and that item is exported immediately, no export panel required.
-
-**Granular Export Control**
-
-Pick exactly what to export — no need to regenerate your entire site every time. Select one post, a handful of pages, or choose from any custom post type. Use the built-in search to find content instantly and the "Select All" button for quick bulk selection.
-
-**All Post Statuses Supported**
-
-Export content regardless of its WordPress status. Publish, Draft, Private, Pending, and Scheduled posts are all supported. Perfect for previewing unpublished pages as static HTML before they go live.
-
-**Role-Based Export**
-
-Export pages exactly as they appear to a specific WordPress user role. Export WP Pages to Static HTML temporarily creates a user of the chosen role, renders the pages through their eyes, then cleans up — no permanent users left behind. Essential for membership sites, gated content previews, and client deliveries.
-
-**Grouped Asset Organization**
-
-Turn on "Group assets by type" and Export WP Pages to Static HTML automatically sorts all exported assets into clean subdirectories: `/images`, `/css`, `/js`. The result is a well-structured, developer-friendly HTML package that's easy to hand off or deploy.
-
-**Parent Posts in Root Directory**
-
-Enable "Parent posts in root dir" and Export WP Pages to Static HTML flattens your URL structure — `/postname/index.html` becomes `/postname.html` at the export root. Ideal for clean, flat static site structures.
-
-**Live Export Preview**
-
-After every export, a built-in file browser lets you preview exactly what was generated — HTML files, images, scripts, and stylesheets — right inside your WordPress dashboard.
-
-**Download Assets as ZIP**
-
-Download all exported images or other asset types as a single ZIP archive in one click. No need to manually browse folders or FTP into your server.
-
-**FTP / SFTP Upload**
-
-Push exports directly to a remote server over FTP or SFTP without leaving WordPress. Set your host, port, credentials, and remote path once — then upload with a button click. Supports FTPS (SSL) and passive mode.
-
-**Email Notification on Complete**
-
-Running a large export in the background? Enable "Notify on complete" and Export WP Pages to Static HTML emails you (and optional additional addresses) the moment the export finishes.
-
-**Smart Asset Collection Modes**
-
-Three modes give you precise control over which assets are bundled: Strict (only assets directly referenced by exported pages), Hybrid (referenced assets + media library, recommended), and Full (everything: uploads, theme assets, and plugin assets).
-
-**Intelligent URL Discovery and Crawling**
-
-Export WP Pages to Static HTML's built-in crawlers automatically discover all URLs needed for your selected content, including pagination, taxonomy archives, author pages, date archives, RSS feeds, post-type archives, sitemap URLs, and REST API endpoints — so no linked assets or pages are ever missed.
-
-**Fault-Tolerant Export Engine**
-
-Exports don't break on bad URLs. Export WP Pages to Static HTML automatically retries failed URLs with exponential backoff, tracks every failure with its last error message, and lets you re-run only the failed URLs without restarting the whole export. A background watchdog monitors stuck processes and repairs them automatically.
-
-**Pause, Resume, and Cancel**
-
-Long exports? Pause mid-run, pick up later, or cancel entirely without corrupting your export directory. Full export lifecycle control from the admin panel.
-
-**System Status and Diagnostics**
-
-A dedicated System Status page checks your PHP version, WordPress environment, file permissions, REST API availability, and more — so you can diagnose issues before they stop an export.
-
-**Translation Ready**
-
-Export WP Pages to Static HTML is fully internationalized and ready for translation via the WordPress translation system.
-
----
-
-### 🚀 Export WP Pages to Static HTML Pro Features
-
-* **All Pages export** — export every page in one run (free is limited to 5 per export)
-* **All Posts export** — export every post (or selected custom post types) in one run
-* **Full Site export** — complete WordPress-to-static-HTML conversion with URL discovery
-* **External Site Export** — fetch, mirror, and export any external website as clean static HTML
-* **AWS S3 deployment** — push exports directly to an S3 bucket
-* Email support and priority bug fixes
-
-[Upgrade to Export WP Pages to Static HTML Pro →](https://myrecorp.com/export-wp-page-to-static-html-pro/)
-
----
-
-### 🛠️ Perfect For
-
-* **Developers and agencies** delivering static HTML proofs or archives to clients
-* **Content teams** exporting specific posts for offline review or archiving
-* **Marketing teams** saving landing pages and campaign pages as standalone HTML
-* **Site owners** creating lightweight static mirrors of posts or pages
-* **Freelancers** handing off finished pages as a self-contained HTML package
-
-### ❌ Not Suitable For
-
-* Sites that require real-time dynamic content (live chat, WooCommerce checkout, membership portals)
-* Sites where the goal is replacing WordPress with a fully automated static deployment pipeline — consider Export WP Pages to Static HTML Pro for bulk and full-site generation
-
----
-
-### 🔌 Compatibility
-
-* Works with **all WordPress themes** including block themes and classic themes
-* **Page builders:** Elementor, Divi, Beaver Builder, Bricks, Gutenberg
-* **SEO plugins:** Yoast SEO, Rank Math, AIOSEO, SEOPress
-* **Custom post types:** auto-detected, available in the export scope selector
-* PHP 7.4 – 8.3 | WordPress 5.8 – 6.7
-
----
-
-### 📖 Documentation and Support
-
-* 📖 [Documentation](https://myrecorp.com/documentation/export-wp-page-to-static-html-documentation)
-* 💬 [Support Forum](https://wordpress.org/support/plugin/export-wp-page-to-static-html/)
+== Pro Features ==
+* **All Pages / All Posts export** — Bulk export every page or post in one run
+* **Full Site export** — Complete WordPress-to-static-HTML conversion (URL discovery & crawling)
+* **External Site Export** — Mirror and export any external URL as a clean static package
+* **AWS S3 deployment** — Upload exports directly to S3 buckets
+* **Priority support & updates**
 
 == Installation ==
-
-= Automatic Installation (Recommended) =
-
-1. In your WordPress dashboard, go to **Plugins → Add New**
-2. Search for **"Export WP Pages to Static HTML"**
-3. Click **Install Now**, then **Activate**
-4. Navigate to **Tools → Export WP Pages to Static HTML**
+= Automatic Installation =
+1. Dashboard → Plugins → Add New
+2. Search for "Export WP Pages to Static HTML & PDF"
+3. Install and Activate
+4. Go to Tools → Export WP Pages to Static HTML to begin
 
 = Manual Installation =
+1. Download the plugin ZIP from WordPress.org or your account
+2. Dashboard → Plugins → Add New → Upload Plugin
+3. Upload, Install Now, then Activate
 
-1. Download the plugin `.zip` file from WordPress.org
-2. Go to **Plugins → Add New → Upload Plugin**
-3. Upload the ZIP and click **Install Now**, then **Activate**
-4. Navigate to **Tools → Export WP Pages to Static HTML**
-
-= Your First Export =
-
-1. Go to **Tools → Export WP Pages to Static HTML**
-2. Choose your **Export Scope** (Custom up to 5 items free, or Pro: All Pages / All Posts / Full Site / External Site)
-3. Select the posts or pages you want to export
-4. (Optional) Choose a **Post Status**, **Login Role**, and **Asset Options**
-5. Click **Start Export**
-6. When complete, click **Preview** to browse the files or **Download ZIP** to save them
-
-== Frequently Asked Questions ==
-
-= Is Export WP Pages to Static HTML free? =
-
-Yes! The core plugin is free and lets you export up to **5 posts or pages per run** using the Custom export scope. Export WP Pages to Static HTML Pro is an optional add-on that removes this limit and unlocks All Pages, All Posts, Full Site, External Site Export, and AWS S3 deployment.
-
-= How is Export WP Pages to Static HTML different from Simply Static or other full-site generators? =
-
-Export WP Pages to Static HTML is built for precision over full-site generation. Instead of converting your entire WordPress installation, you choose exactly which posts, pages, or custom post type items to export — and in what status and user-role context. This makes it far more useful for client deliveries, content archiving, and partial static exports.
-
-= Can I export draft or private posts as static HTML? =
-
-Yes. Export WP Pages to Static HTML supports all five WordPress post statuses: Publish, Draft, Private, Pending, and Scheduled. This is rare in static export plugins and a key differentiator of Export WP Pages to Static HTML.
-
-= What does "role-based export" mean? =
-
-You can choose a WordPress user role (e.g., Subscriber, Editor) and Export WP Pages to Static HTML will render the exported pages exactly as that role would see them. It temporarily creates a user of that role, renders the content, then deletes the user — nothing is left behind.
-
-= What does "Group assets by type" do? =
-
-When enabled, Export WP Pages to Static HTML sorts all exported assets into subdirectories: images go into `/images`, stylesheets into `/css`, and scripts into `/js`. This produces clean, organized output that is immediately ready for handoff or deployment.
-
-= What does "Parent posts in root dir" do? =
-
-It flattens the URL structure of parent posts. Instead of `/postname/index.html`, the file is saved as `/postname.html` directly in the export root — ideal for hosting on simple static servers.
-
-= Can I re-run only the failed URLs? =
-
-Yes. Export WP Pages to Static HTML tracks every failed URL with its error message and retry count. A dedicated "Re-run failed" button retries only the failed items without restarting the entire export.
-
-= Can I pause and resume an export? =
-
-Yes. Use the Pause and Resume buttons in the export panel at any time. Exports can also be cancelled without corrupting already-exported files.
-
-= Can I upload exports directly to my FTP/SFTP server? =
-
-Yes. Configure your FTP/SFTP credentials in **Settings → FTP/SFTP** and enable "Upload to FTP" before starting an export. Supports passive mode and FTPS (SSL). You can also browse remote directories directly from the settings panel.
-
-= How does email notification work? =
-
-Enable "Notify on complete" in the Delivery and Notifications panel. You can optionally add extra email addresses for teammates or clients. A notification email is sent automatically when the export finishes.
-
-= What is the Preview feature? =
-
-After an export completes, the built-in file browser lets you browse all generated files — HTML pages, images, CSS, JS — directly in your WordPress admin. You can also download groups of assets (like all images) as ZIP archives from the preview panel.
-
-= Does Export WP Pages to Static HTML work with Elementor, Divi, and other page builders? =
-
-Yes. Export WP Pages to Static HTML works with all major page builders and has been tested with Elementor, Divi, Beaver Builder, Bricks Builder, and the native Gutenberg editor.
-
-= Does it work with custom post types? =
-
-Yes. All public, registered custom post types are automatically detected and appear in the Export Scope selector under the "Post types" tab.
-
-= Does it work on WordPress Multisite? =
-
-The free plugin works on individual sites in a multisite network.
-
-= What is External Site Export? =
-
-External Site Export is a Pro feature that lets you point Export WP Pages to Static HTML at **any URL** — not just your own WordPress content. The plugin fetches, crawls, and mirrors the target site, downloading its HTML, CSS, JavaScript, and images into a clean, self-contained static package you can host anywhere. Ideal for archiving third-party pages, creating offline mirrors, or incorporating external content into a static delivery.
-
-= What are the asset collection modes? =
-
-Strict exports only assets directly referenced by the exported pages. Hybrid (the recommended default) adds your media library on top of referenced assets. Full includes everything — theme and plugin asset directories included.
-
-= Will this affect my live WordPress site? =
-
-No. Exports are written to a separate directory (`/wp-content/wp-to-html-exports/`). Your live WordPress site remains fully intact and unchanged.
-
-= Where can I get help? =
-
-Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/export-wp-page-to-static-html/). Export WP Pages to Static HTML Pro customers receive priority email support.
+== Your First Export ==
+1. Tools → Export WP Pages to Static HTML
+2. Choose Export Scope (Custom up to 5 items free; Pro: All Pages / All Posts / Full Site / External Site)
+3. Select items, choose Post Status and Role (optional), pick Asset Mode
+4. Start Export → Preview → Download ZIP or Upload to remote
 
 == Screenshots ==
-1. **Export Panel** — Select posts, pages, or CPT items, choose scope, and start your export
+1. Export Panel — Select posts, pages, or CPT items, choose scope, and start export
+2. Export Action in Posts/Pages listings — Quick Export to HTML button in row
+3. Export Buttons in Admin Toolbar
 
+== Shortcodes ==
+`[export_html_button]`  : Inserts an "Export to HTML" button (visible to allowed roles)
+`[generate_pdf_button]` : Inserts a "Generate PDF" button (PDF feature planned to return)
+
+== Frequently Asked Questions ==
+= Is the plugin free? =
+Yes. The core plugin is free and allows exporting up to **5 posts/pages per run**. Pro removes the limit and adds bulk/full-site features.
+
+= How is this different from full-site static generators? =
+This plugin focuses on **selective**, role-aware exports — you pick exactly which posts, pages, or CPT items to export, rather than always converting the entire site.
+
+= Can I export draft or private posts? =
+Yes. The plugin supports Publish, Draft, Private, Pending, and Scheduled statuses.
+
+= Will it work with page builders like Elementor or Divi? =
+Yes. Exports capture rendered front-end HTML so Elementor, Divi, Beaver Builder, Bricks, and Gutenberg layouts are preserved.
+
+= Can I re-run only failed URLs? =
+Yes. Failed URLs are tracked with error messages and retry counts. Use the "Re-run failed" action to retry failures without restarting the whole export.
+
+= Where are exports written? =
+Exports are written to a separate directory (default: `/wp-content/wp-to-html-exports/`) so your live site remains unchanged.
+
+= Is PDF export available? =
+PDF export tooling will return in an upcoming release. When enabled, it will support templates, headers/footers, and shortcodes to place PDF buttons.
+
+== Screenshots ==
+1. Export Panel — Select posts, pages, or CPT items, choose scope, and start your export
+2. Quick Export — Export action available from posts/pages listing rows
+
+== Changelog ==
+= 6.0.6.0 =
+* Added PDF exporting functionality.
+* Enhanced exporting experience.
+* Made the layout easier to understand.
+
+= 6.0.5.8 =
+* Improved reliability: enhanced retry logic and watchdog repairs
+* Improved background processing and error reporting
+* Small UX and stability fixes
 
 = 6.0.5.7 =
 * Added: External Site Export — fetch and mirror any external URL as static HTML (Pro only).
@@ -434,5 +295,5 @@ Post in the [WordPress.org support forum](https://wordpress.org/support/plugin/e
 
 == Upgrade Notice ==
 
-= 6.0.5.7 =
-This release improves export reliability with enhanced retry logic, watchdog repair, and better background processing. Recommended update for all users.
+= 6.0.6.1 =
+This release improves export reliability with enhanced exporting experiance, added pdf export system.

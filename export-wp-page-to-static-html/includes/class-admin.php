@@ -38,7 +38,7 @@ class Admin {
             '',
             'manage_options',
             'wp-to-html-whats-new',
-            [$this, 'whats_new_page']
+            ['\WpToHtml\WhatsNew', 'render']
         );
     }
 
@@ -113,8 +113,8 @@ class Admin {
             'ext_export_list_files_url' => rest_url('wp_to_html/v1/ext-export/list-files'),
             'site_url'                  => home_url('/'),
             'post_types' => $this->get_public_post_types_for_picker(),
-            // For All Posts scope: include core "post" + public CPTs that have at least one non-private item.
-            'all_posts_post_types' => $this->get_post_types_for_all_posts_scope(),
+            // For "All posts" mode: include core "post" + public CPTs that have at least one non-private item.
+            'all_posts_post_types' => $this->get_post_types_for_all_posts(),
             // Developer debug flag — mirrors the PHP WP_TO_HTML_DEBUG constant.
             'debug' => defined('WP_TO_HTML_DEBUG') && WP_TO_HTML_DEBUG ? 1 : 0,
         ]);
@@ -150,13 +150,13 @@ class Admin {
     }
 
     /**
-     * Post types for the "All posts" scope UI.
+     * Post types for the "All posts" mode UI.
      * Includes core "post" + public CPTs (excluding page/attachment) that have
      * at least one non-private item (publish/draft/pending/future).
      *
      * NOTE: This is UI-only metadata; the export payload decides which statuses to export.
      */
-    private function get_post_types_for_all_posts_scope(): array {
+    private function get_post_types_for_all_posts(): array {
         $objs = get_post_types([
             'public'  => true,
             'show_ui' => true,
@@ -210,6 +210,8 @@ CSS
         ?>
 
         <h1 style="display:none!important;"></h1>
+        <h2 style="display:none!important;"></h2>
+        <p style="display:none!important;"></p>
         <div class="wrap" id="wp-to-html-app">
 
             <!-- ══════ TOP BAR ══════ -->
@@ -245,21 +247,16 @@ CSS
                     </button>
                 </div>
                 <nav class="eh-topbar-nav" role="tablist">
-                    <button type="button" id="eh-tab-export" role="tab" aria-pressed="true"><?php esc_html_e('Export', 'wp-to-html'); ?></button>
+                    <button type="button" id="eh-tab-export" role="tab" aria-pressed="true"><?php esc_html_e('Export', 'wp-to-html'); ?></button>                    
                     <button type="button" id="eh-tab-settings" role="tab" aria-pressed="false"><?php esc_html_e('Settings', 'wp-to-html'); ?></button>
-                    <?php if ($pro_active): ?>
-                    <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false" class="eh-tab-ext-export-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                        <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
-                    </button>
-                    <?php else: ?>
-                    <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false" class="eh-tab-ext-export-btn" data-pro="1">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                        <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
-                        <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;margin-left:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </button>
-                    <?php endif; ?>
+
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-to-html-system-status' ) ); ?>" class="eh-tab-link"><?php esc_html_e('System Status', 'wp-to-html'); ?></a>
+                    <a href="#eh-more-plugins-section" class="eh-tab-link" id="eh-tab-more-plugins" role="tab" aria-pressed="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5Z"/>
+                        </svg>
+                        More plugins
+                    </a>
                 </nav>
             </header>
 
@@ -267,31 +264,108 @@ CSS
             <div class="eh-grid">
 
                 <!-- ── COL 1: Sidebar ── -->
-                <aside class="eh-sidebar eh-overlay" id="eh-scope-card">
+                <aside class="eh-sidebar eh-overlay" id="eh-export-card">
 
                     <div id="eh-panel-export">
 
-                    <!-- Sticky scope bar -->
-                    <div class="eh-scope-head">
-                        <span class="eh-scope-label"><?php esc_html_e('Export Scope', 'wp-to-html'); ?></span>
-                        <div class="eh-seg" role="tablist" aria-label="<?php esc_attr_e('Export scope', 'wp-to-html'); ?>">
-                            <button type="button" id="eh-scope-custom" role="tab" aria-pressed="true"><?php esc_html_e('Custom', 'wp-to-html'); ?></button>
-                            <?php if ($pro_active): ?>
-                            <button type="button" id="eh-scope-all-pages" role="tab" aria-pressed="false"><?php esc_html_e('All pages', 'wp-to-html'); ?></button>
-                            <button type="button" id="eh-scope-all-posts" role="tab" aria-pressed="false"><?php esc_html_e('All posts', 'wp-to-html'); ?></button>
-                            <button type="button" id="eh-scope-full" role="tab" aria-pressed="false"><?php esc_html_e('Full site', 'wp-to-html'); ?></button>
-                            <?php endif; ?>
-                        </div>
-                        <?php if (!$pro_active): ?>
-                        <div class="eh-seg-pro" role="tablist" aria-label="<?php esc_attr_e('Pro export scopes', 'wp-to-html'); ?>">
-                            <button type="button" id="eh-scope-all-pages" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('All pages', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                            <button type="button" id="eh-scope-all-posts" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('All posts', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                            <button type="button" id="eh-scope-full" role="tab" aria-pressed="false" data-pro="1"><?php esc_html_e('Full site', 'wp-to-html'); ?> <svg class="eh-scope-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                        </div>
-                        <?php endif; ?>
-                    </div>
+                    <!-- Export mode selector bar -->
+<div class="eh-export-head">
+    <span class="eh-export-label"><?php esc_html_e('What to Export', 'wp-to-html'); ?></span>
 
-                    <!-- All posts scope: post type filter (hidden by default) -->
+    <div class="eh-seg" role="tablist" aria-label="<?php esc_attr_e('What to export', 'wp-to-html'); ?>">
+        <button type="button" id="eh-export-custom" role="tab" aria-pressed="true">
+            <?php esc_html_e('Pick custom items', 'wp-to-html'); ?>
+        </button>
+
+        <?php if ($pro_active): ?>
+            <button type="button" id="eh-export-all-pages" role="tab" aria-pressed="false">
+                <?php esc_html_e('All pages', 'wp-to-html'); ?>
+            </button>
+
+            <button type="button" id="eh-export-all-posts" role="tab" aria-pressed="false">
+                <?php esc_html_e('All posts', 'wp-to-html'); ?>
+            </button>
+
+            <button type="button" id="eh-export-full" role="tab" aria-pressed="false">
+                <?php esc_html_e('Full site', 'wp-to-html'); ?>
+            </button>
+            <?php else: ?>
+
+            <!-- External export locked in FREE -->
+            <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false"
+                    class="eh-tab-ext-export-btn" data-pro="1">
+
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"
+                    style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+
+                <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
+
+                <svg class="eh-pro-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                    style="width:12px;height:12px;margin-left:4px;">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+
+            </button>
+        <?php endif; ?>
+
+        <?php if ($pro_active): ?>
+            <button type="button" id="eh-tab-ext-export" role="tab" aria-pressed="false" class="eh-tab-ext-export-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"
+                    style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <?php esc_html_e('External Site Export', 'wp-to-html'); ?>
+            </button>
+
+
+        </div>
+
+        <?php else: ?>
+
+        <button type="button" id="eh-export-all-pages" role="tab" aria-pressed="false" data-pro="1">
+            <?php esc_html_e('All pages', 'wp-to-html'); ?>
+            <svg class="eh-pro-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </button>
+
+        <button type="button" id="eh-export-all-posts" role="tab" aria-pressed="false" data-pro="1">
+            <?php esc_html_e('All posts', 'wp-to-html'); ?>
+            <svg class="eh-pro-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </button>
+
+        <button type="button" id="eh-export-full" role="tab" aria-pressed="false" data-pro="1">
+            <?php esc_html_e('Full site', 'wp-to-html'); ?>
+            <svg class="eh-pro-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </button>
+
+
+    </div>
+
+    <?php endif; ?>
+
+</div>
+                    <!-- All posts filter: post type selector (hidden by default) -->
                     <div id="eh-all-posts-types" style="display:none;">
                         <details class="eh-acc" open>
                             <summary><span class="eh-acc-dot b"></span><?php esc_html_e('Post types (non-private)', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
@@ -303,9 +377,9 @@ CSS
                         </details>
                     </div>
 
-                    <!-- Post Type & Scope -->
-                    <details class="eh-acc" open id="eh-acc-post-type-scope">
-                        <summary><span class="eh-acc-dot g"></span><?php esc_html_e('Post Type & Scope', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
+                    <!-- Content Selection -->
+                    <details class="eh-acc" open id="eh-acc-content-selection">
+                        <summary><span class="eh-acc-dot g"></span><?php esc_html_e('Content Selection', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
                         <div class="eh-acc-body">
                             <div id="eh-selector">
                                 <div class="eh-sel-bar">
@@ -328,88 +402,91 @@ CSS
                                 </div>
                                 <div class="eh-list" id="eh-content-list" aria-live="polite"></div>
                                 <p class="eh-hint" style="margin-top:4px;"><?php esc_html_e('Scroll to load more. Search filters the list.', 'wp-to-html'); ?></p>
+
+                                
+                            <hr class="eh-divider">
+                            <!-- Post Status -->
+                            <div class="eh-section">
+                                <span class="eh-field-label"><?php esc_html_e('Post Status', 'wp-to-html'); ?></span>
+                                <div class="eh-checks">
+                                    <label><input type="checkbox" class="eh-status" value="publish" checked> <?php esc_html_e('Publish', 'wp-to-html'); ?></label>
+                                    <label><input type="checkbox" class="eh-status" value="draft"> <?php esc_html_e('Draft', 'wp-to-html'); ?></label>
+                                    <label><input type="checkbox" class="eh-status" value="private"> <?php esc_html_e('Private', 'wp-to-html'); ?></label>
+                                    <label><input type="checkbox" class="eh-status" value="pending"> <?php esc_html_e('Pending', 'wp-to-html'); ?></label>
+                                    <label><input type="checkbox" class="eh-status" value="future"> <?php esc_html_e('Schedule', 'wp-to-html'); ?></label>
+                                </div>
+                                <p class="eh-hint"><?php esc_html_e('Non-public statuses may fail if URL is not publicly accessible.', 'wp-to-html'); ?></p>
+                            </div>
+
                             </div>
                         </div>
                     </details>
 
-                    <!-- Post Status -->
-                    <details class="eh-acc" id="eh-acc-post-status">
-                        <summary><span class="eh-acc-dot b"></span><?php esc_html_e('Post Status', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
+                    <details class="eh-acc" id="eh-acc-advanced-settings">
+                        <summary><span class="eh-acc-dot b"></span><?php esc_html_e('Advanced Settings', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
                         <div class="eh-acc-body">
-                            <div class="eh-checks">
-                                <label><input type="checkbox" class="eh-status" value="publish" checked> <?php esc_html_e('Publish', 'wp-to-html'); ?></label>
-                                <label><input type="checkbox" class="eh-status" value="draft"> <?php esc_html_e('Draft', 'wp-to-html'); ?></label>
-                                <label><input type="checkbox" class="eh-status" value="private"> <?php esc_html_e('Private', 'wp-to-html'); ?></label>
-                                <label><input type="checkbox" class="eh-status" value="pending"> <?php esc_html_e('Pending', 'wp-to-html'); ?></label>
-                                <label><input type="checkbox" class="eh-status" value="future"> <?php esc_html_e('Schedule', 'wp-to-html'); ?></label>
+
+                            <!-- Login Role -->
+                            <?php $roles_obj = function_exists('wp_roles') ? wp_roles() : null; $roles = ($roles_obj && !empty($roles_obj->roles)) ? $roles_obj->roles : []; ?>
+                            <div class="eh-section">
+                                <span class="eh-field-label"><?php esc_html_e('Login Role', 'wp-to-html'); ?></span>
+                                <select id="wp-to-html-export-as">
+                                    <?php echo '<option value="" selected>' . esc_html__('Select a user role', 'wp-to-html') . '</option>';
+                                    foreach ($roles as $key => $r) { $name = isset($r['name']) ? $r['name'] : $key; printf('<option value="%s">%s</option>', esc_attr($key), esc_html($name)); } ?>
+                                </select>
+                                <p class="eh-hint"><?php esc_html_e('Exports pages as they appear to the selected role. A temporary user is created and deleted after export.', 'wp-to-html'); ?></p>
                             </div>
-                            <p class="eh-hint"><?php esc_html_e('Non-public statuses may fail if URL is not publicly accessible.', 'wp-to-html'); ?></p>
-                        </div>
-                    </details>
 
-                    <?php $roles_obj = function_exists('wp_roles') ? wp_roles() : null; $roles = ($roles_obj && !empty($roles_obj->roles)) ? $roles_obj->roles : []; ?>
+                            <hr class="eh-divider">
 
-                    <!-- Login Role -->
-                    <details class="eh-acc">
-                        <summary><span class="eh-acc-dot"></span><?php esc_html_e('Login Role', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
-                        <div class="eh-acc-body">
-                            <select id="wp-to-html-export-as">
-                                <?php echo '<option value="" selected>' . esc_html__('Select a user role', 'wp-to-html') . '</option>';
-                                foreach ($roles as $key => $r) { $name = isset($r['name']) ? $r['name'] : $key; printf('<option value="%s">%s</option>', esc_attr($key), esc_html($name)); } ?>
-                            </select>
-                            <p class="eh-hint"><?php esc_html_e('Exports pages as they appear to the selected role. A temporary user is created and deleted after export.', 'wp-to-html'); ?></p>
-                        </div>
-                    </details>
-
-                    <!-- Asset Options -->
-                    <details class="eh-acc">
-                        <summary><span class="eh-acc-dot o"></span><?php esc_html_e('Asset Options', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
-                        <div class="eh-acc-body">
-                            <span class="eh-field-label"><?php esc_html_e('Collection mode', 'wp-to-html'); ?></span>
-                            <select id="wp-to-html-asset-collection-mode">
-                                <option value="strict"><?php esc_html_e('Strict (referenced only)', 'wp-to-html'); ?></option>
-                                <option value="hybrid" selected><?php esc_html_e('Hybrid (referenced + media)', 'wp-to-html'); ?></option>
-                                <option value="full"><?php esc_html_e('Full (all uploads + theme assets)', 'wp-to-html'); ?></option>
-                            </select>
-                            <label class="eh-toggle"><input type="checkbox" id="save_assets_grouped" value="1" <?php echo $pro_active ? 'checked' : 'disabled data-pro="1"'; ?>><span><?php esc_html_e('Group assets by type', 'wp-to-html'); ?><?php if (!$pro_active): ?> 🔒<?php endif; ?></span></label>
-                            <p class="eh-hint">
-                                <?php echo wp_kses(__('When enabled, all exported assets are automatically organized into clean subdirectories: <code>/images</code>, <code>/css</code>, <code>/js</code>. The result is a well-structured, developer-friendly HTML package that is easy to hand off or deploy.', 'wp-to-html'), array('code' => array())); ?>
-                                <?php if (!$pro_active): ?> 
-                                <span class="eh-pro-badge">PRO</span>
-                                <?php endif; ?>
-                            </p>
-                        </div>
-                    </details>
-
-                    <!-- Homepage & Structure -->
-                    <details class="eh-acc">
-                        <summary><span class="eh-acc-dot"></span><?php esc_html_e('Homepage & Structure', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
-                        <div class="eh-acc-body">
-                            <label class="eh-toggle"><input type="checkbox" id="wp-to-html-include-home"><span><?php esc_html_e('Include homepage', 'wp-to-html'); ?></span></label>
-                            <label class="eh-toggle"><input type="checkbox" id="wp-to-html-root-parent-html"><span><?php esc_html_e('Parent posts in root dir', 'wp-to-html'); ?></span></label>
-                            <p class="eh-hint"><?php echo wp_kses(__('Saves <code>/postname/</code> as <code>/postname.html</code> in export root.', 'wp-to-html'), ['code' => []]); ?></p>
-                        </div>
-                    </details>
-
-                    <!-- Delivery & Notifications -->
-                    <details class="eh-acc">
-                        <summary><span class="eh-acc-dot"></span><?php esc_html_e('Delivery & Notifications', 'wp-to-html'); ?><svg class="eh-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
-                        <div class="eh-acc-body">
-                            <label class="eh-toggle"><input type="checkbox" id="wp-to-html-upload-ftp"><span><?php esc_html_e('Upload to FTP', 'wp-to-html'); ?></span></label>
-                            <div id="wp-to-html-ftp-remote-wrap" style="display:none;">
-                                <span class="eh-field-label"><?php esc_html_e('Remote path', 'wp-to-html'); ?></span>
-                                <div class="eh-input-row"><input type="text" id="wp-to-html-ftp-remote-path" placeholder="<?php esc_attr_e('/public_html/exports', 'wp-to-html'); ?>"><button type="button" class="eh-btn-s" id="wp-to-html-ftp-remote-browse"><?php esc_html_e('Browse', 'wp-to-html'); ?></button></div>
+                            <!-- Asset Options -->
+                            <div class="eh-section">
+                                <span class="eh-field-label-header"><?php esc_html_e('Asset Options', 'wp-to-html'); ?></span>
+                                <span class="eh-field-label"><?php esc_html_e('Collection mode', 'wp-to-html'); ?></span>
+                                <select id="wp-to-html-asset-collection-mode">
+                                    <option value="strict"><?php esc_html_e('Strict (referenced only)', 'wp-to-html'); ?></option>
+                                    <option value="hybrid" selected><?php esc_html_e('Hybrid (referenced + media)', 'wp-to-html'); ?></option>
+                                    <option value="full"><?php esc_html_e('Full (all uploads + theme assets)', 'wp-to-html'); ?></option>
+                                </select>
+                                <label class="eh-toggle"><input type="checkbox" id="save_assets_grouped" value="1" <?php echo $pro_active ? 'checked' : 'disabled data-pro="1"'; ?>><span><?php esc_html_e('Group assets by type', 'wp-to-html'); ?><?php if (!$pro_active): ?> 🔒<?php endif; ?></span></label>
+                                <p class="eh-hint">
+                                    <?php echo wp_kses(__('When enabled, all exported assets are automatically organized into clean subdirectories: <code>/images</code>, <code>/css</code>, <code>/js</code>. The result is a well-structured, developer-friendly HTML package that is easy to hand off or deploy.', 'wp-to-html'), array('code' => array())); ?>
+                                    <?php if (!$pro_active): ?><span class="eh-pro-badge">PRO</span><?php endif; ?>
+                                </p>
                             </div>
-                            <label class="eh-toggle"><input type="checkbox" id="wp-to-html-upload-s3" <?php echo $pro_active ? '' : 'disabled data-pro="1" title="Requires Export WP Pages to Static HTML Pro"'; ?>><span><?php esc_html_e('Upload to AWS S3', 'wp-to-html'); ?><?php echo $pro_active ? '' : ' 🔒'; ?></span></label>
-                            <div id="wp-to-html-s3-prefix-wrap" style="display:none;">
-                                <span class="eh-field-label"><?php esc_html_e('S3 key prefix', 'wp-to-html'); ?></span>
-                                <input type="text" id="wp-to-html-s3-prefix" placeholder="<?php esc_attr_e('exports/', 'wp-to-html'); ?>">
+
+                            <hr class="eh-divider">
+
+                            <!-- Homepage & Structure -->
+                            <div class="eh-section">
+                                <span class="eh-field-label-header"><?php esc_html_e('Homepage & Structure', 'wp-to-html'); ?></span>
+                                <label class="eh-toggle"><input type="checkbox" id="wp-to-html-include-home"><span><?php esc_html_e('Include homepage', 'wp-to-html'); ?></span></label>
+                                <label class="eh-toggle"><input type="checkbox" id="wp-to-html-root-parent-html" checked><span><?php esc_html_e('Parent posts in root dir', 'wp-to-html'); ?></span></label>
+                                <p class="eh-hint"><?php echo wp_kses(__('Saves <code>/postname/</code> as <code>/postname.html</code> in export root.', 'wp-to-html'), ['code' => []]); ?></p>
                             </div>
-                            <label class="eh-toggle"><input type="checkbox" id="wp-to-html-notify-complete"><span><?php esc_html_e('Notify on complete', 'wp-to-html'); ?></span></label>
-                            <div id="wp-to-html-notify-emails-wrap" style="display:none;">
-                                <span class="eh-field-label"><?php esc_html_e('Additional emails', 'wp-to-html'); ?></span>
-                                <textarea id="wp-to-html-notify-emails" rows="2" placeholder="<?php esc_attr_e('you@example.com, teammate@example.com', 'wp-to-html'); ?>"></textarea>
+
+                            <hr class="eh-divider">
+
+                            <!-- Delivery & Notifications -->
+                            <div class="eh-section">
+                                <span class="eh-field-label-header"><?php esc_html_e('Delivery & Notifications', 'wp-to-html'); ?></span>
+                                <label class="eh-toggle"><input type="checkbox" id="wp-to-html-upload-ftp"><span><?php esc_html_e('Upload to FTP', 'wp-to-html'); ?></span></label>
+                                <div id="wp-to-html-ftp-remote-wrap" style="display:none;">
+                                    <span class="eh-field-label"><?php esc_html_e('Remote path', 'wp-to-html'); ?></span>
+                                    <div class="eh-input-row"><input type="text" id="wp-to-html-ftp-remote-path" placeholder="<?php esc_attr_e('/public_html/exports', 'wp-to-html'); ?>"><button type="button" class="eh-btn-s" id="wp-to-html-ftp-remote-browse"><?php esc_html_e('Browse', 'wp-to-html'); ?></button></div>
+                                </div>
+                                <label class="eh-toggle"><input type="checkbox" id="wp-to-html-upload-s3" <?php echo $pro_active ? '' : 'disabled data-pro="1" title="Requires Export WP Pages to Static HTML Pro"'; ?>><span><?php esc_html_e('Upload to AWS S3', 'wp-to-html'); ?><?php echo $pro_active ? '' : ' 🔒'; ?></span></label>
+                                <div id="wp-to-html-s3-prefix-wrap" style="display:none;">
+                                    <span class="eh-field-label"><?php esc_html_e('S3 key prefix', 'wp-to-html'); ?></span>
+                                    <input type="text" id="wp-to-html-s3-prefix" placeholder="<?php esc_attr_e('exports/', 'wp-to-html'); ?>">
+                                </div>
+                                <label class="eh-toggle"><input type="checkbox" id="wp-to-html-notify-complete"><span><?php esc_html_e('Notify on complete', 'wp-to-html'); ?></span></label>
+                                <div id="wp-to-html-notify-emails-wrap" style="display:none;">
+                                    <span class="eh-field-label"><?php esc_html_e('Additional emails', 'wp-to-html'); ?></span>
+                                    <textarea id="wp-to-html-notify-emails" rows="2" placeholder="<?php esc_attr_e('you@example.com, teammate@example.com', 'wp-to-html'); ?>"></textarea>
+                                </div>
                             </div>
+
                         </div>
                     </details>
 
@@ -446,23 +523,18 @@ CSS
                         </div>
                         <div class="eh-status-bar">
                             <div class="eh-big" id="wp-to-html-result"><?php esc_html_e('Idle', 'wp-to-html'); ?></div>
-                            <div class="eh-hint" id="eh-scope-hint"></div>
+                            <div class="eh-hint" id="eh-export-hint"></div>
                         </div>
                         <div id="wp-to-html-result-extra" class="eh-result-extra"></div>
+                        <div id="eh-zip-notice" class="eh-zip-notice" style="display:none;">
+                            <span class="eh-zip-notice-dot"></span>
+                            <?php esc_html_e('Creating ZIP file, please wait…', 'wp-to-html'); ?>
+                        </div>
+                        <a href="#eh-logpanel" class="eh-log-link"><?php esc_html_e('View Log ↓', 'wp-to-html'); ?></a>
                     </div>
                 </main>
-
-                <!-- ── COL 3: Log Panel ── -->
-                <section class="eh-logpanel">
-                    <div class="eh-logpanel-head">
-                        <span class="eh-logpanel-title"><?php esc_html_e('Live Log', 'wp-to-html'); ?></span>
-                        <button type="button" class="eh-btn-s" id="eh-copy-log"><?php esc_html_e('Copy', 'wp-to-html'); ?></button>
-                    </div>
-                    <pre id="wp-to-html-log"></pre>
-                </section>
-
+                
             </div><!-- /.eh-grid -->
-
             <!-- ══════ FULL-WIDTH SETTINGS PAGE ══════ -->
             <div id="eh-panel-settings" class="eh-settings-page" style="display:none;">
 
@@ -483,6 +555,7 @@ CSS
                         &mdash;
                         <?php esc_html_e('Some features may not work correctly. Please ask your hosting provider to enable the missing extension(s) or check the System Status page for details.', 'wp-to-html'); ?>
                         <a href="<?php echo esc_url( admin_url('admin.php?page=wp-to-html-system-status') ); ?>"><?php esc_html_e('View System Status →', 'wp-to-html'); ?></a>
+
                     </div>
                 </div>
                 <?php endif; ?>
@@ -506,6 +579,14 @@ CSS
                             <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                             <?php esc_html_e('AWS S3', 'wp-to-html'); ?>
                             <?php echo $pro_active ? '' : '<span class="eh-pro-badge">PRO</span>'; ?>
+                        </button>
+                        <button type="button" id="eh-settings-tab-pdf" class="eh-settings-tab" role="tab" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            <?php esc_html_e('PDF', 'wp-to-html'); ?>
+                        </button>
+                        <button type="button" id="eh-settings-tab-html-btn" class="eh-settings-tab" role="tab" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                            <?php esc_html_e('HTML Button', 'wp-to-html'); ?>
                         </button>
                     </div>
                 </div>
@@ -689,6 +770,224 @@ CSS
                         </div>
                     </div>
 
+                    <!-- PDF Panel -->
+                    <div id="eh-settings-panel-pdf" class="eh-settings-section" style="display:none;">
+                        <div class="eh-settings-section-grid">
+
+                            <div class="eh-settings-block">
+                                <div class="eh-settings-block-head">
+                                    <div class="eh-settings-block-icon" style="background:linear-gradient(135deg,#e53e3e,#fc8181)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3><?php esc_html_e('PDF Export', 'wp-to-html'); ?></h3>
+                                        <p><?php esc_html_e('Let visitors or logged-in users download any page as a PDF.', 'wp-to-html'); ?></p>
+                                    </div>
+                                </div>
+                                <div class="eh-settings-block-body">
+
+                                    <div class="eh-fs-field">
+                                        <label class="eh-fs-label"><?php esc_html_e('How it works', 'wp-to-html'); ?></label>
+                                        <p class="eh-fs-hint">
+                                            <?php esc_html_e('A "Generate PDF" button is added to the WP Admin Bar on every frontend page. Clicking it downloads the current page as a PDF. You can also place the shortcode anywhere to show a download link.', 'wp-to-html'); ?>
+                                        </p>
+                                        <?php if ( ! $pro_active ) : ?>
+                                        <p class="eh-fs-hint" style="color:#e53e3e;margin-top:6px;">
+                                            <?php esc_html_e('Free: up to 2 PDFs per user per day.', 'wp-to-html'); ?>
+                                            <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" style="color:#e53e3e;font-weight:600;"><?php esc_html_e('Upgrade to Pro for unlimited →', 'wp-to-html'); ?></a>
+                                        </p>
+                                        <?php else : ?>
+                                        <p class="eh-fs-hint" style="color:#38a169;margin-top:6px;">
+                                            <?php esc_html_e('Pro: unlimited PDF generation.', 'wp-to-html'); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:16px;">
+                                        <label class="eh-fs-label"><?php esc_html_e('Shortcode', 'wp-to-html'); ?></label>
+                                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                            <input type="text" id="wth-pdf-shortcode" value='[wp_to_html_pdf_button name="Generate PDF"]' readonly style="max-width:340px;flex:1;padding:6px 10px;font-size:13px;border:1px solid #ddd;border-radius:5px;background:#f9f9f9;">
+                                            <button type="button" class="button button-secondary" id="wth-pdf-copy-sc"><?php esc_html_e('Copy', 'wp-to-html'); ?></button>
+                                            <span id="wth-pdf-copy-msg" style="display:none;color:#38a169;font-weight:600;"><?php esc_html_e('Copied!', 'wp-to-html'); ?></span>
+                                        </div>
+                                        <span class="eh-fs-hint"><?php esc_html_e('Add this shortcode anywhere to display a Generate PDF button.', 'wp-to-html'); ?></span>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="eh-settings-block">
+                                <div class="eh-settings-block-head">
+                                    <div class="eh-settings-block-icon" style="background:linear-gradient(135deg,#4a5568,#718096)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3><?php esc_html_e('Access Control', 'wp-to-html'); ?></h3>
+                                        <p><?php esc_html_e('Choose which user roles can generate PDFs.', 'wp-to-html'); ?></p>
+                                    </div>
+                                </div>
+                                <div class="eh-settings-block-body">
+
+                                    <?php
+                                    $pdf_roles      = (array) get_option( 'wp_to_html_pdf_roles', [] );
+                                    $pdf_roles      = array_map( 'sanitize_key', $pdf_roles );
+                                    $roles_obj      = function_exists( 'wp_roles' ) ? wp_roles() : null;
+                                    $all_roles      = ( $roles_obj && ! empty( $roles_obj->roles ) ) ? $roles_obj->roles : [];
+                                    ?>
+
+                                    <div class="eh-checks" id="wth-pdf-roles-wrap">
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" checked disabled>
+                                            <span><?php esc_html_e('Administrator (always enabled)', 'wp-to-html'); ?></span>
+                                        </label>
+                                        <?php foreach ( $all_roles as $slug => $role_data ) :
+                                            if ( $slug === 'administrator' ) continue;
+                                            $checked = in_array( $slug, $pdf_roles, true ) ? 'checked' : '';
+                                            $label   = isset( $role_data['name'] ) ? $role_data['name'] : $slug;
+                                        ?>
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" class="wth-pdf-role-chk" value="<?php echo esc_attr( $slug ); ?>" <?php echo esc_attr( $checked ); ?>>
+                                            <span><?php echo esc_html( $label ); ?></span>
+                                        </label>
+                                        <?php endforeach; ?>
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" class="wth-pdf-role-chk" value="guest" <?php checked( in_array( 'guest', $pdf_roles, true ) ); ?>>
+                                            <span><?php esc_html_e('Visitor (not logged in)', 'wp-to-html'); ?></span>
+                                        </label>
+                                    </div>
+
+                                    <span class="eh-fs-hint" style="margin-top:8px;display:block;">
+                                        <?php esc_html_e('Selected roles will see the Generate PDF button in the admin bar.', 'wp-to-html'); ?>
+                                    </span>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="eh-settings-footer">
+                            <div class="eh-settings-footer-left">
+                                <div id="wth-pdf-settings-msg" class="eh-fs-msg"></div>
+                            </div>
+                            <div class="eh-settings-footer-right">
+                                <button type="button" class="eh-fs-btn eh-fs-btn-primary" id="wth-pdf-settings-save">
+                                    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <?php esc_html_e('Save Settings', 'wp-to-html'); ?>
+                                    <span class="spinner eh-inline-spinner" id="wth-pdf-settings-spinner"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div><!-- /#eh-settings-panel-pdf -->
+
+                    <!-- HTML Button Panel -->
+                    <div id="eh-settings-panel-html-btn" class="eh-settings-section" style="display:none;">
+                        <div class="eh-settings-section-grid">
+
+                            <div class="eh-settings-block">
+                                <div class="eh-settings-block-head">
+                                    <div class="eh-settings-block-icon" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3><?php esc_html_e('HTML Export Button', 'wp-to-html'); ?></h3>
+                                        <p><?php esc_html_e('Let visitors or logged-in users download any page as a static HTML file.', 'wp-to-html'); ?></p>
+                                    </div>
+                                </div>
+                                <div class="eh-settings-block-body">
+
+                                    <div class="eh-fs-field">
+                                        <label class="eh-fs-label"><?php esc_html_e('How it works', 'wp-to-html'); ?></label>
+                                        <p class="eh-fs-hint">
+                                            <?php esc_html_e('An "HTML" button is added to the WP Admin Bar on every frontend page. Clicking it downloads the current page as a standalone .html file with all relative URLs resolved. You can also use the shortcode anywhere to display a download button.', 'wp-to-html'); ?>
+                                        </p>
+                                        <?php if ( ! $pro_active ) : ?>
+                                        <p class="eh-fs-hint" style="color:#0284c7;margin-top:6px;">
+                                            <?php esc_html_e('Free: up to 3 HTML exports per user per day.', 'wp-to-html'); ?>
+                                            <a href="https://myrecorp.com/export-wp-page-to-static-html-pro" target="_blank" rel="noopener noreferrer" style="color:#0284c7;font-weight:600;"><?php esc_html_e('Upgrade to Pro for unlimited →', 'wp-to-html'); ?></a>
+                                        </p>
+                                        <?php else : ?>
+                                        <p class="eh-fs-hint" style="color:#38a169;margin-top:6px;">
+                                            <?php esc_html_e('Pro: unlimited HTML exports.', 'wp-to-html'); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:16px;">
+                                        <label class="eh-fs-label"><?php esc_html_e('Shortcode', 'wp-to-html'); ?></label>
+                                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                            <input type="text" id="wth-html-btn-shortcode" value='[export_html_button name="Download as HTML"]' readonly style="max-width:360px;flex:1;padding:6px 10px;font-size:13px;border:1px solid #ddd;border-radius:5px;background:#f9f9f9;">
+                                            <button type="button" class="button button-secondary" id="wth-html-btn-copy-sc"><?php esc_html_e('Copy', 'wp-to-html'); ?></button>
+                                            <span id="wth-html-btn-copy-msg" style="display:none;color:#38a169;font-weight:600;"><?php esc_html_e('Copied!', 'wp-to-html'); ?></span>
+                                        </div>
+                                        <span class="eh-fs-hint"><?php esc_html_e('Add this shortcode anywhere to display an HTML download button. Customize the label with the name attribute.', 'wp-to-html'); ?></span>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="eh-settings-block">
+                                <div class="eh-settings-block-head">
+                                    <div class="eh-settings-block-icon" style="background:linear-gradient(135deg,#4a5568,#718096)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3><?php esc_html_e('Access Control', 'wp-to-html'); ?></h3>
+                                        <p><?php esc_html_e('Choose which user roles can use the HTML export button.', 'wp-to-html'); ?></p>
+                                    </div>
+                                </div>
+                                <div class="eh-settings-block-body">
+
+                                    <?php
+                                    $html_btn_roles = (array) get_option( 'wp_to_html_export_html_btn_roles', [] );
+                                    $html_btn_roles = array_map( 'sanitize_key', $html_btn_roles );
+                                    $roles_obj      = function_exists( 'wp_roles' ) ? wp_roles() : null;
+                                    $all_roles      = ( $roles_obj && ! empty( $roles_obj->roles ) ) ? $roles_obj->roles : [];
+                                    ?>
+
+                                    <div class="eh-checks" id="wth-html-btn-roles-wrap">
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" checked disabled>
+                                            <span><?php esc_html_e('Administrator (always enabled)', 'wp-to-html'); ?></span>
+                                        </label>
+                                        <?php foreach ( $all_roles as $slug => $role_data ) :
+                                            if ( $slug === 'administrator' ) continue;
+                                            $checked = in_array( $slug, $html_btn_roles, true ) ? 'checked' : '';
+                                            $label   = isset( $role_data['name'] ) ? $role_data['name'] : $slug;
+                                        ?>
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" class="wth-html-btn-role-chk" value="<?php echo esc_attr( $slug ); ?>" <?php echo esc_attr( $checked ); ?>>
+                                            <span><?php echo esc_html( $label ); ?></span>
+                                        </label>
+                                        <?php endforeach; ?>
+                                        <label class="eh-fs-check">
+                                            <input type="checkbox" class="wth-html-btn-role-chk" value="guest" <?php checked( in_array( 'guest', $html_btn_roles, true ) ); ?>>
+                                            <span><?php esc_html_e('Visitor (not logged in)', 'wp-to-html'); ?></span>
+                                        </label>
+                                    </div>
+
+                                    <span class="eh-fs-hint" style="margin-top:8px;display:block;">
+                                        <?php esc_html_e('Selected roles will see the HTML download button in the admin bar and post list.', 'wp-to-html'); ?>
+                                    </span>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="eh-settings-footer">
+                            <div class="eh-settings-footer-left">
+                                <div id="wth-html-btn-settings-msg" class="eh-fs-msg"></div>
+                            </div>
+                            <div class="eh-settings-footer-right">
+                                <button type="button" class="eh-fs-btn eh-fs-btn-primary" id="wth-html-btn-settings-save">
+                                    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <?php esc_html_e('Save Settings', 'wp-to-html'); ?>
+                                    <span class="spinner eh-inline-spinner" id="wth-html-btn-settings-spinner"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div><!-- /#eh-settings-panel-html-btn -->
+
                 </div>
             </div><!-- /#eh-panel-settings -->
 
@@ -851,8 +1150,6 @@ CSS
 
                     </div><!-- /.eh-ext-config-col -->
 
-                </div><!-- /#wp-to-html-app -->
-
                     <!-- ── Right: Progress + Log ── -->
                     <div class="eh-ext-progress-col">
 
@@ -911,6 +1208,14 @@ CSS
             <?php endif; // pro_active ?>
 
         </div><!-- /#eh-panel-ext-export -->
+
+            <section class="eh-logpanel" id="eh-logpanel">
+                <div class="eh-logpanel-head">
+                    <span class="eh-logpanel-title"><?php esc_html_e('Live Log', 'wp-to-html'); ?></span>
+                    <button type="button" class="eh-btn-s" id="eh-copy-log"><?php esc_html_e('Copy', 'wp-to-html'); ?></button>
+                </div>
+                <pre id="wp-to-html-log"></pre>
+            </section>
 
             <!-- ══════ MORE PLUGINS SECTION ══════ -->
             <div id="eh-more-plugins-section">
@@ -1300,390 +1605,4 @@ CSS
         <?php
     }
 
-    /**
-     * "What's New" page shown after plugin update.
-     */
-    public function whats_new_page() {
-        $dashboard_url = admin_url('admin.php?page=wp-to-html');
-        ?>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-
-            .wth-whats-new * { box-sizing: border-box; margin: 0; padding: 0; }
-
-            .wth-whats-new {
-                --accent: #4f6ef7;
-                --accent-soft: #eef1fe;
-                --accent-dark: #3b5be0;
-                --green: #34d399;
-                --green-soft: #ecfdf5;
-                --red: #f87171;
-                --red-soft: #fef2f2;
-                --orange: #f59e0b;
-                --orange-soft: #fffbeb;
-                --purple: #a78bfa;
-                --purple-soft: #f5f3ff;
-                --text: #111827;
-                --text2: #4b5563;
-                --text3: #9ca3af;
-                --border: #e5e7eb;
-                --bg: #f8fafc;
-                --card: #ffffff;
-                --r: 16px;
-                --font: 'Outfit', system-ui, -apple-system, sans-serif;
-
-                font-family: var(--font);
-                background: var(--bg);
-                min-height: 100vh;
-                padding: 40px 20px 60px;
-                -webkit-font-smoothing: antialiased;
-            }
-
-            .wth-whats-new a { text-decoration: none; }
-
-            .wth-container {
-                max-width: 720px;
-                margin: 0 auto;
-            }
-
-            /* ── Header ── */
-            .wth-header {
-                text-align: center;
-                margin-bottom: 48px;
-            }
-
-            .wth-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: var(--accent-soft);
-                color: var(--accent);
-                font-weight: 600;
-                font-size: 13px;
-                padding: 6px 14px;
-                border-radius: 20px;
-                margin-bottom: 20px;
-                letter-spacing: 0.02em;
-            }
-
-            .wth-badge svg { flex-shrink: 0; }
-
-            .wth-title {
-                font-size: 42px;
-                font-weight: 800;
-                color: var(--text);
-                line-height: 1.15;
-                margin-bottom: 12px;
-                letter-spacing: -0.03em;
-            }
-
-            .wth-title span {
-                background: linear-gradient(135deg, var(--accent), #8b5cf6);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-
-            .wth-subtitle {
-                font-size: 17px;
-                color: var(--text2);
-                font-weight: 400;
-                line-height: 1.6;
-                max-width: 520px;
-                margin: 0 auto;
-            }
-
-            /* ── Version pill ── */
-            .wth-version {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                margin-top: 16px;
-                padding: 8px 16px;
-                background: var(--card);
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                font-size: 14px;
-                color: var(--text2);
-                font-weight: 500;
-            }
-            .wth-version strong {
-                color: var(--text);
-                font-weight: 700;
-            }
-
-            /* ── Card list ── */
-            .wth-cards {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                margin-bottom: 40px;
-            }
-
-            .wth-card {
-                display: flex;
-                gap: 16px;
-                align-items: flex-start;
-                background: var(--card);
-                border: 1px solid var(--border);
-                border-radius: var(--r);
-                padding: 20px 22px;
-                transition: box-shadow 0.2s, border-color 0.2s;
-            }
-
-            .wth-card:hover {
-                border-color: #d1d5db;
-                box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-            }
-
-            .wth-card-icon {
-                flex-shrink: 0;
-                width: 40px;
-                height: 40px;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-            }
-
-            .wth-card-icon.improved  { background: var(--accent-soft); color: var(--accent); }
-            .wth-card-icon.fixed     { background: var(--green-soft);  color: #059669; }
-            .wth-card-icon.added     { background: var(--purple-soft); color: #7c3aed; }
-            .wth-card-icon.removed   { background: var(--red-soft);    color: var(--red); }
-            .wth-card-icon.core      { background: var(--orange-soft); color: var(--orange); }
-
-            .wth-card-body {
-                flex: 1;
-                min-width: 0;
-            }
-
-            .wth-card-label {
-                display: inline-block;
-                font-size: 11px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.06em;
-                margin-bottom: 4px;
-            }
-
-            .wth-card-label.improved  { color: var(--accent); }
-            .wth-card-label.fixed     { color: #059669; }
-            .wth-card-label.added     { color: #7c3aed; }
-            .wth-card-label.removed   { color: var(--red); }
-            .wth-card-label.core      { color: var(--orange); }
-
-            .wth-card-text {
-                font-size: 14.5px;
-                color: var(--text);
-                line-height: 1.55;
-                font-weight: 400;
-            }
-
-            /* ── CTA ── */
-            .wth-cta {
-                text-align: center;
-                margin-bottom: 24px;
-            }
-
-            .wth-btn {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 14px 32px;
-                background: var(--accent);
-                color: #fff;
-                font-family: var(--font);
-                font-size: 15px;
-                font-weight: 600;
-                border: none;
-                border-radius: 12px;
-                cursor: pointer;
-                transition: background 0.2s, transform 0.15s;
-                letter-spacing: 0.01em;
-            }
-
-            .wth-btn:hover {
-                background: var(--accent-dark);
-                color: #fff;
-                transform: translateY(-1px);
-            }
-
-            .wth-btn:active { transform: translateY(0); }
-
-            .wth-dismiss {
-                text-align: center;
-            }
-
-            .wth-dismiss a {
-                font-size: 13px;
-                color: var(--text3);
-                transition: color 0.2s;
-            }
-
-            .wth-dismiss a:hover { color: var(--text2); }
-
-            /* ── Responsive ── */
-            @media (max-width: 600px) {
-                .wth-whats-new { padding: 24px 12px 40px; }
-                .wth-title { font-size: 30px; }
-                .wth-subtitle { font-size: 15px; }
-                .wth-card { padding: 16px; gap: 12px; }
-                .wth-card-icon { width: 36px; height: 36px; font-size: 16px; }
-            }
-        </style>
-
-        <div class="wth-whats-new">
-            <div class="wth-container">
-
-                <!-- Header -->
-                <div class="wth-header">
-                    <div class="wth-badge">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        Export WP Pages to Static HTML
-                    </div>
-
-                    <h1 class="wth-title"><?php esc_html_e("What's", 'wp-to-html'); ?> <span><?php esc_html_e('New', 'wp-to-html'); ?></span></h1>
-
-                    <p class="wth-subtitle">
-                        <?php esc_html_e('A major update to the export engine with improved reliability, smarter retries, and a refreshed interface.', 'wp-to-html'); ?>
-                    </p>
-
-                    <div class="wth-version">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
-                        <?php esc_html_e('Version', 'wp-to-html'); ?> <strong>6.0.0</strong>
-                    </div>
-                </div>
-
-                <!-- Changelog Cards -->
-                <div class="wth-cards">
-
-                    <!-- Core -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon core">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label core"><?php esc_html_e('Core', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Refactored the core export engine for improved stability and performance.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: Watchdog -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Watchdog now automatically detects and repairs stalled export processes.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: Failed URL tracking -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Enhanced failed URL tracking with per-URL retry counts and detailed error reporting.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: Re-run failed -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Re-run only failed URLs without restarting the entire export process.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: Exponential backoff -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Implemented exponential backoff for asset retries to reduce server load.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: Asset collection mode -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Asset collection mode (Strict / Hybrid / Full) is now saved and respected across cron runs.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Fixed: Export context -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon fixed">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label fixed"><?php esc_html_e('Fixed', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Export context is now correctly propagated to background workers during server cron execution.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Added: Options persisted -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon added">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label added"><?php esc_html_e('Added', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('single_root_index and root_parent_html options are now persisted within the export context.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Improved: UX -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('More user-friendly interface and overall UX enhancements.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                    <!-- Removed: PDF -->
-                    <div class="wth-card">
-                        <div class="wth-card-icon removed">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        </div>
-                        <div class="wth-card-body">
-                            <div class="wth-card-label removed"><?php esc_html_e('Removed', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('PDF Exporting option removed temporarily.', 'wp-to-html'); ?></div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- CTA -->
-                <div class="wth-cta">
-                    <a href="<?php echo esc_url($dashboard_url); ?>" class="wth-btn">
-                        <?php esc_html_e('Go to Export Dashboard', 'wp-to-html'); ?>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                    </a>
-                </div>
-
-                <div class="wth-dismiss">
-                    <a href="<?php echo esc_url($dashboard_url); ?>"><?php esc_html_e('Skip and go to dashboard', 'wp-to-html'); ?></a>
-                </div>
-
-            </div>
-        </div>
-        <?php
-    }
 }

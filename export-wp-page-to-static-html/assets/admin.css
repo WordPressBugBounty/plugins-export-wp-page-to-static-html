@@ -21,7 +21,7 @@
 body.tools_page_wp-to-html #wpbody-content,
 body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 #wp-to-html-app *,#wp-to-html-app *::before,#wp-to-html-app *::after{box-sizing:border-box}
-#wp-to-html-app{padding:20px 0 40px;font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased}
+#wp-to-html-app{padding:20px 0 80px;font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased}
 #wp-to-html-app h1,#wp-to-html-app h2,#wp-to-html-app h3{margin:0;padding:0}
 @keyframes ehFadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes ehRingPulse{0%,100%{filter:drop-shadow(0 0 0 rgba(52,211,153,.15))}50%{filter:drop-shadow(0 0 18px rgba(52,211,153,.35))}}
@@ -33,10 +33,10 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 .eh-topbar-icon svg{width:20px;height:20px;fill:#fff}
 .eh-topbar h1,.eh-topbar-title{font-size:1.25rem;font-weight:700;letter-spacing:-.3px}
 .eh-topbar small{font-size:.7rem;font-weight:500;color:var(--text3);background:var(--card-alt);border:1px solid var(--border);padding:2px 8px;border-radius:99px}
-.eh-topbar-nav{display:flex;flex-wrap:wrap;gap:4px;background:var(--card-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px}
+.eh-topbar-nav{display:flex;flex-wrap:wrap;gap:4px;background:transparent;border:none;padding:0;flex-basis:100%;border-top:1px solid var(--border);padding-top:10px;margin-top:2px}
 .eh-topbar-nav button{border:none;background:transparent;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--text3);padding:8px 20px;border-radius:8px;cursor:pointer;transition:all var(--t)}
 .eh-topbar-nav button:hover{color:var(--text);background:var(--card)}
-.eh-topbar-nav button[aria-pressed="true"]{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(79,110,247,.22)}
+.eh-topbar-nav button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);box-shadow:none}
 .eh-topbar-nav .eh-tab-link {
 	display: inline-flex;
 	align-items: center;
@@ -51,12 +51,13 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 	transition: all var(--t);
 	text-decoration: none;
 	border-left: 1px solid #e5e7eb;
+    gap: 5px;
 }
 .eh-topbar-nav .eh-tab-link:hover{color:var(--text);background:var(--card)}
 
 /* ═══ 3-COL GRID ══════════════════════════════════════════ */
-#wp-to-html-app .eh-grid{display:grid;grid-template-columns:320px 1fr 380px;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden;min-height:640px;animation:ehFadeUp .4s ease .05s both}
-@media(max-width:1200px){#wp-to-html-app .eh-grid{grid-template-columns:300px 1fr}.eh-logpanel{grid-column:1/-1}}
+#wp-to-html-app .eh-grid{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden;min-height:640px;animation:ehFadeUp .4s ease .05s both}
+@media(max-width:1200px){#wp-to-html-app .eh-grid{grid-template-columns:1fr 1fr}.eh-logpanel{grid-column:1/-1}}
 @media(max-width:860px){#wp-to-html-app .eh-grid{grid-template-columns:1fr}.eh-sidebar{border-right:none!important;border-bottom:1px solid var(--border);max-height:440px}}
 @media(max-width:780px){
   .eh-topbar{padding:12px 16px}
@@ -67,24 +68,26 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 }
 
 /* ═══ COL 1 — SIDEBAR ═════════════════════════════════════ */
-.eh-sidebar{background:var(--card-alt);border-right:1px solid var(--border);overflow-y:auto;max-height:700px}
+.eh-sidebar{background:var(--card-alt);border-right:1px solid var(--border);overflow-y:auto;}
 .eh-sidebar::-webkit-scrollbar{width:4px}
 .eh-sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.eh-scope-head{position:sticky;top:0;z-index:5;background:var(--card);padding:10px 10px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
-.eh-scope-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3)}
-.eh-seg{display:inline-flex;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.eh-export-head{position:sticky;top:0;z-index:5;background:var(--card);padding:10px 10px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.eh-export-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3)}
+.eh-seg{background:var(--card-alt);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
 .eh-seg button{border:none;background:transparent;font-family:var(--font);font-size:.75rem;font-weight:600;color:var(--text3);padding:6px 13px;border-radius:6px;cursor:pointer;transition:all var(--t);white-space:nowrap}
 .eh-seg button:hover:not([disabled]){color:var(--text);background:var(--card)}
 .eh-seg button[aria-pressed="true"]{background:var(--card);color:var(--accent);box-shadow:var(--shadow-sm)}
 .eh-seg button[disabled]{opacity:.35;cursor:not-allowed}
-/* Pro-locked scope row */
+/* Pro-locked export options row */
 .eh-seg-pro{display:flex;flex-wrap:wrap;gap:4px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;border-radius:8px;padding:3px}
 .eh-seg-pro button{border:none;background:transparent;font-family:var(--font);font-size:.75rem;font-weight:600;color:#92400e;padding:6px 11px;border-radius:6px;cursor:pointer;transition:all var(--t);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 .eh-seg-pro button:hover{background:rgba(251,191,36,.25);color:#78350f}
-.eh-scope-lock{width:11px;height:11px;flex-shrink:0;opacity:.8}
+.eh-pro-lock{width:11px;height:11px;flex-shrink:0;opacity:.8}
 
 /* Accordion */
-.eh-acc{border-bottom:1px solid var(--border-lt)}
+.eh-acc {
+	border-bottom: 1px solid #ddd;
+}
 .eh-acc summary{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;font-size:.87rem;font-weight:600;color:var(--text);list-style:none;user-select:none;transition:background var(--t)}
 .eh-acc summary:hover{background:rgba(0,0,0,.015)}
 .eh-acc summary::-webkit-details-marker{display:none}
@@ -132,14 +135,20 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 .eh-search input{padding-left:34px!important}
 
 /* Content list */
-.eh-list{border:1px solid var(--border);border-radius:var(--r-xs);background:var(--card);max-height:220px;overflow:auto;padding:4px;margin-top:6px}
+.eh-list{border:1px solid var(--border);border-radius:var(--r-xs);background:var(--card);max-height:300px;overflow:auto;padding:4px;margin-top:6px}
 .eh-list::-webkit-scrollbar{width:4px}.eh-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .eh-item{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border-radius:var(--r-xs);transition:background var(--t);cursor:pointer}
 .eh-item:hover{background:var(--card-alt)}
 .eh-item label{display:block;line-height:1.4;cursor:pointer}
 .eh-item .eh-title{font-size:.85rem;font-weight:500;color:var(--text)}
 .eh-item .eh-meta{font-size:.7rem;color:var(--text3);margin-top:1px}
-
+.eh-field-label-header {
+	font-size: 16px;
+	font-weight: bold;
+}
+.eh-toggle {
+	margin: 12px 0px;
+}
 /* Buttons */
 .eh-btn-s,#wp-to-html-app .button{font-family:var(--font);font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:var(--r-xs);border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;transition:all var(--t);display:inline-flex;align-items:center;gap:6px;text-decoration:none;line-height:1.4}
 .eh-btn-s:hover,#wp-to-html-app .button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
@@ -172,17 +181,34 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 .eh-status-bar{text-align:center}
 .eh-status-bar .eh-big{font-size:1rem;font-weight:700;color:var(--text)}
 .eh-result-extra{text-align:center;font-size:.85rem;color:var(--text2)}
+.eh-log-link{display:block;text-align:center;margin-top:10px;font-size:.8rem;color:var(--text2);text-decoration:none;opacity:.7}
+.eh-log-link:hover{opacity:1;text-decoration:underline}
+.eh-zip-notice{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;padding:7px 14px;border-radius:var(--r-sm);background:var(--card-alt);border:1px solid var(--border);font-size:.85rem;font-weight:600;color:var(--text)}
+.eh-zip-notice-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent,#2271b1);animation:eh-zip-pulse 1s ease-in-out infinite}
+@keyframes eh-zip-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 .eh-progress{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--card-alt)}
 .eh-progress .eh-big{font-weight:600;color:var(--text)}
 
 /* ═══ COL 3 — LOG ═════════════════════════════════════════ */
-.eh-logpanel{background:var(--card-alt);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;animation:ehFadeUp .4s ease .2s both}
+.eh-logpanel {
+	background: var(--card-alt);
+	border-left: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	animation: ehFadeUp .4s ease .2s both;
+	border-radius: 11px;
+	margin-top: 10px;
+}
 .eh-logpanel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--card)}
 .eh-logpanel-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)}
 #wp-to-html-log{flex:1;margin:0;background:#ffffff;color:#1a1c25;padding:18px;min-height:440px;max-height:600px;overflow-y:auto;overflow-x:auto;white-space:pre;font-family:var(--mono);font-size:.78rem;line-height:1.8;border:none;border-radius:0}
 #wp-to-html-log::-webkit-scrollbar{width:5px;height:5px}
 #wp-to-html-log::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
 
+.eh-divider {
+	margin: 5px;
+}
 /* ═══ OVERLAY ══════════════════════════════════════════════ */
 .eh-overlay{position:relative}
 .eh-overlay::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(2px);pointer-events:none;opacity:0;transition:opacity .2s ease;z-index:10}
@@ -231,7 +257,7 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
   .eh-topbar-nav{width:100%;box-sizing:border-box}
   .eh-topbar-nav button,.eh-topbar-nav .eh-tab-link{flex:1;justify-content:center;padding:8px 6px;font-size:.78rem}
   .eh-topbar h1{font-size:1.05rem}
-  .eh-scope-head{padding:12px 14px}
+  .eh-export-head{padding:12px 14px}
   .eh-acc summary{padding:11px 14px;font-size:.82rem}
   .eh-acc-body{padding:0 14px 14px}
   .eh-center{padding:32px 20px}
@@ -573,12 +599,12 @@ body.tools_page_wp-to-html #wpbody{background:var(--bg)!important}
 
 /* ── Tab button ─────────────────────────────────────────────────────────────── */
 .eh-tab-ext-export-btn {
-    position: relative;
-    background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08)) !important;
-    border-color: rgba(99,102,241,.3) !important;
-    color: #6366f1 !important;
-    font-weight: 600 !important;
-    transition: background .2s, box-shadow .2s !important;
+	position: relative;
+	/* background: linear-gradient(135deg,#fffbeb,#fef3c7); */
+	/* border-color: rgba(99,102,241,.3) !important; */
+	/* color: #92400e !important; */
+	font-weight: 600 !important;
+	transition: background .2s, box-shadow .2s !important;
 }
 .eh-tab-ext-export-btn:hover {
     background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.15)) !important;

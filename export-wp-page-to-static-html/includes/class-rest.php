@@ -794,7 +794,7 @@ register_rest_route('wp_to_html/v1', '/status', [
         $exporter->log_public('Starting export (queue build)...');
         
         $params = (array) $request->get_json_params();
-
+ 
         // Scope options:
         // - full_site: export all public post types
         // - all_posts: export all "post" items matching status filter

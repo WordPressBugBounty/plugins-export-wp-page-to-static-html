@@ -1,4 +1,4 @@
-/* global wpToHtmlData, jQuery */
+﻿/* global wpToHtmlData, jQuery */
 let isMonitoring = false;
 let monitorTimer = null;
 
@@ -19,6 +19,9 @@ let ehHasExports = false;
 
 // Track last-known backend state to drive UI messages.
 let ehLastBackendState = '';
+
+// Last values from fetchStatus — used by fetchLog to render live progress from log lines.
+let ehLastStatusCounts = { totalUrls: 0, doneUrls: 0, failedUrls: 0, totalAssets: 0, doneAssets: 0, failedAssets: 0, state: '' };
 
 // Adaptive polling: large sites can overload if /poll drives background work too frequently.
 // Start at a safer baseline and back off automatically when responses get slow.
@@ -119,15 +122,15 @@ function withNoCache(url) {
 }
 
 function setBusy(isBusy) {
-    const $postTypeScope = jQuery('#eh-acc-post-type-scope');
+    const $contentSelection = jQuery('#eh-acc-content-selection');
     const $spinner = jQuery('#eh-content-spinner');
     ehState.loading = !!isBusy;
 
-    $postTypeScope.toggleClass('eh-busy', !!isBusy);
+    $contentSelection.toggleClass('eh-busy', !!isBusy);
     $spinner.toggleClass('is-active', !!isBusy);
 
     // disable selection controls while loading
-    jQuery('#eh-tab-posts, #eh-tab-pages, #eh-tab-types, #eh-select-all, #eh-clear, #eh-search, #eh-scope-custom, #eh-scope-all-posts, #eh-scope-all-pages, #eh-scope-full, .eh-status, #eh-post-type-select')
+    jQuery('#eh-tab-posts, #eh-tab-pages, #eh-tab-types, #eh-select-all, #eh-clear, #eh-search, #eh-export-custom, #eh-export-all-posts, #eh-export-all-pages, #eh-export-full, .eh-status, #eh-post-type-select')
         .prop('disabled', !!isBusy);
 }
 
@@ -555,10 +558,10 @@ function setScope(scope) {
     ehState.scope = scope;
 
     const m = {
-        custom: '#eh-scope-custom',
-        all_posts: '#eh-scope-all-posts',
-        all_pages: '#eh-scope-all-pages',
-        full_site: '#eh-scope-full'
+        custom: '#eh-export-custom',
+        all_posts: '#eh-export-all-posts',
+        all_pages: '#eh-export-all-pages',
+        full_site: '#eh-export-full'
     };
 
     Object.values(m).forEach(sel => jQuery(sel).attr('aria-pressed', 'false'));
@@ -566,7 +569,7 @@ function setScope(scope) {
 
     // Only show selector UI for custom
     jQuery('#eh-selector').toggle(scope === 'custom');
-    jQuery('#eh-acc-post-type-scope').toggle(scope === 'custom');
+    jQuery('#eh-acc-content-selection').toggle(scope === 'custom');
 
     // All posts: show post type selector
     jQuery('#eh-all-posts-types').toggle(scope === 'all_posts');
@@ -684,13 +687,13 @@ function getScopePayload() {
 function updateScopeUI() {
     const s = ehState.scope;
     if (s === 'full_site') {
-        jQuery('#eh-scope-hint').text('Scope: Full site');
+        jQuery('#eh-export-hint').text('Exporting: Full site');
     } else if (s === 'all_posts') {
-        jQuery('#eh-scope-hint').text('Scope: All posts');
+        jQuery('#eh-export-hint').text('Exporting: All posts');
     } else if (s === 'all_pages') {
-        jQuery('#eh-scope-hint').text('Scope: All pages');
+        jQuery('#eh-export-hint').text('Exporting: All pages');
     } else {
-        jQuery('#eh-scope-hint').text(`Scope: ${ehState.selected.size} selected`);
+        jQuery('#eh-export-hint').text(`Selected: ${ehState.selected.size} items`);
     }
 }
 
@@ -711,6 +714,7 @@ function stopMonitoring(finalMsg) {
     if (finalMsg) {
         jQuery('#wp-to-html-result-extra').html('<strong>' + escapeHtml(finalMsg) + '</strong>');
     }
+    jQuery('#eh-zip-notice').hide();
 }
 
 // Stop ONLY the polling (status/log) loop.
@@ -743,6 +747,7 @@ function shouldStopFromStatus(status) {
     if (!status) return false;
 
     const state = String(status.state || '').toLowerCase();
+    const isRunning = Number(status.is_running || 0);
     const totalUrls = Number(status.total_urls || 0);
     const doneUrls = Number(status.processed_urls || 0);
     const failedUrls = Number(status.failed_urls || 0);
@@ -751,7 +756,8 @@ function shouldStopFromStatus(status) {
     const failedAssets = Number(status.failed_assets || 0);
 
     const urlsComplete = totalUrls > 0 ? ((doneUrls + failedUrls) >= totalUrls) : true;
-    const assetsComplete = totalAssets > 0 ? ((doneAssets + failedAssets) >= totalAssets) : true;
+    // total_assets=0 while is_running=1 means assets haven't been queued yet — not complete.
+    const assetsComplete = totalAssets > 0 ? ((doneAssets + failedAssets) >= totalAssets) : (isRunning === 0);
     const doneByCount = urlsComplete && assetsComplete;
     const doneByState = ['completed', 'stopped', 'error'].includes(state);
     const notRunning = state === 'stopped';
@@ -781,10 +787,11 @@ function monitorLoop(token) {
             const failedAssets = Number(status?.failed_assets || 0);
             const isRunning = Number(status?.is_running || 0);
 
-            // ✅ HARD STOP conditions (don’t rely only on helper)
+            // ✅ HARD STOP conditions (don't rely only on helper)
             const doneByState = ['completed', 'stopped', 'error'].includes(state);
             const urlsComplete = totalUrls > 0 ? ((doneUrls + failedUrls) >= totalUrls) : true;
-            const assetsComplete = totalAssets > 0 ? ((doneAssets + failedAssets) >= totalAssets) : true;
+            // total_assets=0 while is_running=1 means assets aren't queued yet — not complete.
+            const assetsComplete = totalAssets > 0 ? ((doneAssets + failedAssets) >= totalAssets) : (isRunning === 0);
             const doneByCount = urlsComplete && assetsComplete;
             const doneByNotRunning = isRunning === 0 && doneByCount;
 
@@ -864,12 +871,22 @@ function fetchStatus(token) {
                 percent = Math.round((doneWork / totalWork) * 100);
             }
 
+            // Store counts so fetchLog can derive live progress from log lines.
+            ehLastStatusCounts = { totalUrls, doneUrls, failedUrls, totalAssets, doneAssets, failedAssets, state: ehNormalizeUiState(data.state || '') };
+
             // Display-friendly state (map transitional states to "running").
             const displayState = data.state ? ehNormalizeUiState(data.state) : '';
             jQuery('#wp-to-html-result').html(
                 'Progress: ' + percent + '% (URLs ' + (doneUrls + failedUrls) + '/' + totalUrls + ', Assets ' + (doneAssets + failedAssets) + '/' + totalAssets + ')' +
                 (displayState ? ' — State: ' + displayState : '')
             );
+
+            // Show ZIP-creating notice during wrapup stage (all exported, ZIP being built).
+            if (String(data.pipeline_stage || '') === 'wrapup' && ehNormalizeUiState(data.state || '') === 'running') {
+                jQuery('#eh-zip-notice').show();
+            } else {
+                jQuery('#eh-zip-notice').hide();
+            }
 
             // Toggle run controls based on current state.
             // Fix: avoid UI flicker where Pause/Stop briefly disappear if the backend
@@ -1020,6 +1037,28 @@ function fetchLog(token) {
                 
                 if (progress.length) {
                     const latest = progress[progress.length - 1];
+
+                    // Live progress: parse "Assets progress: X/Y" and update #wp-to-html-result
+                    // when the log is ahead of the last DB value from fetchStatus.
+                    if (isMonitoring) {
+                        const pm = latest.match(/Assets progress:\s*(\d+)\/(\d+)/);
+                        if (pm) {
+                            const logDone = parseInt(pm[1], 10);
+                            const logTotal = parseInt(pm[2], 10);
+                            const statusDone = ehLastStatusCounts.doneAssets + ehLastStatusCounts.failedAssets;
+                            if (logDone > statusDone && logTotal > 0) {
+                                const { doneUrls, failedUrls, totalUrls } = ehLastStatusCounts;
+                                const totalWork = totalUrls + logTotal;
+                                const doneWork = (doneUrls + failedUrls) + logDone;
+                                const pct = totalWork > 0 ? Math.round((doneWork / totalWork) * 100) : 0;
+                                const st = ehLastStatusCounts.state || 'running';
+                                jQuery('#wp-to-html-result').html(
+                                    'Progress: ' + pct + '% (URLs ' + (doneUrls + failedUrls) + '/' + totalUrls + ', Assets ' + logDone + '/' + logTotal + ')' +
+                                    ' \u2014 State: ' + st
+                                );
+                            }
+                        }
+                    }
 
                     // If we've already printed finalization lines, ignore any late "Assets progress" ticks.
                     const currentText = el.textContent || '';
@@ -1655,16 +1694,22 @@ jQuery(function ($) {
         setFtpBusy(false);
     });
 
-    // Settings tabs (FTP | AWS S3)
+    // Settings tabs (FTP | AWS S3 | PDF | HTML Button)
     function setSettingsTab(which) {
-        const isFtp = which === 'ftp';
-        const isS3  = which === 's3';
+        const isFtp     = which === 'ftp';
+        const isS3      = which === 's3';
+        const isPdf     = which === 'pdf';
+        const isHtmlBtn = which === 'html-btn';
 
         $('#eh-settings-tab-ftp').attr('aria-pressed', isFtp ? 'true' : 'false').toggleClass('is-active', isFtp);
         $('#eh-settings-tab-s3').attr('aria-pressed', isS3 ? 'true' : 'false').toggleClass('is-active', isS3);
+        $('#eh-settings-tab-pdf').attr('aria-pressed', isPdf ? 'true' : 'false').toggleClass('is-active', isPdf);
+        $('#eh-settings-tab-html-btn').attr('aria-pressed', isHtmlBtn ? 'true' : 'false').toggleClass('is-active', isHtmlBtn);
 
         $('#eh-settings-panel-ftp').toggle(isFtp);
         $('#eh-settings-panel-s3').toggle(isS3);
+        $('#eh-settings-panel-pdf').toggle(isPdf);
+        $('#eh-settings-panel-html-btn').toggle(isHtmlBtn);
 
         if (isS3) fetchS3Settings();
     }
@@ -1672,6 +1717,113 @@ jQuery(function ($) {
     $('#eh-settings-tab-s3').on('click', () => {
         if (!Number(wpToHtmlData?.pro_active || 0)) return;
         setSettingsTab('s3');
+    });
+    $('#eh-settings-tab-pdf').on('click', () => setSettingsTab('pdf'));
+    $('#eh-settings-tab-html-btn').on('click', () => setSettingsTab('html-btn'));
+
+    // ── PDF Settings: Save ────────────────────────────────────────────────────
+    function pdfMsg(html, isError = false) {
+        const $m = $('#wth-pdf-settings-msg');
+        $m.html(html).css('color', isError ? '#e53e3e' : '#38a169').show();
+        setTimeout(() => $m.fadeOut(), 4000);
+    }
+    function setPdfBusy(isBusy) {
+        $('#wth-pdf-settings-spinner').toggleClass('is-active', !!isBusy);
+        $('#wth-pdf-settings-save').prop('disabled', !!isBusy);
+    }
+
+    $('#wth-pdf-settings-save').on('click', async function () {
+        setPdfBusy(true);
+        const roles = [];
+        $('.wth-pdf-role-chk:checked').each(function () { roles.push($(this).val()); });
+
+        try {
+            const resp = await fetch(typeof ajaxurl !== 'undefined' ? ajaxurl : (wpToHtmlData.site_url + 'wp-admin/admin-ajax.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'wp_to_html_save_pdf_settings',
+                    nonce:  wpToHtmlData.nonce,
+                    roles:  JSON.stringify(roles),
+                }),
+            });
+
+            // wp_ajax handlers return text, not JSON sometimes.
+            let data;
+            try { data = await resp.json(); } catch(_) { data = { success: false }; }
+
+            if (data.success) {
+                pdfMsg('Settings saved.');
+            } else {
+                pdfMsg('Could not save settings. Please try again.', true);
+            }
+        } catch (err) {
+            pdfMsg('Network error. Please try again.', true);
+        }
+        setPdfBusy(false);
+    });
+
+    // ── PDF shortcode copy button ─────────────────────────────────────────────
+    $('#wth-pdf-copy-sc').on('click', function () {
+        const el = document.getElementById('wth-pdf-shortcode');
+        if (!el) return;
+        el.select(); el.setSelectionRange(0, 99999);
+        try { document.execCommand('copy'); } catch(_) {}
+        const $msg = $('#wth-pdf-copy-msg');
+        $msg.show();
+        setTimeout(() => $msg.fadeOut(), 2000);
+    });
+
+    // ── HTML Button Settings: Save ────────────────────────────────────────────
+    function htmlBtnMsg(html, isError = false) {
+        const $m = $('#wth-html-btn-settings-msg');
+        $m.html(html).css('color', isError ? '#e53e3e' : '#38a169').show();
+        setTimeout(() => $m.fadeOut(), 4000);
+    }
+    function setHtmlBtnBusy(isBusy) {
+        $('#wth-html-btn-settings-spinner').toggleClass('is-active', !!isBusy);
+        $('#wth-html-btn-settings-save').prop('disabled', !!isBusy);
+    }
+
+    $('#wth-html-btn-settings-save').on('click', async function () {
+        setHtmlBtnBusy(true);
+        const roles = [];
+        $('.wth-html-btn-role-chk:checked').each(function () { roles.push($(this).val()); });
+
+        try {
+            const resp = await fetch(typeof ajaxurl !== 'undefined' ? ajaxurl : (wpToHtmlData.site_url + 'wp-admin/admin-ajax.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'wp_to_html_save_export_html_btn_settings',
+                    nonce:  wpToHtmlData.nonce,
+                    roles:  JSON.stringify(roles),
+                }),
+            });
+
+            let data;
+            try { data = await resp.json(); } catch(_) { data = { success: false }; }
+
+            if (data.success) {
+                htmlBtnMsg('Settings saved.');
+            } else {
+                htmlBtnMsg('Could not save settings. Please try again.', true);
+            }
+        } catch (err) {
+            htmlBtnMsg('Network error. Please try again.', true);
+        }
+        setHtmlBtnBusy(false);
+    });
+
+    // ── HTML Button shortcode copy button ─────────────────────────────────────
+    $('#wth-html-btn-copy-sc').on('click', function () {
+        const el = document.getElementById('wth-html-btn-shortcode');
+        if (!el) return;
+        el.select(); el.setSelectionRange(0, 99999);
+        try { document.execCommand('copy'); } catch(_) {}
+        const $msg = $('#wth-html-btn-copy-msg');
+        $msg.show();
+        setTimeout(() => $msg.fadeOut(), 2000);
     });
 
 
@@ -1726,7 +1878,8 @@ jQuery(function ($) {
 
         const fmt = function (n) { return '$' + n.toFixed(2).replace(/\.00$/, ''); };
         // ✅ Also fine if it's a single element
-        document.querySelector('.eh-upgrade-price-tag').style.display = 'block';
+        var priceTag = document.querySelector('.eh-upgrade-price-tag');
+        if (priceTag) priceTag.style.display = 'block';
 
         document.querySelectorAll('.eh-upgrade-old').forEach(function (el) { el.textContent = fmt(oldPrice); });
         document.querySelectorAll('.eh-upgrade-new').forEach(function (el) { el.textContent = fmt(newPrice); });
@@ -1880,21 +2033,29 @@ jQuery(function ($) {
             const state = String(st?.state || 'idle').toLowerCase();
 
             if (state === 'completed') {
+                // Previous export completed — hide progress ring, show only preview/download
+                jQuery('.eh-ring-wrap').hide();
+                jQuery('#eh-ring-loader').hide();
+                jQuery('#eh-start-spinner').removeClass('is-active');
+                jQuery('#wp-to-html-result').html('<strong>Previous export completed.</strong>');
+                jQuery('#eh-export-hint').text('');
                 return fetchExports().then(renderExportsPanel);
             }
 
-            // Show controls if active
-            setRunControlsVisibility(state);
+            if (state === 'running' || state === 'paused') {
+                // Previous export still in progress
+                jQuery('#wp-to-html-result').html('<strong>Previous export in progress\u2026</strong>');
+                jQuery('#eh-ring-loader').show();
+                syncStartUiToBackendState(state);
+            }
 
-            
-                if (state === 'running') startMonitoring();
-// Main polling disabled: we only poll when the Preview modal is open.
-            // If you want live progress on the main screen, re-enable startMonitoring().
+            setRunControlsVisibility(state);
+            if (state === 'running') startMonitoring();
         })
         .catch(()=>{});
 
-    // Scope tabs
-    $('#eh-scope-custom').on('click', () => setScope('custom'));
+    // Export mode tabs
+    $('#eh-export-custom').on('click', () => setScope('custom'));
     const proGuard = (e) => {
         const $btn = $(e.currentTarget);
         const isDisabled = $btn.prop('disabled') || $btn.attr('aria-disabled') === 'true';
@@ -1910,9 +2071,9 @@ jQuery(function ($) {
         $('#eh-pro-modal').hide();
     });
 
-    $('#eh-scope-all-posts').on('click', (e) => { if (proGuard(e)) setScope('all_posts'); });
-    $('#eh-scope-all-pages').on('click', (e) => { if (proGuard(e)) setScope('all_pages'); });
-    $('#eh-scope-full').on('click', (e) => { if (proGuard(e)) setScope('full_site'); });
+    $('#eh-export-all-posts').on('click', (e) => { if (proGuard(e)) setScope('all_posts'); });
+    $('#eh-export-all-pages').on('click', (e) => { if (proGuard(e)) setScope('all_pages'); });
+    $('#eh-export-full').on('click', (e) => { if (proGuard(e)) setScope('full_site'); });
 
     // Pro guard for "Group assets by type" checkbox
     $('#save_assets_grouped').on('click', function (e) {
@@ -2156,6 +2317,10 @@ jQuery(function ($) {
     $('#eh-preview-close, #eh-preview-close-btn').on('click', closePreviewModal);
 
     $("#wp-to-html-start").on("click", async function () {
+
+            // Restore UI elements that may have been hidden by "Previous export completed" state.
+            jQuery('.eh-ring-wrap').show();
+            jQuery('#wp-to-html-result-extra').html('');
 
             // Invalidate any in-flight /poll responses from before this click.
             ehBumpPollToken();
@@ -2573,7 +2738,7 @@ jQuery(function ($) {
         }, 650);
     });
 
-});
+})(jQuery);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // External Site Export — Pro Feature UI Logic

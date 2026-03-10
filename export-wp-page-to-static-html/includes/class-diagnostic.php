@@ -1,6 +1,6 @@
 <?php
 namespace WpToHtml;
-
+ 
 /**
  * System diagnostics + preflight "can I run?" checks.
  *

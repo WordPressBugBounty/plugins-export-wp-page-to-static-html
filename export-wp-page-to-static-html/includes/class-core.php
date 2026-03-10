@@ -315,6 +315,9 @@ class Core {
         $queue_table  = $wpdb->prefix . 'wp_to_html_queue';
         $assets_table = $wpdb->prefix . 'wp_to_html_assets';
 
+        // Fired in finally (after lock release) to kick off the next tick in background.
+        $fire_bg_nudge = false;
+
         try {
 
             // Load current status row
@@ -416,6 +419,18 @@ class Core {
                 $peak_mem = max($peak_mem, (int) memory_get_peak_usage(true));
 
                 $loops++;
+
+                // Mid-loop DB update: write live counts after each batch so polling
+                // reads fresh progress even when this tick holds the lock.
+                $wpdb->update($status_table, [
+                    'processed_urls'   => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='done'"),
+                    'failed_urls'      => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='failed'"),
+                    'total_urls'       => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table}"),
+                    'processed_assets' => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='done'"),
+                    'failed_assets'    => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='failed'"),
+                    'total_assets'     => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table}"),
+                    'updated_at'       => current_time('mysql'),
+                ], ['id' => 1]);
             }
 
             if (Advanced_Debugger::enabled()) {
@@ -539,6 +554,15 @@ $is_finished     = ($all_urls_done && $all_assets_done);
 // Create zip + mark completed once everything is terminal.
 $zip_info = null;
 if ($is_finished) {
+    // Signal wrapup state BEFORE starting ZIP so concurrent polls can show
+    // "Creating ZIP" notice in the UI while this tick holds the lock.
+    $wpdb->update($status_table, [
+        'pipeline_stage' => 'wrapup',
+        'stage_total'    => 1,
+        'stage_done'     => 0,
+        'updated_at'     => current_time('mysql'),
+    ], ['id' => 1]);
+
     // Always emit a completion summary before zipping so the admin log
     // definitively shows terminal counts even if the UI stops polling immediately.
     if (method_exists($exporter, 'log_public')) {
@@ -638,12 +662,10 @@ if ($is_finished) {
     $no_failures = (($failed_urls + $failed_assets) === 0);
     $this->maybe_send_completion_email($no_failures, $zip_info);
 } else {
-    $delay = (int) apply_filters('wp_to_html_bg_tick_delay_seconds', 2);
-    $delay = max(1, $delay);
-
-    if (!wp_next_scheduled('wp_to_html_process_event')) {
-        wp_schedule_single_event(time() + $delay, 'wp_to_html_process_event');
-    }
+    // Schedule immediately so the bg nudge (fired after lock release) can pick it up.
+    wp_clear_scheduled_hook('wp_to_html_process_event');
+    wp_schedule_single_event(time(), 'wp_to_html_process_event');
+    $fire_bg_nudge = true;
 }} finally {
 
             if (Advanced_Debugger::enabled()) {
@@ -653,6 +675,17 @@ if ($is_finished) {
             }
 
             delete_transient($lock_key);
+
+            // Fire WP-Cron in the background AFTER releasing the lock.
+            // This lets the next tick run as a separate PHP process so subsequent
+            // polls return quickly with live DB values instead of blocking on inline drive.
+            if (!empty($fire_bg_nudge)) {
+                wp_remote_post(site_url('/wp-cron.php?doing_wp_cron=' . time()), [
+                    'timeout'   => 0.01,
+                    'blocking'  => false,
+                    'sslverify' => false,
+                ]);
+            }
 
         }
     }

@@ -2,7 +2,7 @@
 namespace WpToHtml;
 
 class Exporter {
-
+ 
     private $group_assets;
     private $log_file;
 
@@ -867,6 +867,7 @@ $this->log('Total URLs collected: ' . count($urls));
                     ],
                     ['id' => (int) $row->id]
                 );
+                $this->increment_status_col('processed_urls');
             } else {
                 $retry = isset($row->retry_count) ? (int) $row->retry_count : 0;
                 $retry++;
@@ -904,6 +905,7 @@ $this->log('Total URLs collected: ' . count($urls));
                         ['id' => (int) $row->id]
                     );
                     $this->log('URL failed permanently (attempt ' . $retry . '): ' . (string)$row->url);
+                    $this->increment_status_col('failed_urls');
                 }
             }
         }
@@ -1285,6 +1287,17 @@ $this->log('Total URLs collected: ' . count($urls));
     }
 
     
+/**
+ * Atomically increment a counter column in the status table.
+ * Called right after each URL/asset reaches a terminal state so the DB
+ * always reflects current progress even mid-tick.
+ */
+private function increment_status_col(string $col) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'wp_to_html_status';
+    $wpdb->query("UPDATE `{$table}` SET `{$col}` = `{$col}` + 1, updated_at = NOW() WHERE id = 1");
+}
+
 public function process_asset_batch($limit = 50) {
 
     global $wpdb;
@@ -1356,6 +1369,7 @@ public function process_asset_batch($limit = 50) {
                 ],
                 ['id' => (int) $row->id]
             );
+            $this->increment_status_col('processed_assets');
         } else {
             $retry = isset($row->retry_count) ? (int) $row->retry_count : 0;
             $retry++;
@@ -1376,6 +1390,7 @@ public function process_asset_batch($limit = 50) {
                     ['id' => (int) $row->id]
                 );
                 $this->log('Asset skipped (permanent): ' . (string)$row->url . ($err ? ' — ' . $err : ''));
+                $this->increment_status_col('failed_assets');
                 continue;
             }
 
@@ -1414,6 +1429,7 @@ public function process_asset_batch($limit = 50) {
                     ['id' => (int) $row->id]
                 );
                 $this->log('Asset failed permanently (attempt ' . $retry . '): ' . (string)$row->url);
+                $this->increment_status_col('failed_assets');
             }
         }
     }
