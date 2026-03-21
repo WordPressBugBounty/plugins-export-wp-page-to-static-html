@@ -105,6 +105,20 @@ class Exporter {
         $this->group_assets = (bool) $group_assets;
     }
 
+    /**
+     * Extract the URL path relative to the WordPress install root.
+     * Strips the home URL base path for subdirectory installs so that
+     * /elementor/my-page/ becomes my-page (not elementor/my-page).
+     */
+    private function relative_url_path(string $url): string {
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+        $home_path = trim((string) parse_url(home_url('/'), PHP_URL_PATH), '/');
+        if ($home_path !== '' && strpos($path, $home_path) === 0) {
+            $path = trim(substr($path, strlen($home_path)), '/');
+        }
+        return $path;
+    }
+
 
     /**
      * Save an exported HTML document using the URL path.
@@ -112,8 +126,7 @@ class Exporter {
      */
         private function save_html($url, $html) {
 
-        $path = (string) parse_url($url, PHP_URL_PATH);
-        $path = trim($path, '/');
+        $path = $this->relative_url_path($url);
 
         // 1) Forced single-page export: always write root /index.html
         if ($this->single_root_index) {
@@ -1110,8 +1123,7 @@ class Exporter {
      */
     private function get_page_output_dir($url) {
 
-        $path = (string) parse_url($url, PHP_URL_PATH);
-        $path = trim($path, '/');
+        $path = $this->relative_url_path($url);
 
         // 1) Forced single-page export: always root
         if ($this->single_root_index) {
@@ -1601,8 +1613,7 @@ private function enqueue_css_dependencies($css, $css_url) {
     private function rewrite_html_with_dot_path($page_url, $html) {
 
         // Mirror your save_html() path logic
-        $export_path = (string) parse_url($page_url, PHP_URL_PATH);
-        $export_path = trim($export_path, '/');
+        $export_path = $this->relative_url_path($page_url);
 
         // If the file ends up in root (single export OR root_parent_html), use "./" dot base.
         if ($this->single_root_index) {

@@ -744,10 +744,6 @@ register_rest_route('wp_to_html/v1', '/status', [
         $full_site = !empty($params['full_site']);
         $include_home = array_key_exists('include_home', $params) ? (bool) $params['include_home'] : true;
         $save_assets_grouped = !empty($params['save_assets_grouped']);
-        // Pro gate: "Group assets by type" requires Pro.
-        if ($save_assets_grouped && function_exists('wp_to_html_is_pro_active') && !wp_to_html_is_pro_active()) {
-            $save_assets_grouped = false;
-        }
 
         // Asset coverage strategy: strict | hybrid | full
         $asset_collection_mode = isset($params['asset_collection_mode']) ? strtolower(trim((string)$params['asset_collection_mode'])) : 'strict';

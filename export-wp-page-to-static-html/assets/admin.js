@@ -642,7 +642,7 @@ function getScopePayload() {
   // IMPORTANT: ensure your include-home checkbox id matches this
   const includeHome = jQuery('#eh-include-home').is(':checked');
 
-  const saveGrouped = !!(window.wpToHtmlData && Number(window.wpToHtmlData.pro_active) === 1) && jQuery('#save_assets_grouped').is(':checked');
+  const saveGrouped = jQuery('#save_assets_grouped').is(':checked');
 
   const assetCollectionMode = String(jQuery('#wp-to-html-asset-collection-mode').val() || 'strict');
 
@@ -2075,10 +2075,6 @@ jQuery(function ($) {
     $('#eh-export-all-pages').on('click', (e) => { if (proGuard(e)) setScope('all_pages'); });
     $('#eh-export-full').on('click', (e) => { if (proGuard(e)) setScope('full_site'); });
 
-    // Pro guard for "Group assets by type" checkbox
-    $('#save_assets_grouped').on('click', function (e) {
-        if (!proGuard(e)) { e.preventDefault(); }
-    });
 
     $('#eh-tab-posts').on('click', () => setType('post'));
     $('#eh-tab-pages').on('click', () => setType('page'));
@@ -2348,7 +2344,7 @@ jQuery(function ($) {
 
             const includeHome = $('#wp-to-html-include-home').is(':checked');
             const rootParentHtml = $('#wp-to-html-root-parent-html').is(':checked');  
-            const save_assets_grouped = !!(Number(wpToHtmlData?.pro_active || 0)) && jQuery('#save_assets_grouped').is(':checked');
+            const save_assets_grouped = jQuery('#save_assets_grouped').is(':checked');
             const asset_collection_mode = String(jQuery('#wp-to-html-asset-collection-mode').val() || 'strict');
 
             // Read statuses first (used by role logic).

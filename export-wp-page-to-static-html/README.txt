@@ -4,7 +4,7 @@ Tags: static html, static site generator, export wordpress, wordpress static htm
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.0.7.0
+Stable tag: 6.0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,10 @@ PDF export tooling will return in an upcoming release. When enabled, it will sup
 2. Quick Export — Export action available from posts/pages listing rows
 
 == Changelog ==
+= 6.0.8.0 =
+* Improved: "Group assets by type" is now available to all users (previously Pro only) and enabled by default — exports organise /images, /css, and /js automatically.
+* Fixed: "Parent posts in root dir" now works correctly on subdirectory WordPress installations, saving top-level pages as postname.html at the export root.
+
 = 6.0.7.0 =
 * Fixed: Clicking Stop now immediately halts background export processing.
 * Improved: Export log now records when an export is paused, resumed, or stopped by the user.
@@ -299,6 +303,9 @@ PDF export tooling will return in an upcoming release. When enabled, it will sup
 
 
 == Upgrade Notice ==
+
+= 6.0.8.0 =
+"Group assets by type" is now free and on by default. Fixed "Parent posts in root dir" for subdirectory WordPress installs.
 
 = 6.0.6.1 =
 This release improves export reliability with enhanced exporting experiance, added pdf export system.

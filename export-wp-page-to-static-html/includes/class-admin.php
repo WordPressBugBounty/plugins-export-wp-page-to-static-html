@@ -448,10 +448,9 @@ CSS
                                     <option value="hybrid" selected><?php esc_html_e('Hybrid (referenced + media)', 'wp-to-html'); ?></option>
                                     <option value="full"><?php esc_html_e('Full (all uploads + theme assets)', 'wp-to-html'); ?></option>
                                 </select>
-                                <label class="eh-toggle"><input type="checkbox" id="save_assets_grouped" value="1" <?php echo $pro_active ? 'checked' : 'disabled data-pro="1"'; ?>><span><?php esc_html_e('Group assets by type', 'wp-to-html'); ?><?php if (!$pro_active): ?> 🔒<?php endif; ?></span></label>
+                                <label class="eh-toggle"><input type="checkbox" id="save_assets_grouped" value="1" checked><span><?php esc_html_e('Group assets by type', 'wp-to-html'); ?></span></label>
                                 <p class="eh-hint">
                                     <?php echo wp_kses(__('When enabled, all exported assets are automatically organized into clean subdirectories: <code>/images</code>, <code>/css</code>, <code>/js</code>. The result is a well-structured, developer-friendly HTML package that is easy to hand off or deploy.', 'wp-to-html'), array('code' => array())); ?>
-                                    <?php if (!$pro_active): ?><span class="eh-pro-badge">PRO</span><?php endif; ?>
                                 </p>
                             </div>
 
@@ -1350,11 +1349,10 @@ CSS
                 <div class="eh-pro-modal-body">
                     <p class="eh-pro-modal-lead"><?php esc_html_e('Remove all limits and unlock every export scope:', 'wp-to-html'); ?></p>
                     <ul class="eh-pro-feat-list">
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><strong><?php esc_html_e('Unlimited Custom Scope', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('select any number of posts, pages or CPTs', 'wp-to-html'); ?></div></li>
+                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><strong><?php esc_html_e('Unlimited Flexibility', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('select any number of posts, pages, or custom post types', 'wp-to-html'); ?></div></li>
                         <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><div><strong><?php esc_html_e('All Pages &amp; All Posts', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('bulk export entire archives in one click', 'wp-to-html'); ?></div></li>
                         <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><div><strong><?php esc_html_e('Full Site Export', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('complete static HTML of your entire site', 'wp-to-html'); ?></div></li>
                         <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><div><strong><?php esc_html_e('AWS S3 Deployment', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('push exports directly to your S3 bucket', 'wp-to-html'); ?></div></li>
-                        <li><span class="eh-pro-feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><div><strong><?php esc_html_e('Grouped Assets', 'wp-to-html'); ?></strong> &mdash; <?php esc_html_e('auto-organized into /images, /css, /js', 'wp-to-html'); ?></div></li>
                     </ul>
                 </div>
                 <div class="eh-pro-modal-foot">
