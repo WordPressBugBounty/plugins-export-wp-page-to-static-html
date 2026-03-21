@@ -1240,6 +1240,8 @@ update_option('wp_to_html_export_context', [
         // Prevent any scheduled ticks from continuing while paused.
         wp_clear_scheduled_hook('wp_to_html_process_event');
 
+        try { (new \WpToHtml\Exporter())->log_public('Export paused by the user.'); } catch (\Throwable $e) {}
+
         return ['message' => __('Paused', 'wp-to-html')];
     }
 
@@ -1253,6 +1255,8 @@ update_option('wp_to_html_export_context', [
             ['state' => 'running', 'is_running' => 1],
             ['id' => 1]
         );
+
+        try { (new \WpToHtml\Exporter())->log_public('Export resumed by the user.'); } catch (\Throwable $e) {}
 
         wp_schedule_single_event(time(), 'wp_to_html_process_event');
         //spawn_cron();
@@ -1292,8 +1296,20 @@ update_option('wp_to_html_export_context', [
 
         global $wpdb;
 
+        $status_table = $wpdb->prefix . 'wp_to_html_status';
+        $queue_table  = $wpdb->prefix . 'wp_to_html_queue';
+        $assets_table = $wpdb->prefix . 'wp_to_html_assets';
+
+        // Capture stats BEFORE changing state (so counts are accurate).
+        $total_urls       = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table}");
+        $processed_urls   = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='done'");
+        $failed_urls      = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='failed'");
+        $total_assets     = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table}");
+        $processed_assets = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='done'");
+        $failed_assets    = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='failed'");
+
         $wpdb->update(
-            $wpdb->prefix . 'wp_to_html_status',
+            $status_table,
             [
                 'state'      => 'stopped',
                 'is_running' => 0,
@@ -1303,8 +1319,26 @@ update_option('wp_to_html_export_context', [
 
         wp_clear_scheduled_hook('wp_to_html_process_event');
 
+        try { (new \WpToHtml\Exporter())->log_public('Export stopped by the user.'); } catch (\Throwable $e) {}
+
         // Best-effort cleanup of temp export user.
         $this->cleanup_temp_export_user();
+
+        // Send export report to API server (stopped by user).
+        try {
+            $core = \WpToHtml\Core::get_instance();
+            $core->send_export_report_to_api(false, [
+                'total_urls'       => $total_urls,
+                'processed_urls'   => $processed_urls,
+                'failed_urls'      => $failed_urls,
+                'total_assets'     => $total_assets,
+                'processed_assets' => $processed_assets,
+                'failed_assets'    => $failed_assets,
+                'stopped'          => true,
+            ]);
+        } catch (\Throwable $e) {
+            // Never fail the stop action due to report.
+        }
 
         return ['message' => __('Stopped', 'wp-to-html')];
     }

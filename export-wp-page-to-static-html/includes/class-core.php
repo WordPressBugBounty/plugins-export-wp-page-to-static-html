@@ -69,96 +69,6 @@ class Core {
             wp_mkdir_p(WP_TO_HTML_EXPORT_DIR);
         }
     }
-    // public function process_background() {
-    //     global $wpdb;
-
-    //     // ✅ Define tables FIRST
-    //     $status_table = $wpdb->prefix . 'wp_to_html_status';
-    //     $queue_table  = $wpdb->prefix . 'wp_to_html_queue';
-    //     $assets_table = $wpdb->prefix . 'wp_to_html_assets';
-
-    //     // ✅ Get latest status row
-    //     $status = $wpdb->get_row("SELECT * FROM {$status_table} ORDER BY id DESC LIMIT 1");
-    //     if (!$status) {
-    //         return;
-    //     }
-
-    //     // If not running, don't do work (prevents cron from continuing after completion)
-    //     if ((int)($status->is_running ?? 0) === 0 && in_array($status->state, ['completed','stopped','error'], true)) {
-    //         wp_clear_scheduled_hook('wp_to_html_process_event');
-    //         return;
-    //     }
-
-    //     // ✅ Paused: do nothing (also don't schedule new)
-    //     if ($status->state === 'paused') {
-    //         wp_clear_scheduled_hook('wp_to_html_process_event');
-    //         return;
-    //     }
-
-    //     // ✅ Stopped: clear everything & reset to idle
-    //     if ($status->state === 'stopped') {
-
-    //         // Clear queue and assets
-    //         $wpdb->query("TRUNCATE TABLE {$queue_table}");
-    //         $wpdb->query("TRUNCATE TABLE {$assets_table}");
-
-    //         
-
-    //             'state'      => 'idle',
-    //             'is_running' => 0,
-    //         ], ['id' => $status->id]);
-
-    //         wp_clear_scheduled_hook('wp_to_html_process_event');
-    //         return;
-    //     }
-
-    //     // ✅ Mark running (in case cron fired after a refresh)
-    //     if ($status->state !== 'running' || (int)($status->is_running ?? 0) !== 1) {
-    //         $wpdb->update($status_table, [
-    //             'state'      => 'running',
-    //             'is_running' => 1,
-    //         ], ['id' => $status->id]);
-    //     }
-
-    //     $exporter = new Exporter();
-
-    //     // Process batches (your exporter likely reads from tables internally)
-    //     $exporter->process_batch(10);
-    //     $exporter->process_asset_batch(30);
-
-    //     // ✅ Update counters
-    //     $processed_urls    = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='done'");
-    //     $processed_assets  = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='done'");
-    //     $remaining_urls    = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$queue_table} WHERE status='pending'");
-    //     $remaining_assets  = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table} WHERE status='pending'");
-
-    //     $wpdb->update($status_table, [
-    //         'processed_urls'    => $processed_urls,
-    //         'processed_assets'  => $processed_assets,
-    //         // Optional: keep these if you have columns for them
-    //         // 'updated_at'     => current_time('mysql'),
-    //     ], ['id' => $status->id]);
-
-    //     if ($remaining_urls > 0 || $remaining_assets > 0) {
-
-    //         // 🔁 Schedule next batch (avoid duplicates)
-    //         if (!wp_next_scheduled('wp_to_html_process_event')) {
-    //             wp_schedule_single_event(time() + 2, 'wp_to_html_process_event');
-    //         }
-
-    //         return;
-    //     }
-
-    //     // ✅ Finished: no remaining work
-    //     $wpdb->update($status_table, [
-    //         'state'      => 'completed',
-    //         'is_running' => 0,
-    //     ], ['id' => $status->id]);
-
-    //     wp_clear_scheduled_hook('wp_to_html_process_event');
-    // }
-
-
 
     private function update_status(array $data) {
         $this->log(json_encode($data));
@@ -431,6 +341,18 @@ class Core {
                     'total_assets'     => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$assets_table}"),
                     'updated_at'       => current_time('mysql'),
                 ], ['id' => 1]);
+
+                // Mid-tick stop/pause check: the user may have clicked Stop or Pause
+                // while this tick was running. Re-read state from DB after each completed
+                // batch and bail immediately so the next batch never starts.
+                // This is the earliest safe exit point — the current batch is fully done
+                // and counts are already written to DB.
+                $live_state = (string) $wpdb->get_var(
+                    $wpdb->prepare("SELECT state FROM {$status_table} WHERE id=%d", 1)
+                );
+                if (in_array($live_state, ['stopped', 'paused'], true)) {
+                    break;
+                }
             }
 
             if (Advanced_Debugger::enabled()) {
@@ -449,6 +371,21 @@ class Core {
             $stats['last_tick_loops'] = $loops;
             $stats['updated_at']      = time();
             update_option($stats_key, $stats, false);
+
+            // Post-loop stopped/paused guard.
+            // Without this, the status DB update below would blindly overwrite
+            // 'stopped' → 'running' (and is_running → 1), re-arm the cron, fire
+            // the bg nudge, and send a second API completion report when the
+            // rescheduled tick eventually finishes — causing duplicate rows in the
+            // API dashboard. The return is inside the try block so the finally
+            // clause still fires: it releases the transient lock and, since
+            // $fire_bg_nudge is never set, skips the bg nudge entirely.
+            $post_loop_state = (string) $wpdb->get_var(
+                $wpdb->prepare("SELECT state FROM {$status_table} WHERE id=%d", 1)
+            );
+            if (in_array($post_loop_state, ['stopped', 'paused'], true)) {
+                return;
+            }
 
             // ------------------------------------------------------------------
             // Recalculate counters from DB
@@ -661,12 +598,34 @@ if ($is_finished) {
     // Completion email (optional)
     $no_failures = (($failed_urls + $failed_assets) === 0);
     $this->maybe_send_completion_email($no_failures, $zip_info);
+
+    // Send export report to ReCorp API server (non-blocking).
+    $this->send_export_report_to_api($no_failures, [
+        'total_urls'       => $total_urls,
+        'processed_urls'   => $processed_urls,
+        'failed_urls'      => $failed_urls,
+        'total_assets'     => $total_assets,
+        'processed_assets' => $processed_assets,
+        'failed_assets'    => $failed_assets,
+        'zip_info'         => $zip_info,
+    ]);
 } else {
     // Schedule immediately so the bg nudge (fired after lock release) can pick it up.
     wp_clear_scheduled_hook('wp_to_html_process_event');
     wp_schedule_single_event(time(), 'wp_to_html_process_event');
     $fire_bg_nudge = true;
-}} finally {
+}} catch (\Throwable $e) {
+
+            // Unexpected exception: report as 'failed' so it's visible in the API dashboard,
+            // then re-throw so the error still propagates normally.
+            try {
+                $this->send_export_report_to_api(false, ['exception' => $e->getMessage()]);
+            } catch (\Throwable $e2) {
+                // Never let the report call swallow the original exception.
+            }
+            throw $e;
+
+        } finally {
 
             if (Advanced_Debugger::enabled()) {
                 Advanced_Debugger::mark('tick_end', [
@@ -994,6 +953,180 @@ private function log($message) {
     
 
     }
+
+    /**
+     * Send export report to ReCorp API server after export completes, fails, or is stopped.
+     *
+     * API endpoint: https://api.myrecorp.com/wpptsh-report.php?type=error_log
+     *
+     * On SUCCESS (no failures): sends outcome + stats only — no log text.
+     * On FAILURE / STOP: sends outcome + stats + full export log text so the
+     * API server can store it for debugging.
+     *
+     * Non-blocking: uses wp_remote_post with 0.5s timeout (slightly higher than
+     * fire-and-forget to ensure the body reaches the server on large payloads).
+     *
+     * @param bool  $success  Whether the export completed without any errors.
+     * @param array $stats    Export statistics (urls, assets, zip info, etc.).
+     */
+    public function send_export_report_to_api(bool $success, array $stats = []): void {
+
+        $api_url = 'https://api.myrecorp.com/wpptsh-report.php?type=error_log';
+
+        /**
+         * Filter the API endpoint for export reports.
+         * Return empty string to disable reporting entirely.
+         *
+         * @param string $api_url  The API endpoint URL.
+         */
+        $api_url = (string) apply_filters('wp_to_html_export_report_api_url', $api_url);
+        if ($api_url === '') {
+            return;
+        }
+
+        // Determine outcome.
+        $outcome = 'completed';
+        if (!$success && !empty($stats['exception'])) {
+            $outcome = 'stopped_with_error';
+        } elseif (!$success && !empty($stats['stopped'])) {
+            $outcome = 'stopped_by_user';
+        } elseif (!$success) {
+            $outcome = 'completed_with_failures';
+        }
+
+        $ctx = get_option('wp_to_html_export_context', []);
+        if (!is_array($ctx)) $ctx = [];
+
+        $scope      = isset($ctx['scope']) ? (string) $ctx['scope'] : 'unknown';
+        $asset_mode = isset($ctx['asset_collection_mode']) ? (string) $ctx['asset_collection_mode'] : 'strict';
+
+        $t_urls   = (int) ($stats['total_urls']       ?? 0);
+        $p_urls   = (int) ($stats['processed_urls']   ?? 0);
+        $f_urls   = (int) ($stats['failed_urls']      ?? 0);
+        $t_assets = (int) ($stats['total_assets']     ?? 0);
+        $p_assets = (int) ($stats['processed_assets'] ?? 0);
+        $f_assets = (int) ($stats['failed_assets']    ?? 0);
+
+        $is_pro = defined('WP_TO_HTML_PRO_ACTIVE') && WP_TO_HTML_PRO_ACTIVE;
+
+        // Build compact status summary (backward compat with old API column).
+        $status_parts = [
+            $outcome,
+            'scope=' . $scope,
+            'urls=' . $p_urls . '/' . $t_urls . ($f_urls > 0 ? '(f' . $f_urls . ')' : ''),
+            'assets=' . $p_assets . '/' . $t_assets . ($f_assets > 0 ? '(f' . $f_assets . ')' : ''),
+            $is_pro ? 'pro' : 'free',
+        ];
+        $status_string = implode(' | ', $status_parts);
+
+        // Build structured payload.
+        $payload = [
+            'site_url'         => home_url('/'),
+            'outcome'          => $outcome,
+            'status'           => $status_string,
+            'plugin_version'   => WP_TO_HTML_VERSION,
+            'wp_version'       => get_bloginfo('version'),
+            'php_version'      => phpversion(),
+            'scope'            => $scope,
+            'total_urls'       => $t_urls,
+            'processed_urls'   => $p_urls,
+            'failed_urls'      => $f_urls,
+            'total_assets'     => $t_assets,
+            'processed_assets' => $p_assets,
+            'failed_assets'    => $f_assets,
+        ];
+
+        // On failure or stop: include the full export log text so the API
+        // server can store it for remote debugging.
+        // On clean completion: no log text needed (saves bandwidth).
+        if ($outcome !== 'completed') {
+            $log_text = $this->read_export_log_for_report();
+            if ($log_text !== '') {
+                $payload['error_log'] = $log_text;
+            }
+        }
+
+        /**
+         * Filter the export report payload before sending.
+         *
+         * @param array  $payload  The report data.
+         * @param bool   $success  Whether export was successful.
+         * @param array  $stats    Raw statistics.
+         * @param string $outcome  One of: completed, completed_with_failures, stopped, failed.
+         */
+        $payload = (array) apply_filters('wp_to_html_export_report_payload', $payload, $success, $stats, $outcome);
+
+        // Blocking=true with a reasonable timeout ensures the TCP+TLS handshake
+        // and the full request body actually reach the server before PHP moves on.
+        // Non-blocking with tiny timeouts (< TLS handshake latency) silently drops
+        // the connection before any data is transmitted.
+        $has_log = !empty($payload['error_log']);
+
+        @wp_remote_post($api_url, [
+            'timeout'    => 15,
+            'blocking'   => true,
+            'sslverify'  => true,
+            'headers'    => [
+                'Content-Type' => 'application/json',
+                'User-Agent'   => 'WpToHtml/' . WP_TO_HTML_VERSION . '; ' . home_url('/'),
+            ],
+            'body'       => wp_json_encode($payload),
+        ]);
+
+        $this->log('Export report sent to API (' . $outcome . ($has_log ? ', with log' : '') . ').');
+    }
+
+    /**
+     * Read the export log file for inclusion in the API report.
+     * Returns the last 64 KB of the log (tail) to keep payloads reasonable.
+     * The most useful debugging info is at the end of the log.
+     *
+     * @return string Log text or empty string.
+     */
+    private function read_export_log_for_report(): string {
+        $log_file = WP_TO_HTML_EXPORT_DIR . '/export-log.txt';
+
+        if (!file_exists($log_file) || !is_readable($log_file)) {
+            return '';
+        }
+
+        $max_bytes = 64 * 1024; // 64 KB cap
+        $size = (int) @filesize($log_file);
+
+        if ($size <= 0) {
+            return '';
+        }
+
+        // If file is small enough, read it all.
+        if ($size <= $max_bytes) {
+            $content = @file_get_contents($log_file);
+            return is_string($content) ? $content : '';
+        }
+
+        // File is larger than cap: read the last 64 KB (tail).
+        $fp = @fopen($log_file, 'rb');
+        if (!$fp) {
+            return '';
+        }
+
+        fseek($fp, -$max_bytes, SEEK_END);
+        $content = @fread($fp, $max_bytes);
+        fclose($fp);
+
+        if (!is_string($content) || $content === '') {
+            return '';
+        }
+
+        // Skip the first partial line (we likely landed mid-line).
+        $nl = strpos($content, "\n");
+        if ($nl !== false && $nl < 200) {
+            $content = substr($content, $nl + 1);
+        }
+
+        return "... (truncated, last 64KB) ...\n" . $content;
+    }
+
+
 /**
  * Watchdog: reclaim stuck rows left in `processing` due to PHP fatals/timeouts/network hangs.
  * This prevents silent stalls.

@@ -274,7 +274,7 @@ CSS
 
     <div class="eh-seg" role="tablist" aria-label="<?php esc_attr_e('What to export', 'wp-to-html'); ?>">
         <button type="button" id="eh-export-custom" role="tab" aria-pressed="true">
-            <?php esc_html_e('Pick custom items', 'wp-to-html'); ?>
+            <?php esc_html_e('Select Posts/Pages', 'wp-to-html'); ?>
         </button>
 
         <?php if ($pro_active): ?>

@@ -105,79 +105,6 @@ class Exporter {
         $this->group_assets = (bool) $group_assets;
     }
 
-    public function run() {
-
-        $this->log('Starting export...');
-
-        
-        $urls = [];
-
-        $full_site = !empty($args['full_site']);
-        $include_home = array_key_exists('include_home', $args) ? (bool) $args['include_home'] : true;
-        $selected = isset($args['selected']) ? (array) $args['selected'] : [];
-
-        if ($include_home) {
-            $urls[] = home_url('/');
-        }
-
-        if ($full_site) {
-
-            $post_types = get_post_types(['public' => true], 'names');
-
-            $posts = get_posts([
-                'post_type' => $post_types,
-                'post_status' => 'publish',
-                'numberposts' => -1
-            ]);
-
-            foreach ($posts as $post) {
-                $urls[] = get_permalink($post);
-            }
-
-        } else {
-
-            // Selected export: accept [{id,type}] OR raw IDs OR URLs
-            foreach ($selected as $item) {
-
-                $id = 0;
-
-                if (is_array($item)) {
-                    if (isset($item['id'])) {
-                        $id = (int) $item['id'];
-                    } elseif (isset($item['ID'])) {
-                        $id = (int) $item['ID'];
-                    }
-                    if (!empty($item['url'])) {
-                        $u = esc_url_raw((string) $item['url']);
-                        if (!empty($u)) $urls[] = $u;
-                        continue;
-                    }
-                } elseif (is_numeric($item)) {
-                    $id = (int) $item;
-                } elseif (is_string($item)) {
-                    $u = esc_url_raw($item);
-                    if (!empty($u)) $urls[] = $u;
-                    continue;
-                }
-
-                if ($id > 0) {
-                    $u = get_permalink($id);
-                    if ($u) $urls[] = $u;
-                }
-            }
-        }
-
-        $urls = array_unique(array_filter($urls));
-
-$this->log('Total URLs collected: ' . count($urls));
-
-        foreach ($urls as $url) {
-            $this->export_url($url);
-        }
-
-        $this->log('Export completed.');
-    }
-
 
     /**
      * Save an exported HTML document using the URL path.
@@ -217,37 +144,6 @@ $this->log('Total URLs collected: ' . count($urls));
         file_put_contents($dir . '/index.html', $html);
     }
 
-    private function export_url($url) {
-
-        $this->log('Exporting: ' . $url);
-
-        $response = wp_remote_get($url);
-
-        if (is_wp_error($response)) {
-            $this->log('Failed: ' . $url);
-            return;
-        }
-
-        $html = wp_remote_retrieve_body($response);
-
-        // Determine output directory for this URL before rewriting assets.
-        $path = (string) parse_url($url, PHP_URL_PATH);
-        $path = trim($path, '/');
-        if ($path === '') {
-            $path = 'index';
-        }
-
-        $dir = WP_TO_HTML_EXPORT_DIR . '/' . $path;
-        wp_mkdir_p($dir);
-
-        // Rewrite/copy assets.
-        $asset_manager = new Asset_Manager($this->group_assets);
-        $html = $asset_manager->process($html, $dir);
-
-        file_put_contents($dir . '/index.html', $html);
-
-        $this->log('Saved: ' . $path);
-    }
 
     /**
      * Clear WP_TO_HTML_EXPORT_DIR contents (best-effort).
@@ -554,7 +450,7 @@ $this->log('Total URLs collected: ' . count($urls));
             $ph  = (string) ($state['phase'] ?? '');
             $last_phase = (string) get_option('wp_to_html_queue_build_last_phase', '');
 
-            if ($ins - $last_logged >= $bs || $ph !== $last_phase) {
+            if ($ins - $last_logged >= $batch_size || $ph !== $last_phase) {
                 if (WP_TO_HTML_DEBUG) {
                     $this->log('Queue build tick: phase=' . $ph . ' inserted=' . $ins);
                 }
@@ -1635,29 +1531,6 @@ private function enqueue_css_dependencies($css, $css_url) {
         }
     }
             
-    public function handle_export($request) {
-
-        $exporter = new Exporter();
-
-        if ($request->get_param('init')) {
-            $exporter->build_queue();
-            return ['message' => __('Queue built', 'wp-to-html')];
-        }
-
-        $urls_done = $exporter->process_batch(20);
-        $assets_done = $exporter->process_asset_batch(50);
-
-        return [
-            'urls_remaining' => $this->count_pending('wp_to_html_queue'),
-            'assets_remaining' => $this->count_pending('wp_to_html_assets')
-        ];
-    }
-
-    private function count_pending($table_name) {
-        global $wpdb;
-        $table = $wpdb->prefix . $table_name;
-        return $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status='pending'");
-    }
 
     private function rewrite_dom_paths($html, $dot) {
 

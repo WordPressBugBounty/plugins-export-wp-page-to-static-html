@@ -4,7 +4,7 @@ Tags: static html, static site generator, export wordpress, wordpress static htm
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.0.6.1
+Stable tag: 6.0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,11 @@ PDF export tooling will return in an upcoming release. When enabled, it will sup
 2. Quick Export — Export action available from posts/pages listing rows
 
 == Changelog ==
+= 6.0.7.0 =
+* Fixed: Clicking Stop now immediately halts background export processing.
+* Improved: Export log now records when an export is paused, resumed, or stopped by the user.
+* Improved: Internal code improvements for better reliability and stability.
+
 = 6.0.6.0 =
 * Added PDF exporting functionality.
 * Enhanced exporting experience.

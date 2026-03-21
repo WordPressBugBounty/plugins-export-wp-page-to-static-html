@@ -295,46 +295,96 @@ class WhatsNew {
 
                     <div class="wth-version">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
-                        <?php esc_html_e('Version', 'wp-to-html'); ?> <strong>6.0.6.0</strong>
+                        <?php esc_html_e('Version', 'wp-to-html'); ?> <strong>6.0.7.0</strong>
                     </div>
                 </div>
 
-                <!-- 6.0.6.0 Changelog Cards -->
+                <!-- 6.0.7.0 Changelog Cards -->
                 <div class="wth-cards">
 
-                    <!-- Added: PDF exporting -->
+                    <!-- Fixed: Stop button halts background immediately -->
                     <div class="wth-card">
-                        <div class="wth-card-icon added">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        <div class="wth-card-icon fixed">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
                         </div>
                         <div class="wth-card-body">
-                            <div class="wth-card-label added"><?php esc_html_e('Added', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('PDF exporting functionality — generate a PDF of any page directly from the frontend with a single click.', 'wp-to-html'); ?></div>
+                            <div class="wth-card-label fixed"><?php esc_html_e('Fixed', 'wp-to-html'); ?></div>
+                            <div class="wth-card-text"><?php esc_html_e('Clicking Stop now immediately halts background export processing. Previously, an active background tick could continue running for several seconds after stopping.', 'wp-to-html'); ?></div>
                         </div>
                     </div>
 
-                    <!-- Improved: Exporting experience -->
+                    <!-- Improved: Log records pause/resume/stop -->
                     <div class="wth-card">
                         <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                         </div>
                         <div class="wth-card-body">
                             <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Enhanced exporting experience — faster, more reliable, with better progress feedback throughout the process.', 'wp-to-html'); ?></div>
+                            <div class="wth-card-text"><?php esc_html_e('Export activity log now records when an export is paused, resumed, or stopped by the user, making it easier to track what happened during an export session.', 'wp-to-html'); ?></div>
                         </div>
                     </div>
 
-                    <!-- Improved: Layout -->
+                    <!-- Improved: Internal code improvements -->
                     <div class="wth-card">
-                        <div class="wth-card-icon improved">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                        <div class="wth-card-icon core">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                         </div>
                         <div class="wth-card-body">
-                            <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
-                            <div class="wth-card-text"><?php esc_html_e('Redesigned layout that is easier to understand — cleaner sections, clearer labels, and a more intuitive flow.', 'wp-to-html'); ?></div>
+                            <div class="wth-card-label core"><?php esc_html_e('Core', 'wp-to-html'); ?></div>
+                            <div class="wth-card-text"><?php esc_html_e('Internal code improvements for better reliability and stability across different server environments.', 'wp-to-html'); ?></div>
                         </div>
                     </div>
 
+                </div>
+
+                <!-- Previous Release: 6.0.6.0 -->
+                <div class="wth-prev-release">
+                    <div class="wth-prev-release-heading">
+                        <hr>
+                        <span class="wth-prev-release-label"><?php esc_html_e('Previous Release', 'wp-to-html'); ?></span>
+                        <hr>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <span class="wth-prev-version-pill">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/></svg>
+                            <?php esc_html_e('Version', 'wp-to-html'); ?> 6.0.6.0
+                        </span>
+                    </div>
+
+                    <div class="wth-cards">
+
+                        <div class="wth-card">
+                            <div class="wth-card-icon added">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                            </div>
+                            <div class="wth-card-body">
+                                <div class="wth-card-label added"><?php esc_html_e('Added', 'wp-to-html'); ?></div>
+                                <div class="wth-card-text"><?php esc_html_e('PDF exporting functionality — generate a PDF of any page directly from the frontend with a single click.', 'wp-to-html'); ?></div>
+                            </div>
+                        </div>
+
+                        <div class="wth-card">
+                            <div class="wth-card-icon improved">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            </div>
+                            <div class="wth-card-body">
+                                <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
+                                <div class="wth-card-text"><?php esc_html_e('Enhanced exporting experience — faster, more reliable, with better progress feedback throughout the process.', 'wp-to-html'); ?></div>
+                            </div>
+                        </div>
+
+                        <div class="wth-card">
+                            <div class="wth-card-icon improved">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            </div>
+                            <div class="wth-card-body">
+                                <div class="wth-card-label improved"><?php esc_html_e('Improved', 'wp-to-html'); ?></div>
+                                <div class="wth-card-text"><?php esc_html_e('Redesigned layout that is easier to understand — cleaner sections, clearer labels, and a more intuitive flow.', 'wp-to-html'); ?></div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
                 <!-- Previous Release: 6.0.0 -->

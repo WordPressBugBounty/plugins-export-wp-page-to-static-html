@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.6.1
+ * Version:           6.0.7.0
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.6.1');
+define('WP_TO_HTML_VERSION', '6.0.7.0');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
 define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
@@ -160,6 +160,40 @@ add_action('plugins_loaded', function () {
 });
 
 
+/**
+ * Decide whether a "What's New" redirect should fire for this version update.
+ *
+ * Rules:
+ *   1. Fresh install ($old_version empty): never redirect.
+ *   2. User has never been redirected before (wp_to_html_whats_new_version empty):
+ *      redirect once, regardless of increment size (one-time catch-up for all users).
+ *   3. Going forward: redirect only when the first three version segments (x.y.z)
+ *      advance. The fourth "build" segment alone (e.g. 6.0.6.1 → 6.0.6.2) does NOT
+ *      trigger a redirect.
+ *
+ * The caller must also run:
+ *   update_option('wp_to_html_whats_new_version', $new_version, false)
+ * so future comparisons start from the correct baseline.
+ */
+function wp_to_html_should_redirect_to_whats_new(string $old_version, string $new_version): bool {
+    // Fresh install: no redirect.
+    if ($old_version === '') return false;
+
+    $last_seen = (string) get_option('wp_to_html_whats_new_version', '');
+
+    // Never redirected before (all users on first-ever catch-up): redirect once.
+    if ($last_seen === '') return true;
+
+    // Major release check: compare x.y.z of last-redirected version vs new version.
+    $last_parts = array_pad(explode('.', $last_seen), 4, '0');
+    $new_parts  = array_pad(explode('.', $new_version), 4, '0');
+
+    $last_xyz = implode('.', array_slice($last_parts, 0, 3));
+    $new_xyz  = implode('.', array_slice($new_parts, 0, 3));
+
+    return version_compare($new_xyz, $last_xyz, '>');
+}
+
 register_activation_hook(__FILE__, function() {
     $installed_version = get_option('wp_to_html_version', '');
 
@@ -183,7 +217,10 @@ register_activation_hook(__FILE__, function() {
         // Upgrade: create/restore tables (deactivation dropped them),
         // then bump the stored version.
         wp_to_html_ensure_tables();
-        set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
+        if (wp_to_html_should_redirect_to_whats_new($installed_version, WP_TO_HTML_VERSION)) {
+            set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
+            update_option('wp_to_html_whats_new_version', WP_TO_HTML_VERSION, false);
+        }
         update_option('wp_to_html_version', WP_TO_HTML_VERSION, false);
     }
     // Same version re-activation: nothing to do.
@@ -195,13 +232,11 @@ register_activation_hook(__FILE__, function() {
 });
 
 /**
- * "What's New" redirect after plugin update — Pro only.
- * Only fires when the Pro add-on is active (WP_TO_HTML_PRO_ACTIVE defined).
+ * "What's New" redirect after plugin update — all users on major releases.
+ * Fires for every user when the first three version segments (x.y.z) advance,
+ * or on first-ever update for users who were never redirected before (free users).
  */
 add_action('admin_init', function () {
-    // Only redirect when Pro is active.
-    if (!defined('WP_TO_HTML_PRO_ACTIVE') || !WP_TO_HTML_PRO_ACTIVE) return;
-
     if (!current_user_can('manage_options')) return;
     if (wp_doing_ajax() || wp_doing_cron()) return;
     if (isset($_GET['activate-multi'])) return;
@@ -397,9 +432,10 @@ function wp_to_html_plugin_update() {
     // Bump stored version FIRST so this block won't re-run on the next load.
     update_option('wp_to_html_version', $current_version, false);
 
-    // Set What's New redirect transient — only shown when Pro is active (see admin_init hook).
-    if ($installed_version !== '' && version_compare($installed_version, $current_version, '<')) {
+    // Set What's New redirect transient (major releases for all users; see admin_init hook).
+    if (wp_to_html_should_redirect_to_whats_new($installed_version, $current_version)) {
         set_transient('wp_to_html_redirect_to_whats_new', 1, 60);
+        update_option('wp_to_html_whats_new_version', $current_version, false);
     }
 }
 add_action('plugins_loaded', 'wp_to_html_plugin_update');
