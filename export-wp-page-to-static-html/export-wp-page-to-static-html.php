@@ -3,7 +3,7 @@
  * Plugin Name: Export WP Page to Static HTML
  * Plugin URI:        https://myrecorp.com
  * Description:       Export WP Pages to Static HTML is the most flexible static HTML export plugin for WordPress. Unlike full-site generators, Export WP Pages to Static HTML gives you surgical control — export exactly the posts, pages, or custom post types you need, in the status you want, as the user role you choose.
- * Version:           6.0.8.0
+ * Version:           6.0.8.1
  * Author:            ReCorp
  * Author URI:        https://www.upwork.com/fl/rayhan1
  * License:           GPL-2.0+
@@ -19,10 +19,57 @@ if (!defined('ABSPATH')) exit;
 add_action('init', function () {
     load_plugin_textdomain('wp-to-html', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
-define('WP_TO_HTML_VERSION', '6.0.8.0');
+define('WP_TO_HTML_VERSION', '6.0.8.1');
 define('WP_TO_HTML_PATH', plugin_dir_path(__FILE__));
 define('WP_TO_HTML_URL', plugin_dir_url(__FILE__));
-define('WP_TO_HTML_EXPORT_DIR', WP_CONTENT_DIR . '/wp-to-html-exports');
+
+/**
+ * Resolve the per-site export directory.
+ *
+ * All export output (HTML, ZIPs, logs, asset maps, debug files) lives under this
+ * path. On a Multisite network every subsite must get its OWN directory, otherwise
+ * subsites overwrite each other's files and logs (they all share $wpdb tables via
+ * the per-site prefix, but the filesystem path was previously a single shared dir).
+ *
+ * Layout:
+ *   - Single site / network main site : wp-content/wp-to-html-exports
+ *   - Multisite subsite               : wp-content/wp-to-html-exports/sites/{blog_id}
+ *
+ * The main/single site keeps the legacy path so existing exports are not orphaned.
+ * Blog context is already established before plugins load, so get_current_blog_id()
+ * is reliable here.
+ */
+function wp_to_html_export_base_dir(): string {
+    $base = WP_CONTENT_DIR . '/wp-to-html-exports';
+
+    if (is_multisite() && !is_main_site()) {
+        $base .= '/sites/' . get_current_blog_id();
+    }
+
+    return $base;
+}
+
+/**
+ * Public web URL matching wp_to_html_export_base_dir().
+ *
+ * Used to build direct "preview in browser" links to exported files that the web
+ * server serves straight from wp-content. Must mirror the per-site directory layout
+ * exactly, otherwise subsite previews point at the wrong (empty) folder.
+ *
+ *   - Single site / network main site : .../wp-content/wp-to-html-exports
+ *   - Multisite subsite               : .../wp-content/wp-to-html-exports/sites/{blog_id}
+ */
+function wp_to_html_export_base_url(): string {
+    $path = 'wp-to-html-exports';
+
+    if (is_multisite() && !is_main_site()) {
+        $path .= '/sites/' . get_current_blog_id();
+    }
+
+    return content_url($path);
+}
+
+define('WP_TO_HTML_EXPORT_DIR', wp_to_html_export_base_dir());
 define('WP_TO_HTML_DEBUG', false);
 
 // Advanced debugger (super debugger)
@@ -37,16 +84,67 @@ if (!defined('WP_TO_HTML_ADVANCED_DEBUG')) {
  * The Free plugin exposes these helpers so a separate Pro plugin can enable
  * premium scopes (All Pages / All Posts / Full Site) without modifying core logic.
  */
-if (!function_exists('wp_to_html_is_pro_active')) {
-    function wp_to_html_is_pro_active(): bool {
+if (!function_exists('wp_to_html_fs_has_pro')) {
+    /**
+     * Direct Freemius Pro check for the CURRENT site's install.
+     * True only when the licence is valid AND the plan is 'pro' (or higher).
+     */
+    function wp_to_html_fs_has_pro(): bool {
         if (!function_exists('ewptshp_fs')) {
             return false;
         }
-
         $fs = ewptshp_fs();
         return $fs->can_use_premium_code() && $fs->is_plan('pro', true);
     }
 }
+
+if (!function_exists('wp_to_html_network_has_pro')) {
+    /**
+     * Multisite: read the cached network-wide Pro flag.
+     *
+     * On a network, Freemius creates a separate install per subsite, so a licence
+     * activated on the main site does NOT automatically unlock subsites. To honour
+     * "one licence, whole network", the main site publishes its Pro status to a
+     * network option (see wp_to_html_refresh_network_pro_flag) and every subsite
+     * inherits it here.
+     */
+    function wp_to_html_network_has_pro(): bool {
+        if (!is_multisite()) {
+            return false;
+        }
+        return (int) get_site_option('wp_to_html_network_pro', 0) === 1;
+    }
+}
+
+if (!function_exists('wp_to_html_refresh_network_pro_flag')) {
+    /**
+     * Publish the main site's Pro status to a network option so subsites inherit it.
+     *
+     * MUST run in the main site's context only — subsites have no licensed Freemius
+     * install, so evaluating there would incorrectly clear the flag. update_site_option
+     * is a no-op when the value is unchanged, so this is cheap to call on every load.
+     */
+    function wp_to_html_refresh_network_pro_flag(): void {
+        if (!is_multisite() || !is_main_site()) {
+            return;
+        }
+        update_site_option('wp_to_html_network_pro', wp_to_html_fs_has_pro() ? 1 : 0);
+    }
+}
+
+if (!function_exists('wp_to_html_is_pro_active')) {
+    function wp_to_html_is_pro_active(): bool {
+        // 1. This site's own Freemius licence (single site, or a per-subsite activation).
+        if (wp_to_html_fs_has_pro()) {
+            return true;
+        }
+        // 2. Multisite: inherit a single Pro licence held by the network's main site.
+        return wp_to_html_network_has_pro();
+    }
+}
+
+// Keep the network Pro flag in sync from the main site (network super-admin context).
+add_action('admin_init', 'wp_to_html_refresh_network_pro_flag');
 
 if (!function_exists('wp_to_html_allowed_scopes')) {
     /**

@@ -1058,6 +1058,7 @@ class Exporter {
             $html = $asset_manager->process($html, $page_dir);
         }
         // --- 5) Save HTML ---
+        $html = apply_filters('wp_to_html/html_before_save', $html, $url);
         $this->save_html($url, $html);
         $this->log('Saved HTML for: ' . $url . ' (assets queued: ' . count($assets) . ')');
 

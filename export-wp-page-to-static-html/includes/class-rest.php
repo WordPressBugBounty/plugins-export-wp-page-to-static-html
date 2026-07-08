@@ -595,6 +595,7 @@ register_rest_route('wp_to_html/v1', '/status', [
             $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
             $response->header('Pragma', 'no-cache');
             $response->header('Expires', '0');
+            $response->header('X-LiteSpeed-Cache-Control', 'no-cache');
         }
 
         return $response;
@@ -665,6 +666,7 @@ register_rest_route('wp_to_html/v1', '/status', [
             $resp->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
             $resp->header('Pragma', 'no-cache');
             $resp->header('Expires', '0');
+            $resp->header('X-LiteSpeed-Cache-Control', 'no-cache');
         }
         return $resp;
     }
@@ -978,6 +980,7 @@ update_option('wp_to_html_export_context', [
             's3_prefix'          => isset($params['s3_prefix']) ? (string) $params['s3_prefix'] : '',
             'notify_complete'    => !empty($params['notify_complete']) ? 1 : 0,
             'notify_emails'      => isset($params['notify_emails']) ? (string) $params['notify_emails'] : '',
+            'exclude_header'     => !empty($params['exclude_header']) ? 1 : 0,
 
             // Used for email notifications (cron-safe)
             'initiator_user_id'  => get_current_user_id(),
@@ -1536,14 +1539,20 @@ update_option('wp_to_html_export_context', [
 
         // Public base URL for direct file preview (served by the web server under wp-content).
         // Example: https://example.com/wp-content/wp-to-html-exports/
-        $public_base_url = trailingslashit(content_url('wp-to-html-exports'));
+        // On Multisite this resolves per-site (…/wp-to-html-exports/sites/{blog_id}/)
+        // so subsite previews point at the correct folder.
+        $public_base_url = trailingslashit(
+            function_exists('wp_to_html_export_base_url')
+                ? wp_to_html_export_base_url()
+                : content_url('wp-to-html-exports')
+        );
 
         // Legacy REST-based preview (kept for backward compatibility).
         $preview_base = rest_url('wp_to_html/v1/preview?path=');
         // Base download URL (no nonce — JS appends nonce + part param at render time)
         $download_url = rest_url('wp_to_html/v1/download');
 
-        return rest_ensure_response([
+        $response = rest_ensure_response([
             'export_dir'     => $export_dir,
             'files'          => $files,
             'zip'            => !empty($zip_parts) ? $zip_parts[0] : null,  // legacy compat
@@ -1553,6 +1562,18 @@ update_option('wp_to_html_export_context', [
             'preview_base'   => $preview_base,
             'download_url'   => $download_url,
         ]);
+
+        // Prevent host/CDN/browser caching of this response — it drives the download
+        // button's href, so a cached (stale) reply here silently points at an old zip.
+        if ($response instanceof \WP_REST_Response) {
+            do_action('litespeed_control_set_nocache', 'wp-to-html exports listing');
+            $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            $response->header('Pragma', 'no-cache');
+            $response->header('Expires', '0');
+            $response->header('X-LiteSpeed-Cache-Control', 'no-cache');
+        }
+
+        return $response;
     }
 
     public function preview_export_file(\WP_REST_Request $request) {
@@ -1667,6 +1688,18 @@ update_option('wp_to_html_export_context', [
         }
 
         nocache_headers();
+        // Explicitly defeat host/CDN caching of the zip stream (nocache_headers() alone
+        // doesn't guarantee no-store on every WP/host combo, and this URL is otherwise
+        // identical across runs, so a cached response would silently serve an old zip).
+        // The action hook is LiteSpeed Cache's own documented no-cache API, needed when
+        // QUIC.cloud/CDN edge caching is in front of the raw response headers.
+        do_action('litespeed_control_set_nocache', 'wp-to-html zip download');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        // LiteSpeed Cache (LSCache) caches at the web server module level and does not
+        // treat a plain Cache-Control header as authoritative — it needs its own signal.
+        header('X-LiteSpeed-Cache-Control: no-cache');
         header('Content-Type: application/zip');
         header('Content-Disposition: attachment; filename="' . basename($zip_fp) . '"');
         header('Content-Length: ' . filesize($zip_fp));
@@ -1760,6 +1793,11 @@ update_option('wp_to_html_export_context', [
         $zip->close();
 
         nocache_headers();
+        do_action('litespeed_control_set_nocache', 'wp-to-html group zip download');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        header('X-LiteSpeed-Cache-Control: no-cache');
         header('Content-Type: application/zip');
         header('Content-Disposition: attachment; filename="' . $zip_name . '"');
         header('Content-Length: ' . filesize($zip_fp));

@@ -94,6 +94,7 @@ class Admin {
             's3_settings_url'  => rest_url('wp_to_html/v1/s3-settings'),
             's3_test_url'      => rest_url('wp_to_html/v1/s3-test'),
             'system_status_url' => rest_url('wp_to_html/v1/system-status'),
+            'progressive_settings_url' => rest_url('wp_to_html/v1/progressive-settings'),
             'check_can_run_url' => rest_url('wp_to_html/v1/check-can-run'),
             'reset_diagnostics_url' => rest_url('wp_to_html/v1/reset-diagnostics'),
             'queue_reset_url'       => rest_url('wp_to_html/v1/queue-reset'),
@@ -466,6 +467,18 @@ CSS
 
                             <hr class="eh-divider">
 
+                            <!-- HTML Output -->
+                            <div class="eh-section">
+                                <span class="eh-field-label-header"><?php esc_html_e('HTML Output', 'wp-to-html'); ?></span>
+                                <label class="eh-toggle">
+                                    <input type="checkbox" id="wp-to-html-exclude-header" <?php echo $pro_active ? '' : 'disabled data-pro="1"'; ?>>
+                                    <span><?php esc_html_e('Exclude &lt;header&gt; from export', 'wp-to-html'); ?><?php echo $pro_active ? '' : ' <span class="eh-pro-badge">PRO</span>'; ?></span>
+                                </label>
+                                <p class="eh-hint"><?php esc_html_e('Removes the &lt;header&gt; element from every exported HTML file. Useful for headless or embedded deployments.', 'wp-to-html'); ?></p>
+                            </div>
+
+                            <hr class="eh-divider">
+
                             <!-- Delivery & Notifications -->
                             <div class="eh-section">
                                 <span class="eh-field-label-header"><?php esc_html_e('Delivery & Notifications', 'wp-to-html'); ?></span>
@@ -586,6 +599,11 @@ CSS
                         <button type="button" id="eh-settings-tab-html-btn" class="eh-settings-tab" role="tab" aria-pressed="false">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
                             <?php esc_html_e('HTML Button', 'wp-to-html'); ?>
+                        </button>
+                        <button type="button" id="eh-settings-tab-progressive" class="eh-settings-tab" role="tab" aria-pressed="false" <?php echo $pro_active ? '' : 'disabled data-pro="1"'; ?>>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <?php esc_html_e('Auto Export', 'wp-to-html'); ?>
+                            <?php echo $pro_active ? '' : '<span class="eh-pro-badge">PRO</span>'; ?>
                         </button>
                     </div>
                 </div>
@@ -986,6 +1004,109 @@ CSS
                             </div>
                         </div>
                     </div><!-- /#eh-settings-panel-html-btn -->
+
+                    <!-- Progressive / Auto Export Panel (Pro) -->
+                    <div id="eh-settings-panel-progressive" class="eh-settings-section" style="display:none;">
+                        <?php if ( ! $pro_active ) : ?>
+                        <div class="eh-pro-lock-notice">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <span><?php esc_html_e('Auto Export is a Pro feature. Upgrade to schedule automatic exports.', 'wp-to-html'); ?></span>
+                        </div>
+                        <?php else : ?>
+                        <div class="eh-settings-section-grid">
+
+                            <div class="eh-settings-block">
+                                <div class="eh-settings-block-head">
+                                    <div class="eh-settings-block-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3><?php esc_html_e('Progressive Auto Export', 'wp-to-html'); ?></h3>
+                                        <p><?php esc_html_e('Automatically export new and updated CPT posts on a schedule — no manual work required.', 'wp-to-html'); ?></p>
+                                    </div>
+                                </div>
+                                <div class="eh-settings-block-body">
+
+                                    <div class="eh-fs-field">
+                                        <label class="eh-fs-check" style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" id="wth-prog-enabled">
+                                            <span style="font-weight:600;"><?php esc_html_e('Enable automatic export', 'wp-to-html'); ?></span>
+                                        </label>
+                                        <span class="eh-fs-hint"><?php esc_html_e('When enabled, the export runs automatically on the chosen schedule.', 'wp-to-html'); ?></span>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:16px;">
+                                        <label class="eh-fs-label"><?php esc_html_e('Post types to export', 'wp-to-html'); ?></label>
+                                        <div id="wth-prog-cpt-list" class="eh-checks" style="margin-top:6px;">
+                                            <?php
+                                            $prog_settings = (array) get_option('wp_to_html_progressive_export', []);
+                                            $prog_cpts = isset($prog_settings['cpts']) && is_array($prog_settings['cpts']) ? array_map('sanitize_key', $prog_settings['cpts']) : [];
+                                            $objs = get_post_types(['public' => true, 'show_ui' => true], 'objects');
+                                            foreach ($objs as $pt_name => $pt_obj) :
+                                                if (in_array($pt_name, ['attachment'], true)) continue;
+                                                $checked = in_array($pt_name, $prog_cpts, true) ? 'checked' : '';
+                                                $label   = isset($pt_obj->labels->name) ? $pt_obj->labels->name : $pt_name;
+                                            ?>
+                                            <label class="eh-fs-check">
+                                                <input type="checkbox" class="wth-prog-cpt-chk" value="<?php echo esc_attr($pt_name); ?>" <?php echo esc_attr($checked); ?>>
+                                                <span><?php echo esc_html($label); ?> <code style="font-size:11px;opacity:.7"><?php echo esc_html($pt_name); ?></code></span>
+                                            </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <span class="eh-fs-hint"><?php esc_html_e('Only published posts modified since the last run will be exported (progressive mode).', 'wp-to-html'); ?></span>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:16px;">
+                                        <label class="eh-fs-label"><?php esc_html_e('Export schedule', 'wp-to-html'); ?></label>
+                                        <?php
+                                        $prog_schedule = isset($prog_settings['schedule']) ? (string) $prog_settings['schedule'] : 'daily';
+                                        ?>
+                                        <select id="wth-prog-schedule">
+                                            <option value="hourly"     <?php selected($prog_schedule, 'hourly'); ?>><?php esc_html_e('Hourly', 'wp-to-html'); ?></option>
+                                            <option value="twicedaily" <?php selected($prog_schedule, 'twicedaily'); ?>><?php esc_html_e('Twice daily', 'wp-to-html'); ?></option>
+                                            <option value="daily"      <?php selected($prog_schedule, 'daily'); ?>><?php esc_html_e('Daily', 'wp-to-html'); ?></option>
+                                            <option value="weekly"     <?php selected($prog_schedule, 'weekly'); ?>><?php esc_html_e('Weekly', 'wp-to-html'); ?></option>
+                                        </select>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:16px;">
+                                        <label class="eh-fs-label"><?php esc_html_e('Last run', 'wp-to-html'); ?></label>
+                                        <div id="wth-prog-last-run" style="font-size:13px;color:#555;padding:4px 0;">
+                                            <?php
+                                            $last = isset($prog_settings['last_run']) ? (string) $prog_settings['last_run'] : '';
+                                            echo $last ? esc_html($last) : esc_html__('Never', 'wp-to-html');
+                                            ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="eh-fs-field" style="margin-top:12px;">
+                                        <button type="button" class="eh-fs-btn" id="wth-prog-run-now">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                            <?php esc_html_e('Run Now', 'wp-to-html'); ?>
+                                            <span class="spinner eh-inline-spinner" id="wth-prog-run-spinner"></span>
+                                        </button>
+                                        <span id="wth-prog-run-msg" class="eh-fs-msg" style="display:inline-block;margin-left:10px;"></span>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="eh-settings-footer">
+                            <div class="eh-settings-footer-left">
+                                <div id="wth-prog-settings-msg" class="eh-fs-msg"></div>
+                            </div>
+                            <div class="eh-settings-footer-right">
+                                <button type="button" class="eh-fs-btn eh-fs-btn-primary" id="wth-prog-settings-save">
+                                    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <?php esc_html_e('Save Settings', 'wp-to-html'); ?>
+                                    <span class="spinner eh-inline-spinner" id="wth-prog-settings-spinner"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div><!-- /#eh-settings-panel-progressive -->
 
                 </div>
             </div><!-- /#eh-panel-settings -->

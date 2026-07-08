@@ -415,11 +415,27 @@ function updateSelectedCount(){
     }
 }
 
+function renderHomepageRowHtml() {
+    const checked = jQuery('#wp-to-html-include-home').is(':checked') ? 'checked' : '';
+    return `
+        <div class="eh-item eh-item-home">
+            <input type="checkbox" id="eh-homepage-check" ${checked}/>
+            <label for="eh-homepage-check">
+                <div class="eh-title">${escapeHtml('Homepage')}</div>
+                <div class="eh-meta">${escapeHtml((window.wpToHtmlData && wpToHtmlData.site_url) || '')}</div>
+            </label>
+        </div>
+    `;
+}
+
 function renderList(items, append = false) {
     const $list = jQuery('#eh-content-list');
+    const showHomeRow = ehState.type === 'page' && !append;
 
     if (!items || !items.length) {
-        if (!append) $list.html('<div class="eh-muted" style="padding:10px;">No results.</div>');
+        if (!append) {
+            $list.html((showHomeRow ? renderHomepageRowHtml() : '') + '<div class="eh-muted" style="padding:10px;">No results.</div>');
+        }
         return;
     }
 
@@ -444,7 +460,7 @@ function renderList(items, append = false) {
     if (append) {
         $list.append(html);
     } else {
-        $list.html(html);
+        $list.html((showHomeRow ? renderHomepageRowHtml() : '') + html);
     }
 }
 
@@ -1288,7 +1304,8 @@ async function ehResetServerLog() {
 
 function fetchExports() {
     return fetch(wpToHtmlData.exports_url, {
-        headers: { 'X-WP-Nonce': wpToHtmlData.nonce }
+        headers: { 'X-WP-Nonce': wpToHtmlData.nonce },
+        cache: 'no-store'
     })
         .then(safeJson);
 }
@@ -1303,7 +1320,9 @@ function renderExportsPanel(data) {
 
     // Build download section: #eh-download-zip handles all cases
     if (zipParts.length === 1) {
-        const dlUrl = wpToHtmlData.download_url + '?_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce);
+        // Include the zip filename as a cache-buster: it changes on every export, so a
+        // stale cached response (browser/CDN) never gets served in place of a fresh zip.
+        const dlUrl = wpToHtmlData.download_url + '?_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce) + '&v=' + encodeURIComponent(zipParts[0].file || '');
         $download
             .attr('href', dlUrl)
             .off('click.ehMultiZip')
@@ -1321,7 +1340,7 @@ function renderExportsPanel(data) {
                 e.preventDefault();
                 zipParts.forEach(function(zi, idx) {
                     setTimeout(function() {
-                        const dlUrl = wpToHtmlData.download_url + '?part=' + zi.part + '&_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce);
+                        const dlUrl = wpToHtmlData.download_url + '?part=' + zi.part + '&_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce) + '&v=' + encodeURIComponent(zi.file || '');
                         const a = document.createElement('a');
                         a.href = dlUrl;
                         a.download = zi.file || ('export-part' + zi.part + '.zip');
@@ -1336,7 +1355,7 @@ function renderExportsPanel(data) {
         jQuery('#eh-multizip-container').remove();
         const $container = jQuery('<div id="eh-multizip-container" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;"></div>');
         zipParts.forEach(function(zi) {
-            const dlUrl = wpToHtmlData.download_url + '?part=' + zi.part + '&_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce);
+            const dlUrl = wpToHtmlData.download_url + '?part=' + zi.part + '&_wpnonce=' + encodeURIComponent(wpToHtmlData.nonce) + '&v=' + encodeURIComponent(zi.file || '');
             const $btn = jQuery('<a class="button" style="font-size:11px;padding:2px 8px;"></a>')
                 .attr('href', dlUrl)
                 .attr('download', zi.file || '')
@@ -1694,24 +1713,28 @@ jQuery(function ($) {
         setFtpBusy(false);
     });
 
-    // Settings tabs (FTP | AWS S3 | PDF | HTML Button)
+    // Settings tabs (FTP | AWS S3 | PDF | HTML Button | Auto Export)
     function setSettingsTab(which) {
-        const isFtp     = which === 'ftp';
-        const isS3      = which === 's3';
-        const isPdf     = which === 'pdf';
-        const isHtmlBtn = which === 'html-btn';
+        const isFtp         = which === 'ftp';
+        const isS3          = which === 's3';
+        const isPdf         = which === 'pdf';
+        const isHtmlBtn     = which === 'html-btn';
+        const isProgressive = which === 'progressive';
 
         $('#eh-settings-tab-ftp').attr('aria-pressed', isFtp ? 'true' : 'false').toggleClass('is-active', isFtp);
         $('#eh-settings-tab-s3').attr('aria-pressed', isS3 ? 'true' : 'false').toggleClass('is-active', isS3);
         $('#eh-settings-tab-pdf').attr('aria-pressed', isPdf ? 'true' : 'false').toggleClass('is-active', isPdf);
         $('#eh-settings-tab-html-btn').attr('aria-pressed', isHtmlBtn ? 'true' : 'false').toggleClass('is-active', isHtmlBtn);
+        $('#eh-settings-tab-progressive').attr('aria-pressed', isProgressive ? 'true' : 'false').toggleClass('is-active', isProgressive);
 
         $('#eh-settings-panel-ftp').toggle(isFtp);
         $('#eh-settings-panel-s3').toggle(isS3);
         $('#eh-settings-panel-pdf').toggle(isPdf);
         $('#eh-settings-panel-html-btn').toggle(isHtmlBtn);
+        $('#eh-settings-panel-progressive').toggle(isProgressive);
 
         if (isS3) fetchS3Settings();
+        if (isProgressive) fetchProgressiveSettings();
     }
     $('#eh-settings-tab-ftp').on('click', () => setSettingsTab('ftp'));
     $('#eh-settings-tab-s3').on('click', () => {
@@ -1720,6 +1743,107 @@ jQuery(function ($) {
     });
     $('#eh-settings-tab-pdf').on('click', () => setSettingsTab('pdf'));
     $('#eh-settings-tab-html-btn').on('click', () => setSettingsTab('html-btn'));
+    $('#eh-settings-tab-progressive').on('click', () => {
+        if (!Number(wpToHtmlData?.pro_active || 0)) return;
+        setSettingsTab('progressive');
+    });
+
+    // ── Progressive / Auto Export settings ───────────────────────────────────
+
+    function progMsg(text, isError = false) {
+        const $m = $('#wth-prog-settings-msg');
+        $m.text(text).css('color', isError ? '#e53e3e' : '#38a169').show();
+        setTimeout(() => $m.fadeOut(), 4000);
+    }
+
+    function setProgBusy(isBusy) {
+        $('#wth-prog-settings-spinner').toggleClass('is-active', !!isBusy);
+        $('#wth-prog-settings-save').prop('disabled', !!isBusy);
+    }
+
+    async function fetchProgressiveSettings() {
+        if (!wpToHtmlData?.progressive_settings_url) return;
+        if (!Number(wpToHtmlData?.pro_active || 0)) return;
+        try {
+            const res = await fetch(wpToHtmlData.progressive_settings_url + '?_=' + Date.now(), {
+                headers: { 'X-WP-Nonce': wpToHtmlData.nonce },
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || typeof data !== 'object') return;
+
+            $('#wth-prog-enabled').prop('checked', !!data.enabled);
+            if (data.schedule) $('#wth-prog-schedule').val(data.schedule);
+            if (Array.isArray(data.cpts)) {
+                $('.wth-prog-cpt-chk').each(function () {
+                    $(this).prop('checked', data.cpts.includes($(this).val()));
+                });
+            }
+            if (data.last_run) {
+                $('#wth-prog-last-run').text(data.last_run);
+            }
+        } catch (_) {}
+    }
+
+    $('#wth-prog-settings-save').on('click', async function () {
+        setProgBusy(true);
+        const cpts = [];
+        $('.wth-prog-cpt-chk:checked').each(function () { cpts.push($(this).val()); });
+
+        try {
+            const res = await fetch(wpToHtmlData.progressive_settings_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': wpToHtmlData.nonce,
+                },
+                body: JSON.stringify({
+                    enabled:  $('#wth-prog-enabled').is(':checked') ? 1 : 0,
+                    cpts:     cpts,
+                    schedule: String($('#wth-prog-schedule').val() || 'daily'),
+                }),
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                progMsg('Settings saved.');
+            } else {
+                progMsg(data && data.message ? data.message : 'Could not save settings.', true);
+            }
+        } catch (_) {
+            progMsg('Network error. Please try again.', true);
+        }
+        setProgBusy(false);
+    });
+
+    $('#wth-prog-run-now').on('click', async function () {
+        const $btn = $(this);
+        const $spinner = $('#wth-prog-run-spinner');
+        const $msg = $('#wth-prog-run-msg');
+        $btn.prop('disabled', true);
+        $spinner.addClass('is-active');
+        $msg.text('').hide();
+        try {
+            const res = await fetch(wpToHtmlData.progressive_settings_url + '/run', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': wpToHtmlData.nonce,
+                },
+                body: '{}',
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                $msg.text(data.message || 'Export started.').css('color', '#38a169').show();
+                if (data.last_run) $('#wth-prog-last-run').text(data.last_run);
+            } else {
+                $msg.text(data && data.message ? data.message : 'Could not start export.').css('color', '#e53e3e').show();
+            }
+        } catch (_) {
+            $msg.text('Network error.').css('color', '#e53e3e').show();
+        }
+        $btn.prop('disabled', false);
+        $spinner.removeClass('is-active');
+    });
 
     // ── PDF Settings: Save ────────────────────────────────────────────────────
     function pdfMsg(html, isError = false) {
@@ -2181,6 +2305,14 @@ jQuery(function ($) {
         fetchContent();
     }, 250));
 
+    $('#eh-content-list').on('change', '#eh-homepage-check', function () {
+        $('#wp-to-html-include-home').prop('checked', this.checked).trigger('change');
+    });
+
+    $('#wp-to-html-include-home').on('change', function () {
+        $('#eh-homepage-check').prop('checked', this.checked);
+    });
+
     $('#eh-content-list').on('change', '.wp-to-html-select-item', function () {
         const id = Number($(this).data('id'));
         const type = String($(this).data('type'));
@@ -2405,7 +2537,8 @@ jQuery(function ($) {
                 upload_to_s3: $('#wp-to-html-upload-s3').is(':checked') ? 1 : 0,
                 s3_prefix: String($('#wp-to-html-s3-prefix').val() || '').trim(),
                 notify_complete: $('#wp-to-html-notify-complete').is(':checked') ? 1 : 0,
-                notify_emails: String($('#wp-to-html-notify-emails').val() || '').trim()
+                notify_emails: String($('#wp-to-html-notify-emails').val() || '').trim(),
+                exclude_header: $('#wp-to-html-exclude-header').is(':checked') ? 1 : 0
                 })
             })
             .then(safeJson)
